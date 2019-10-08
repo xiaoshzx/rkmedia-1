@@ -1,1 +1,13 @@
-.vscode
+# Common build output directory names
+build/
+.build/
+_build/
+build-output/
+cmake-out/
+
+# Backup files for Emacs
+*~
+
+# Ignore Visual Studio Code files
+.vsbuild/
+.vscode/
