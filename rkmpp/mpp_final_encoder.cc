@@ -162,10 +162,10 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   const ImageConfig &img_cfg = vconfig.image_cfg;
   MpiCmd mpi_cmd = MPP_CMD_BASE;
   MppParam param = NULL;
-  MppEncCfgSet mpp_cfg;
-  MppEncRcCfg &rc_cfg = mpp_cfg.rc;
-  MppEncPrepCfg &prep_cfg = mpp_cfg.prep;
-  MppEncCodecCfg &codec_cfg = mpp_cfg.codec;
+
+  MppEncRcCfg rc_cfg;
+  MppEncPrepCfg prep_cfg;
+  MppEncCodecCfg codec_cfg;
   unsigned int need_block = 1;
   int dummy = 1;
 
