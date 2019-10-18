@@ -37,8 +37,12 @@ __u32 GetV4L2Type(const char *v4l2type) {
     return 0;
   if (!strcmp(v4l2type, KEY_V4L2_C_TYPE(VIDEO_CAPTURE)))
     return V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  if (!strcmp(v4l2type, KEY_V4L2_C_TYPE(VIDEO_CAPTURE_MPLANE)))
+    return V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   if (!strcmp(v4l2type, KEY_V4L2_C_TYPE(VIDEO_OUTPUT)))
     return V4L2_BUF_TYPE_VIDEO_OUTPUT;
+  if (!strcmp(v4l2type, KEY_V4L2_C_TYPE(VIDEO_OUTPUT_MPLANE)))
+    return V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 
   if (!strcmp(v4l2type, KEY_V4L2_M_TYPE(MEMORY_MMAP)))
     return V4L2_MEMORY_MMAP;
