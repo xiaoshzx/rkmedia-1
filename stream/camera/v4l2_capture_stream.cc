@@ -26,6 +26,8 @@
 #include "buffer.h"
 #include "v4l2_stream.h"
 
+#define FMT_NUM_PLANES 1
+
 namespace easymedia {
 
 class V4L2CaptureStream : public V4L2Stream {
@@ -144,15 +146,7 @@ int V4L2CaptureStream::Open() {
     LOG("Failed to ioctl(VIDIOC_QUERYCAP): %m\n");
     return -1;
   }
-  if ((capture_type == V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
-      !(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
-    LOG("%s, Not a video capture device.\n", dev);
-    return -1;
-  }
-  if (!(cap.capabilities & V4L2_CAP_STREAMING)) {
-    LOG("%s does not support the streaming I/O method.\n", dev);
-    return -1;
-  }
+
   const char *data_type_str = data_type.c_str();
   struct v4l2_format fmt;
   fmt.type = capture_type;
@@ -199,13 +193,17 @@ int V4L2CaptureStream::Open() {
   int h = UPALIGNTO16(height);
   if (memory_type == V4L2_MEMORY_DMABUF) {
     int size = 0;
+
     if (pix_fmt != PIX_FMT_NONE)
       size = CalPixFmtSize(pix_fmt, w, h);
     if (size == 0) // unknown pixel format
       size = w * h * 4;
+
     for (size_t i = 0; i < req.count; i++) {
       struct v4l2_buffer buf;
+      struct v4l2_plane planes;
       memset(&buf, 0, sizeof(buf));
+      memset(&planes, 0, sizeof(planes));
       buf.type = req.type;
       buf.index = i;
       buf.memory = req.memory;
@@ -217,8 +215,11 @@ int V4L2CaptureStream::Open() {
         return -1;
       }
       buffer_vec.push_back(buffer);
-      buf.m.fd = buffer.GetFD();
-      buf.length = buffer.GetSize();
+      planes.m.fd = buffer.GetFD();
+      planes.length =  buffer.GetSize();
+      buf.m.planes = &planes;
+      buf.length = FMT_NUM_PLANES;
+
       if (v4l2_ctx->IoCtrl(VIDIOC_QBUF, &buf) < 0) {
         LOG("%s ioctl(VIDIOC_QBUF): %m\n", dev);
         return -1;
@@ -290,9 +291,10 @@ int V4L2CaptureStream::Close() {
 
 class V4L2AutoQBUF {
 public:
-  V4L2AutoQBUF(std::shared_ptr<V4L2Context> ctx, struct v4l2_buffer buf)
-      : v4l2_ctx(ctx), v4l2_buf(buf) {}
+  V4L2AutoQBUF(std::shared_ptr<V4L2Context> ctx, struct v4l2_buffer buf, struct v4l2_plane plane)
+      : v4l2_ctx(ctx), v4l2_buf(buf), planes(plane) {}
   ~V4L2AutoQBUF() {
+    v4l2_buf.m.planes = &planes;
     if (v4l2_ctx->IoCtrl(VIDIOC_QBUF, &v4l2_buf) < 0)
       LOG("index=%d, ioctl(VIDIOC_QBUF): %m\n", v4l2_buf.index);
   }
@@ -300,13 +302,14 @@ public:
 private:
   std::shared_ptr<V4L2Context> v4l2_ctx;
   struct v4l2_buffer v4l2_buf;
+  struct v4l2_plane planes;
 };
 
 class AutoQBUFMediaBuffer : public MediaBuffer {
 public:
   AutoQBUFMediaBuffer(const MediaBuffer &mb, std::shared_ptr<V4L2Context> ctx,
-                      struct v4l2_buffer buf)
-      : MediaBuffer(mb), auto_qbuf(ctx, buf) {}
+                      struct v4l2_buffer buf, struct v4l2_plane plane)
+      : MediaBuffer(mb), auto_qbuf(ctx, buf, plane) {}
 
 private:
   V4L2AutoQBUF auto_qbuf;
@@ -315,8 +318,8 @@ private:
 class AutoQBUFImageBuffer : public ImageBuffer {
 public:
   AutoQBUFImageBuffer(const MediaBuffer &mb, const ImageInfo &info,
-                      std::shared_ptr<V4L2Context> ctx, struct v4l2_buffer buf)
-      : ImageBuffer(mb, info), auto_qbuf(ctx, buf) {}
+                      std::shared_ptr<V4L2Context> ctx, struct v4l2_buffer buf, struct v4l2_plane plane)
+      : ImageBuffer(mb, info), auto_qbuf(ctx, buf, plane) {}
 
 private:
   V4L2AutoQBUF auto_qbuf;
@@ -327,23 +330,37 @@ std::shared_ptr<MediaBuffer> V4L2CaptureStream::Read() {
   if (!started && v4l2_ctx->SetStarted(true))
     started = true;
   struct v4l2_buffer buf;
+  struct v4l2_plane planes;
+  int bytesused;
   memset(&buf, 0, sizeof(buf));
+  memset(&planes, 0, sizeof(planes));
   buf.type = capture_type;
   buf.memory = memory_type;
+  if (memory_type ==  V4L2_MEMORY_DMABUF) {
+    buf.m.planes = &planes;
+    buf.length = FMT_NUM_PLANES;
+  }
   int ret = v4l2_ctx->IoCtrl(VIDIOC_DQBUF, &buf);
   if (ret < 0) {
     LOG("%s, ioctl(VIDIOC_DQBUF): %m\n", dev);
     return nullptr;
   }
+
+  if (memory_type ==  V4L2_MEMORY_DMABUF) {
+    bytesused = buf.m.planes->bytesused;
+  } else {
+    bytesused = buf.bytesused;
+  }
+
   struct timeval buf_ts = buf.timestamp;
   MediaBuffer &mb = buffer_vec[buf.index];
   std::shared_ptr<MediaBuffer> ret_buf;
-  if (buf.bytesused > 0) {
+  if (bytesused > 0) {
     if (pix_fmt != PIX_FMT_NONE) {
       ImageInfo info{pix_fmt, width, height, width, height};
-      ret_buf = std::make_shared<AutoQBUFImageBuffer>(mb, info, v4l2_ctx, buf);
+      ret_buf = std::make_shared<AutoQBUFImageBuffer>(mb, info, v4l2_ctx, buf, planes);
     } else {
-      ret_buf = std::make_shared<AutoQBUFMediaBuffer>(mb, v4l2_ctx, buf);
+      ret_buf = std::make_shared<AutoQBUFMediaBuffer>(mb, v4l2_ctx, buf, planes);
     }
   }
   if (ret_buf) {
@@ -352,7 +369,7 @@ std::shared_ptr<MediaBuffer> V4L2CaptureStream::Read() {
       assert(ret_buf->GetFD() == buf.m.fd);
     }
     ret_buf->SetTimeVal(buf_ts);
-    ret_buf->SetValidSize(buf.bytesused);
+    ret_buf->SetValidSize(bytesused);
   } else {
     if (v4l2_ctx->IoCtrl(VIDIOC_QBUF, &buf) < 0)
       LOG("%s, index=%d, ioctl(VIDIOC_QBUF): %m\n", dev, buf.index);
