@@ -14,6 +14,13 @@ if(LIVE555_SERVER_H264)
       live555/server/h264_server_media_subsession.cc)
 endif()
 
+option(LIVE555_SERVER_H265 "compile: live555 server with h265" OFF)
+if(LIVE555_SERVER_H265)
+  set(EASY_MEDIA_LIVE555_SERVER_SOURCE_FILES
+      ${EASY_MEDIA_LIVE555_SERVER_SOURCE_FILES}
+      live555/server/h265_server_media_subsession.cc)
+endif()
+
 set(EASY_MEDIA_LIVE555_SERVER_SOURCE_FILES
     ${EASY_MEDIA_LIVE555_SERVER_SOURCE_FILES}
     live555/server/live555_media_input.cc live555/server/rtsp_server.cc)

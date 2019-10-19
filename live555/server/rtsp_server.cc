@@ -29,6 +29,7 @@
 #endif
 
 #include "h264_server_media_subsession.hh"
+#include "h265_server_media_subsession.hh"
 #include "live555_media_input.hh"
 
 #include "buffer.h"
@@ -152,6 +153,10 @@ RtspServerFlow::RtspServerFlow(const char *param)
       if (type == VIDEO_H264) {
         subsession =
             H264ServerMediaSubsession::createNew(sms->envir(), *server_input);
+        sm.process = SendVideoToServer;
+      } else if (type == VIDEO_H265) {
+        subsession =
+            H265ServerMediaSubsession::createNew(sms->envir(), *server_input);
         sm.process = SendVideoToServer;
       } else if (string_start_withs(type, AUDIO_PREFIX)) {
         // pcm or vorbis
