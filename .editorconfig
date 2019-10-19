@@ -9,7 +9,7 @@ indent_style = space
 [CMakeLists.*]
 indent_size = 4
 
-[*.h,*.cc]
+[*.{h,cc}]
 indent_size = 2
 
 [*.md]
