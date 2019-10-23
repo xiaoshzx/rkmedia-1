@@ -126,7 +126,7 @@ void FileReadFlow::ReadThreadRun() {
     if (is_image) {
       int num = 0, den = 0;
       GetPixFmtNumDen(info.pix_fmt, num, den);
-      alloc_size = info.vir_width * info.vir_height * num * den;
+      alloc_size = info.vir_width * info.vir_height * num / den;
     }
   }
   while (loop) {
