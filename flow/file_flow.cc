@@ -179,4 +179,71 @@ DEFINE_FLOW_FACTORY(FileReadFlow, Flow)
 const char *FACTORY(FileReadFlow)::ExpectedInputDataType() { return nullptr; }
 const char *FACTORY(FileReadFlow)::OutPutDataType() { return ""; }
 
+static bool save_buffer(Flow *f, MediaBufferVector &input_vector);
+
+class FileWriteFlow : public Flow {
+public:
+  FileWriteFlow(const char *param);
+  virtual ~FileWriteFlow();
+  static const char *GetFlowName() { return "file_write_flow"; }
+
+private:
+  friend bool save_buffer(Flow *f, MediaBufferVector &input_vector);
+
+private:
+  std::shared_ptr<Stream> fstream;
+  std::string path;
+};
+
+FileWriteFlow::FileWriteFlow(const char *param) {
+  std::map<std::string, std::string> params;
+  if (!parse_media_param_map(param, params)) {
+    SetError(-EINVAL);
+    return;
+  }
+  std::string s;
+  std::string value;
+  CHECK_EMPTY_SETERRNO(value, params, KEY_PATH, EINVAL)
+  path = value;
+  CHECK_EMPTY_SETERRNO(value, params, KEY_OPEN_MODE, EINVAL)
+  PARAM_STRING_APPEND(s, KEY_PATH, path);
+  PARAM_STRING_APPEND(s, KEY_OPEN_MODE, value);
+  fstream = REFLECTOR(Stream)::Create<Stream>("file_write_stream", s.c_str());
+  if (!fstream) {
+    fprintf(stderr, "Create stream file_write_stream failed\n");
+    SetError(-EINVAL);
+    return;
+  }
+
+  SlotMap sm;
+  sm.input_slots.push_back(0);
+  sm.thread_model = Model::ASYNCCOMMON;
+  sm.mode_when_full = InputMode::DROPFRONT;
+  sm.input_maxcachenum.push_back(0);
+  sm.process = save_buffer;
+
+  std::string &name = params[KEY_NAME];
+  if (!InstallSlotMap(sm, name, 0)) {
+    LOG("Fail to InstallSlotMap, %s\n", name.c_str());
+    return;
+  }
+}
+
+FileWriteFlow::~FileWriteFlow() {
+  StopAllThread();
+  fstream.reset();
+}
+
+bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
+  FileWriteFlow *flow = static_cast<FileWriteFlow *>(f);
+  auto &buffer = input_vector[0];
+  if (!buffer)
+    return true;
+  return flow->fstream->Write(buffer->GetPtr(), 1, buffer->GetValidSize());
+}
+
+DEFINE_FLOW_FACTORY(FileWriteFlow, Flow)
+const char *FACTORY(FileWriteFlow)::ExpectedInputDataType() { return nullptr; }
+const char *FACTORY(FileWriteFlow)::OutPutDataType() { return ""; }
+
 } // namespace easymedia
