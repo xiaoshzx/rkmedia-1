@@ -35,9 +35,8 @@ bool Encoder::InitConfig(const MediaConfig &cfg) {
 
 void VideoEncoder::RequestChange(uint32_t change,
                                  std::shared_ptr<ParameterBuffer> value) {
-  auto p = std::make_pair(change, value);
   change_mtx.lock();
-  change_list.push_back(std::move(p));
+  change_list.emplace_back(change, std::move(value));
   change_mtx.unlock();
 }
 
@@ -49,10 +48,10 @@ VideoEncoder::PeekChange() {
         std::pair<uint32_t, std::shared_ptr<ParameterBuffer>>(0, nullptr);
     return empty;
   }
-  std::pair<uint32_t, std::shared_ptr<ParameterBuffer>> &p =
+  std::pair<uint32_t, std::shared_ptr<ParameterBuffer>> p =
       change_list.front();
   change_list.pop_front();
-  return std::move(p);
+  return p;
 }
 
 DEFINE_PART_FINAL_EXPOSE_PRODUCT(VideoEncoder, Encoder)

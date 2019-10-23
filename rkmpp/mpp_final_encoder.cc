@@ -33,14 +33,14 @@ public:
   virtual ~MPPConfig() = default;
   virtual bool InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) = 0;
   virtual bool CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
-                                 ParameterBuffer *val) = 0;
+                                 std::shared_ptr<ParameterBuffer> val) = 0;
 };
 
 class MPPMJPEGConfig : public MPPConfig {
 public:
   virtual bool InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) override;
   virtual bool CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
-                                 ParameterBuffer *val) override;
+                                 std::shared_ptr<ParameterBuffer> val) override;
 };
 
 static bool MppEncPrepConfig(MppEncPrepCfg &prep_cfg,
@@ -79,13 +79,13 @@ bool MPPMJPEGConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   }
   mpp_enc.GetConfig().img_cfg.image_info = img_cfg.image_info;
   mpp_enc.GetConfig().type = Type::Image;
-  ParameterBuffer change;
-  change.SetValue(img_cfg.qp_init);
-  return CheckConfigChange(mpp_enc, VideoEncoder::kQPChange, &change);
+  std::shared_ptr<ParameterBuffer> change = std::make_shared<ParameterBuffer>(0);
+  change->SetValue(img_cfg.qp_init);
+  return CheckConfigChange(mpp_enc, VideoEncoder::kQPChange, change);
 }
 
 bool MPPMJPEGConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
-                                       ParameterBuffer *val) {
+                                       std::shared_ptr<ParameterBuffer> val) {
   ImageConfig &iconfig = mpp_enc.GetConfig().img_cfg;
   if (change & VideoEncoder::kQPChange) {
     int quant = val->GetValue();
@@ -118,7 +118,7 @@ public:
   MPPCommonConfig(MppCodingType type) : code_type(type) {}
   virtual bool InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) override;
   virtual bool CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
-                                 ParameterBuffer *val) override;
+                                 std::shared_ptr<ParameterBuffer> val) override;
 
 private:
   MppCodingType code_type;
@@ -317,7 +317,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
 }
 
 bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
-                                        ParameterBuffer *val) {
+                                        std::shared_ptr<ParameterBuffer> val) {
   VideoConfig &vconfig = mpp_enc.GetConfig().vid_cfg;
   MppEncRcCfg rc_cfg;
 
@@ -447,7 +447,7 @@ bool MPPFinalEncoder::CheckConfigChange(
   if (!mpp_config)
     return false;
   return mpp_config->CheckConfigChange(*this, change_pair.first,
-                                       change_pair.second.get());
+                                       change_pair.second);
 }
 
 DEFINE_VIDEO_ENCODER_FACTORY(MPPFinalEncoder)
