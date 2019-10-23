@@ -39,7 +39,14 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMakeTargets")
 # ----------------------------------------------------------------------------
 # enable test in this project
 # ----------------------------------------------------------------------------
-enable_testing()
+if(NOT DEFINED BUILD_TESTING)
+  option(BUILD_TESTING "Build easymedia with testing." OFF)
+  mark_as_advanced(BUILD_TESTING)
+endif()
+include(CTest)
+if(BUILD_TESTING)
+  enable_testing()
+endif()
 
 # ----------------------------------------------------------------------------
 # Compiler detection
@@ -131,3 +138,6 @@ endif()
 
 include_directories(include/easymedia)
 add_subdirectory(src)
+if(BUILD_TESTING)
+  add_subdirectory(test)
+endif()

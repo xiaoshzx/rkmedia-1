@@ -198,7 +198,7 @@ private:
 std::string gen_datatype_rule(std::map<std::string, std::string> &params);
 Model GetModelByString(const std::string &model);
 InputMode GetInputModelByString(const std::string &in_model);
-void ParseParamToSlotMap(std::map<std::string, std::string> &params,
+_API void ParseParamToSlotMap(std::map<std::string, std::string> &params,
                          SlotMap &sm, int &input_maxcachenum);
 size_t FlowOutputHoldInput(std::shared_ptr<MediaBuffer> &out_buffer,
                            const MediaBufferVector &input_vector);

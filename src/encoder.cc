@@ -31,8 +31,7 @@ VideoEncoder::PeekChange() {
         std::pair<uint32_t, std::shared_ptr<ParameterBuffer>>(0, nullptr);
     return empty;
   }
-  std::pair<uint32_t, std::shared_ptr<ParameterBuffer>> p =
-      change_list.front();
+  std::pair<uint32_t, std::shared_ptr<ParameterBuffer>> p = change_list.front();
   change_list.pop_front();
   return p;
 }

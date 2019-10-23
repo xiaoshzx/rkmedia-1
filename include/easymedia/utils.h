@@ -80,15 +80,15 @@ namespace easymedia {
 #define PARAM_STRING_APPEND_PARAM_STRING(p1, p2) p1.append(" ").append(p2)
 
 // delim: '=', '\n'
-bool parse_media_param_map(const char *param,
-                           std::map<std::string, std::string> &map);
+_API bool parse_media_param_map(const char *param,
+                                std::map<std::string, std::string> &map);
 bool parse_media_param_list(const char *param, std::list<std::string> &list,
                             const char delim = '\n');
 int parse_media_param_match(
     const char *param, std::map<std::string, std::string> &map,
     std::list<std::pair<const std::string, std::string &>> &list);
-bool has_intersection(const char *str, const char *expect,
-                      std::list<std::string> *expect_list);
+_API bool has_intersection(const char *str, const char *expect,
+                           std::list<std::string> *expect_list);
 
 std::string get_media_value_by_key(const char *param, const char *key);
 

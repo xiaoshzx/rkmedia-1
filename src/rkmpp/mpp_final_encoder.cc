@@ -62,7 +62,8 @@ bool MPPMJPEGConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   }
   mpp_enc.GetConfig().img_cfg.image_info = img_cfg.image_info;
   mpp_enc.GetConfig().type = Type::Image;
-  std::shared_ptr<ParameterBuffer> change = std::make_shared<ParameterBuffer>(0);
+  std::shared_ptr<ParameterBuffer> change =
+      std::make_shared<ParameterBuffer>(0);
   change->SetValue(img_cfg.qp_init);
   return CheckConfigChange(mpp_enc, VideoEncoder::kQPChange, change);
 }
