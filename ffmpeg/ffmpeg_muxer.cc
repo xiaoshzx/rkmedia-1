@@ -49,6 +49,7 @@ public:
 
 private:
   std::string path;
+  std::string oformat;
   AVFormatContext *context;
   std::vector<AVStream *> streams;
   int nb_streams;
@@ -73,6 +74,8 @@ FFMPEGMuxer::FFMPEGMuxer(const char *param)
   std::list<std::pair<const std::string, std::string &>> req_list;
   req_list.push_back(
       std::pair<const std::string, std::string &>(KEY_PATH, path));
+  req_list.push_back(
+      std::pair<const std::string, std::string &>(KEY_OUTPUTDATATYPE, oformat));
   parse_media_param_match(param, params, req_list);
 }
 
@@ -92,7 +95,9 @@ bool FFMPEGMuxer::Init() {
     return false;
   }
   AVFormatContext *c = NULL;
-  auto ret = avformat_alloc_output_context2(&c, NULL, NULL, path.c_str());
+  auto ret = avformat_alloc_output_context2(&c, NULL,
+                                            oformat.empty() ? NULL : oformat.c_str(),
+                                            path.c_str());
   if (!c) {
     fprintf(stderr,
             "avformat_alloc_output_context2 failed for url %s, ret: %d\n",
