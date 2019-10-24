@@ -54,18 +54,38 @@ static void sigterm_handler(int sig) {
 #include "codec.h"
 
 #define MAX_FILE_NUM 10
-static char optstr[] = "?d:p:c:u:";
+static char optstr[] = "?d:p:c:u:t:";
+
+enum {
+  STREAM_TYPE_NONE,
+  STREAM_TYPE_H264,
+  STREAM_TYPE_H265
+};
 
 int main(int argc, char **argv) {
-  int c;
+  int c, stream_type, stream_idr_type;
   std::string input_dir_path;
   int port = 554;                  // rtsp port
   std::string channel_name;        // rtsp channel name
   std::string user_name, user_pwd; // rtsp user name and password
 
   opterr = 1;
+  stream_type = STREAM_TYPE_NONE;
+  stream_idr_type = 0;
   while ((c = getopt(argc, argv, optstr)) != -1) {
     switch (c) {
+    case 't': {
+      if (strstr(optarg, "h264")) {
+        stream_type = STREAM_TYPE_H264;
+        stream_idr_type = 5;
+      } else if (strstr(optarg, "h265")) {
+        stream_type = STREAM_TYPE_H265;
+        stream_idr_type = 19;
+      } else {
+        fprintf(stderr, "stream type only support \"h264\" or \"h265\"\n");
+        exit(EXIT_FAILURE);
+      }
+    } break;
     case 'd':
       input_dir_path = optarg;
       printf("input directory path: %s\n", input_dir_path.c_str());
@@ -89,14 +109,17 @@ int main(int argc, char **argv) {
     case '?':
     default:
       printf("usage example: \n");
-      printf("rtsp_server_test -d h264_frames_dir -p 554 -c main_stream -u "
+      printf("rtsp_server_test -t h264 -d h264_frames_dir -p 554 -c main_stream -u "
+             "admin:123456\n");
+      printf("rtsp_server_test -t h265 -d h265_frames_dir -p 554 -c main_stream -u "
              "admin:123456\n\n");
       printf("On PC: ffplay -rtsp_transport tcp -stimeout 2000000 "
              "rtsp://admin:123456@192.168.xxx.xxx/main_stream\n");
       break;
     }
   }
-  if (input_dir_path.empty() || channel_name.empty())
+  if ((stream_type == STREAM_TYPE_NONE) ||
+    input_dir_path.empty() || channel_name.empty())
     assert(0);
   std::list<std::shared_ptr<easymedia::MediaBuffer>> spspps;
   std::vector<std::shared_ptr<easymedia::MediaBuffer>> buffer_list;
@@ -105,10 +128,16 @@ int main(int argc, char **argv) {
   int file_index = 0;
   while (file_index <= MAX_FILE_NUM) {
     std::string input_file_path;
-    input_file_path.append(input_dir_path)
-        .append("/")
-        .append(std::to_string(file_index))
-        .append(".h264_frame");
+    if (stream_type == STREAM_TYPE_H264)
+      input_file_path.append(input_dir_path)
+          .append("/")
+          .append(std::to_string(file_index))
+          .append(".h264_frame");
+    else
+      input_file_path.append(input_dir_path)
+          .append("/")
+          .append(std::to_string(file_index))
+          .append(".h265_frame");
     printf("file : %s\n", input_file_path.c_str());
     FILE *f = fopen(input_file_path.c_str(), "re");
     if (!f) {
@@ -128,25 +157,37 @@ int main(int argc, char **argv) {
     ssize_t read_size = fread(buffer->GetPtr(), 1, len, f);
     assert(read_size == len);
     fclose(f);
+    /* 0.h264_frame must be sps pps;
+     * 0.h265_frame must be vps sps pps;
+     * As live only accept one slice one time, separate vps/sps/pps
+     */
     if (file_index == 0) {
-      // 0.h264_frame must be sps pps
-      // As live only accept one slice one time, separate sps and pps
-      spspps = easymedia::split_h264_separate((const uint8_t *)buffer->GetPtr(),
-                                              len, easymedia::gettimeofday());
+      if (stream_type == STREAM_TYPE_H264)
+        spspps = easymedia::split_h264_separate((const uint8_t *)buffer->GetPtr(),
+                                                len, easymedia::gettimeofday());
+      else
+        spspps = easymedia::split_h265_separate((const uint8_t *)buffer->GetPtr(),
+                                                len, easymedia::gettimeofday());
       file_index++;
       continue;
     }
     uint8_t *p = (uint8_t *)buffer->GetPtr();
     uint8_t nal_type = 0;
     assert(p[0] == 0 && p[1] == 0);
-    if (p[2] == 0 && p[3] == 1) {
-      nal_type = p[4] & 0x1f;
-    } else if (p[2] == 1) {
-      nal_type = p[3] & 0x1f;
+    if (p[2] == 0 && p[3] == 1) {//0x00000001
+      nal_type = p[4];
+    } else if (p[2] == 1) {//0x000001
+      nal_type = p[3];
     } else {
-      assert(0 && "not h264 data");
+      assert(0 && "not h264 or h265 data");
     }
-    if (nal_type == 5)
+
+    if (stream_type == STREAM_TYPE_H264)
+        nal_type = nal_type & 0x1f;
+    else
+        nal_type = (nal_type & 0x7E) >> 1;
+
+    if (nal_type == stream_idr_type)
       buffer->SetUserFlag(easymedia::MediaBuffer::kIntra);
     buffer->SetValidSize(len);
     // buffer->SetUSTimeStamp(easymedia::gettimeofday()); // us
@@ -156,8 +197,9 @@ int main(int argc, char **argv) {
   // 2. create rtsp server
   std::string flow_name = "live555_rtsp_server";
   std::string param;
+  // VIDEO_H264 "," AUDIO_PCM
   PARAM_STRING_APPEND(param, KEY_INPUTDATATYPE,
-                      VIDEO_H264); // VIDEO_H264 "," AUDIO_PCM
+    (stream_type == STREAM_TYPE_H264) ? VIDEO_H264 : VIDEO_H265);
   PARAM_STRING_APPEND(param, KEY_CHANNEL_NAME, channel_name);
   PARAM_STRING_APPEND_TO(param, KEY_PORT_NUM, port);
   if (!user_name.empty() && !user_pwd.empty()) {

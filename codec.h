@@ -60,10 +60,12 @@ private:
   std::shared_ptr<MediaBuffer> extra_data;
 };
 
-_API const uint8_t *find_h264_startcode(const uint8_t *p, const uint8_t *end);
+_API const uint8_t *find_nalu_startcode(const uint8_t *p, const uint8_t *end);
 // must be h264 data
 _API std::list<std::shared_ptr<MediaBuffer>>
 split_h264_separate(const uint8_t *buffer, size_t length, int64_t timestamp);
+_API std::list<std::shared_ptr<MediaBuffer>>
+split_h265_separate(const uint8_t *buffer, size_t length, int64_t timestamp);
 
 } // namespace easymedia
 

@@ -108,7 +108,7 @@ static const uint8_t *find_startcode_internal(const uint8_t *p,
   return end + 3;
 }
 
-const uint8_t *find_h264_startcode(const uint8_t *p, const uint8_t *end) {
+const uint8_t *find_nalu_startcode(const uint8_t *p, const uint8_t *end) {
   const uint8_t *out = find_startcode_internal(p, end);
   if (p < out && out < end && !out[-1])
     out--;
@@ -121,14 +121,14 @@ split_h264_separate(const uint8_t *buffer, size_t length, int64_t timestamp) {
   const uint8_t *p = buffer;
   const uint8_t *end = p + length;
   const uint8_t *nal_start = nullptr, *nal_end = nullptr;
-  nal_start = find_h264_startcode(p, end);
+  nal_start = find_nalu_startcode(p, end);
   // 00 00 01 or 00 00 00 01
   size_t start_len = (nal_start[2] == 1 ? 3 : 4);
   for (;;) {
     if (nal_start == end)
       break;
     nal_start += start_len;
-    nal_end = find_h264_startcode(nal_start, end);
+    nal_end = find_nalu_startcode(nal_start, end);
     size_t size = nal_end - nal_start + start_len;
     uint8_t nal_type = (*nal_start) & 0x1F;
     uint32_t flag;
@@ -162,5 +162,55 @@ split_h264_separate(const uint8_t *buffer, size_t length, int64_t timestamp) {
   }
   return std::move(l);
 }
+
+std::list<std::shared_ptr<MediaBuffer>>
+split_h265_separate(const uint8_t *buffer, size_t length, int64_t timestamp) {
+  std::list<std::shared_ptr<MediaBuffer>> l;
+  const uint8_t *p = buffer;
+  const uint8_t *end = p + length;
+  const uint8_t *nal_start = nullptr, *nal_end = nullptr;
+  nal_start = find_nalu_startcode(p, end);
+  // 00 00 01 or 00 00 00 01
+  size_t start_len = (nal_start[2] == 1 ? 3 : 4);
+  for (;;) {
+    if (nal_start == end)
+      break;
+    nal_start += start_len;
+    nal_end = find_nalu_startcode(nal_start, end);
+    size_t size = nal_end - nal_start + start_len;
+    uint8_t nal_type = ((*nal_start) & 0x7E) >> 1;
+    uint32_t flag;
+    switch (nal_type) {
+    case 32:
+    case 33:
+    case 34:
+      flag = MediaBuffer::kExtraIntra;
+      break;
+    case 19:
+      flag = MediaBuffer::kIntra;
+      break;
+//    case 1:
+//      flag = MediaBuffer::kPredicted;
+//      break;
+    default:
+      flag = 0;
+    }
+    auto sub_buffer = MediaBuffer::Alloc(size);
+    if (!sub_buffer) {
+      LOG_NO_MEMORY(); // fatal error
+      l.clear();
+      return l;
+    }
+    memcpy(sub_buffer->GetPtr(), nal_start - start_len, size);
+    sub_buffer->SetValidSize(size);
+    sub_buffer->SetUserFlag(flag);
+    sub_buffer->SetUSTimeStamp(timestamp);
+    l.push_back(sub_buffer);
+
+    nal_start = nal_end;
+  }
+  return std::move(l);
+}
+
 
 } // namespace easymedia
