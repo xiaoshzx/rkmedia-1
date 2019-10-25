@@ -387,14 +387,12 @@ void Flow::Input::Init(Flow *f, Model m, int mcn, InputMode im, bool f_block,
   }
 }
 
-bool Flow::SetAsSource(const std::vector<int> &input_slots,
-                       const std::vector<int> &output_slots, FunctionProcess f,
+bool Flow::SetAsSource(const std::vector<int> &output_slots, FunctionProcess f,
                        const std::string &mark) {
   source_start_cond_mtx = std::make_shared<ConditionLockMutex>();
   if (!source_start_cond_mtx)
     return false;
   SlotMap sm;
-  sm.input_slots = input_slots;
   sm.output_slots = output_slots;
   sm.process = f;
   sm.thread_model = Model::SYNC;

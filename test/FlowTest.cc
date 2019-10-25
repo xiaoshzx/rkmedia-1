@@ -60,7 +60,7 @@ MockSourceFlow::MockSourceFlow(const char *param)
 
   buffer_ = MediaBuffer::Alloc(320 * 240 * 3 / 2);
 
-  if (!SetAsSource(std::vector<int>({0}), std::vector<int>({0}), do_src, name_)) {
+  if (!SetAsSource(std::vector<int>({0}), do_src, name_)) {
     SetError(-EINVAL);
     return;
   }
