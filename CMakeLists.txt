@@ -1,10 +1,6 @@
-# -----------------------------------------
-#
-# Hertz Wang 1989wanghang@163.com
-#
-# SPDX-License-Identifier: GPL-3.0-or-later
-#
-# -----------------------------------------
+# Copyright 2019 Fuzhou Rockchip Electronics Co.,Ltd. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
 
 # vi: set noexpandtab syntax=cmake:
 
@@ -133,85 +129,5 @@ if(LIBION_FOUND)
 endif()
 endif()
 
-aux_source_directory(. EASY_MEDIA_SOURCE_FILES)
-
-# ----------------------------------------------------------------------------
-# Start module definition
-# ----------------------------------------------------------------------------
-
-option(RKMPP "compile: rkmpp wrapper" OFF)
-if(RKMPP)
-  include_directories(rkmpp)
-  include_directories(${RKMPP_HEADER_DIR})
-  add_subdirectory(rkmpp)
-endif()
-
-option(OGG "compile: ogg" OFF)
-if(OGG)
-  add_subdirectory(ogg)
-endif()
-
-add_subdirectory(ffmpeg)
-
-option(LIVE555 "compile: live555" OFF)
-if(LIVE555)
-  include_directories(${GROUPSOCK_HEADER_DIR})
-  include_directories(${USAGEENVIRONMENT_HEADER_DIR})
-  add_subdirectory(live555)
-endif()
-
-option(FLOW "compile: flow" ON)
-if(FLOW)
-  add_subdirectory(flow)
-  set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} pthread)
-endif()
-
-option(STREAM "compile: stream" ON)
-if(STREAM)
-  add_subdirectory(stream)
-endif()
-
-if(FILTER)
-  add_subdirectory(rkrga)
-  if(RKNN)
-    include_directories(${RKNPU_HEADER_DIR})
-    add_subdirectory(rknn)
-  endif()
-endif()
-
-set(LIBRARY_VERSION 1.0.1)
-set(LIBRARY_NAME easymedia)
-
-add_library(${LIBRARY_NAME} SHARED ${EASY_MEDIA_SOURCE_FILES})
-file(GLOB EASY_MEDIA_RELEASE_HEADERS *.h)
-set_target_properties(${LIBRARY_NAME}
-                      PROPERTIES PUBLIC_HEADER "${EASY_MEDIA_RELEASE_HEADERS}")
-set_target_properties(${LIBRARY_NAME} PROPERTIES VERSION ${LIBRARY_VERSION})
-
-if(SANITIZER)
-  add_definitions(-fsanitize=address -static-libasan -g)
-  target_link_libraries(${LIBRARY_NAME} libasan.a)
-endif()
-
-if(EASY_MEDIA_COMPILE_DEFINITIONS)
-  add_definitions(${EASY_MEDIA_COMPILE_DEFINITIONS})
-endif()
-
-if(EASY_MEDIA_DEPENDENT_LIBS)
-  target_link_libraries(${LIBRARY_NAME} ${EASY_MEDIA_DEPENDENT_LIBS})
-endif()
-
-# cmake-format: off
-# message(headers: "${EASY_MEDIA_RELEASE_HEADERS}")
-# message(files: "${EASY_MEDIA_SOURCE_FILES}")
-# message(definitions: "${EASY_MEDIA_COMPILE_DEFINITIONS}")
-# message(libs: "${EASY_MEDIA_DEPENDENT_LIBS}")
-# cmake-format: on
-
-install(TARGETS ${LIBRARY_NAME}
-        LIBRARY DESTINATION "lib"
-        PUBLIC_HEADER DESTINATION "include/easymedia")
-
-configure_file("libeasymedia.pc.cmake" "libeasymedia.pc" @ONLY)
-install(FILES "${CMAKE_BINARY_DIR}/libeasymedia.pc"
-        DESTINATION "lib/pkgconfig/")
+include_directories(include/easymedia)
+add_subdirectory(src)
