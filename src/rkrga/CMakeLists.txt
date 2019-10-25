@@ -1,10 +1,8 @@
-# -----------------------------------------
 #
-# Hertz Wang 1989wanghang@163.com
+# Copyright 2019 Fuzhou Rockchip Electronics Co., Ltd. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
 #
-# SPDX-License-Identifier: GPL-3.0-or-later
-#
-# -----------------------------------------
 
 # vi: set noexpandtab syntax=cmake:
 
