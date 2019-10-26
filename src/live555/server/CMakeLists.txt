@@ -28,10 +28,7 @@ set(EASY_MEDIA_LIVE555_SOURCE_FILES
     PARENT_SCOPE)
 set(EASY_MEDIA_LIVE555_LIBS
     ${EASY_MEDIA_LIVE555_LIBS}
-    BasicUsageEnvironment
-    groupsock
-    liveMedia
-    UsageEnvironment
+    ${LIVEMEDIA_LIBRARIES}
     PARENT_SCOPE)
 option(RTSP_SERVER_TEST "compile: rtsp server test" ON)
 if(RTSP_SERVER_TEST)
