@@ -22,6 +22,7 @@ public:
     StopAllThread();
   }
   static const char *GetFlowName() { return "video_enc"; }
+  int Control(unsigned long int request, ...);
 
 private:
   std::shared_ptr<VideoEncoder> enc;
@@ -148,6 +149,16 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false) {
       SetOutput(nullbuffer, 1);
     }
   }
+}
+
+int VideoEncoderFlow::Control(unsigned long int request, ...) {
+  va_list ap;
+  va_start(ap, request);
+  auto value = va_arg(ap, std::shared_ptr<ParameterBuffer>);
+  va_end(ap);
+  assert(value);
+  enc->RequestChange(request, value);
+  return 0;
 }
 
 DEFINE_FLOW_FACTORY(VideoEncoderFlow, Flow)
