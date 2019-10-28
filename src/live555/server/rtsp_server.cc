@@ -11,8 +11,16 @@
 #include <liveMedia/RTSPServer.hh>
 #endif
 
+#if !defined(LIVE555_SERVER_H264) && !defined(LIVE555_SERVER_H265)
+#error "This RTSP !VIDEO! implementation currently only support at least one of h264 and h265!!!"
+#endif
+
+#ifdef LIVE555_SERVER_H264
 #include "h264_server_media_subsession.hh"
+#endif
+#ifdef LIVE555_SERVER_H265
 #include "h265_server_media_subsession.hh"
+#endif
 #include "live555_media_input.hh"
 
 #include "buffer.h"
@@ -134,12 +142,16 @@ RtspServerFlow::RtspServerFlow(const char *param)
       SlotMap sm;
       ServerMediaSubsession *subsession = nullptr;
       if (type == VIDEO_H264) {
+#ifdef LIVE555_SERVER_H264
         subsession =
             H264ServerMediaSubsession::createNew(sms->envir(), *server_input);
+#endif
         sm.process = SendVideoToServer;
       } else if (type == VIDEO_H265) {
+#ifdef LIVE555_SERVER_H265
         subsession =
             H265ServerMediaSubsession::createNew(sms->envir(), *server_input);
+#endif
         sm.process = SendVideoToServer;
       } else if (string_start_withs(type, AUDIO_PREFIX)) {
         // pcm or vorbis
