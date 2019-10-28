@@ -70,8 +70,7 @@ FileReadFlow::FileReadFlow(const char *param)
   value = params[KEY_LOOP_TIME];
   if (!value.empty())
     loop_time = std::stoi(value);
-  if (!SetAsSource(std::vector<int>({0}), std::vector<int>({0}),
-                   void_transaction00, path)) {
+  if (!SetAsSource(std::vector<int>({0}), void_transaction00, path)) {
     SetError(-EINVAL);
     return;
   }

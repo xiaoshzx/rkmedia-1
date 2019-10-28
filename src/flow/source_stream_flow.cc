@@ -48,8 +48,7 @@ SourceStreamFlow::SourceStreamFlow(const char *param)
     SetError(-EINVAL);
     return;
   }
-  if (!SetAsSource(std::vector<int>({0}), std::vector<int>({0}),
-                   void_transaction00, name)) {
+  if (!SetAsSource(std::vector<int>({0}), void_transaction00, name)) {
     SetError(-EINVAL);
     return;
   }

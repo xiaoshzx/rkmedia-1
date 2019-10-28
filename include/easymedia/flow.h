@@ -164,8 +164,7 @@ protected:
   int down_flow_num;
 
   // source flow
-  bool SetAsSource(const std::vector<int> &input_slots,
-                   const std::vector<int> &output_slots, FunctionProcess f,
+  bool SetAsSource(const std::vector<int> &output_slots, FunctionProcess f,
                    const std::string &mark);
   bool InstallSlotMap(SlotMap &map, const std::string &mark,
                       int exp_process_time);
@@ -199,7 +198,7 @@ std::string gen_datatype_rule(std::map<std::string, std::string> &params);
 Model GetModelByString(const std::string &model);
 InputMode GetInputModelByString(const std::string &in_model);
 _API void ParseParamToSlotMap(std::map<std::string, std::string> &params,
-                         SlotMap &sm, int &input_maxcachenum);
+                              SlotMap &sm, int &input_maxcachenum);
 size_t FlowOutputHoldInput(std::shared_ptr<MediaBuffer> &out_buffer,
                            const MediaBufferVector &input_vector);
 size_t FlowOutputInheritFromInput(std::shared_ptr<MediaBuffer> &out_buffer,
