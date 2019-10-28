@@ -26,8 +26,8 @@ add_subdirectory(ffmpeg)
 
 option(LIVE555 "compile: live555" OFF)
 if(LIVE555)
-  include_directories(${GROUPSOCK_HEADER_DIR})
-  include_directories(${USAGEENVIRONMENT_HEADER_DIR})
+  find_package(LiveMedia)
+  include_directories(${LIVEMEDIA_INCLUDE_DIRS})
   add_subdirectory(live555)
 endif()
 

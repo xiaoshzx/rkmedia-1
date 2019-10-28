@@ -25,6 +25,8 @@ if(NOT COMMAND find_host_program)
   endmacro()
 endif()
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 project(easymedia)
 
 cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
