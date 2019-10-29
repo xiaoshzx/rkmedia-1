@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
   ssize_t read_len;
   // Suppose input yuv data organization keep to align up to 16 stride width and
   // height, if not, you need reorder data organization.
-  size_t size = len;
+  size_t size = CalPixFmtSize(fmt, info.width, info.height, 0);
   int index = 0;
   while ((read_len = read(input_file_fd, src_buffer->GetPtr(), size)) > 0) {
     src_buffer->SetValidSize(read_len);

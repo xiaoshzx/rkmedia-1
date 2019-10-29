@@ -46,12 +46,14 @@ void GetPixFmtNumDen(const PixelFormat &fmt, int &num, int &den) {
   }
 }
 
-int CalPixFmtSize(const PixelFormat &fmt, const int width, const int height) {
+int CalPixFmtSize(const PixelFormat &fmt, const int width, const int height, int align) {
   int num = 0;
   int den = 0;
   GetPixFmtNumDen(fmt, num, den);
-  // mpp always require buffer align 16
-  return UPALIGNTO16(width) * UPALIGNTO16(height) * num / den;
+  // mpp always require buffer align by align value
+  if (align > 0)
+    return UPALIGNTO(width, align) * UPALIGNTO(height, align) * num / den;
+  return width * height * num / den;
 }
 
 static const struct PixFmtStringEntry {
