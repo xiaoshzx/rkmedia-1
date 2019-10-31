@@ -55,7 +55,7 @@ typedef struct {
 
 _API void GetPixFmtNumDen(const PixelFormat &fmt, int &num, int &den);
 _API int CalPixFmtSize(const PixelFormat &fmt, const int width,
-                       const int height);
+                       const int height, int algin = 16);
 _API inline int CalPixFmtSize(const ImageInfo &ii) {
   return CalPixFmtSize(ii.pix_fmt, ii.vir_width, ii.vir_height);
 }
