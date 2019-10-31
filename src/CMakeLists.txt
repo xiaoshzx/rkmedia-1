@@ -66,6 +66,7 @@ file(GLOB EASY_MEDIA_RELEASE_HEADERS ${CMAKE_SOURCE_DIR}/include/${LIBRARY_NAME}
 set_target_properties(${LIBRARY_NAME}
                       PROPERTIES PUBLIC_HEADER "${EASY_MEDIA_RELEASE_HEADERS}")
 set_target_properties(${LIBRARY_NAME} PROPERTIES VERSION ${LIBRARY_VERSION})
+set_target_properties(${LIBRARY_NAME} PROPERTIES SOVERSION 1)
 
 if(SANITIZER)
   add_definitions(-fsanitize=address -static-libasan -g)
