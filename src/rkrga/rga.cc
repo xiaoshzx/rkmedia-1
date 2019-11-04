@@ -77,20 +77,20 @@ int RgaFilter::Process(std::shared_ptr<MediaBuffer> input,
 
 static int get_rga_format(PixelFormat f) {
   static std::map<PixelFormat, int> rga_format_map = {
-      {PIX_FMT_YUV420P, RK_FORMAT_YCrCb_420_P},
-      {PIX_FMT_NV12, RK_FORMAT_YCrCb_420_SP},
-      {PIX_FMT_NV21, RK_FORMAT_YCbCr_420_SP},
-      {PIX_FMT_YUV422P, RK_FORMAT_YCrCb_422_P},
-      {PIX_FMT_NV16, RK_FORMAT_YCrCb_422_SP},
-      {PIX_FMT_NV61, RK_FORMAT_YCbCr_422_SP},
+      {PIX_FMT_YUV420P, RK_FORMAT_YCbCr_420_P},
+      {PIX_FMT_NV12, RK_FORMAT_YCbCr_420_SP},
+      {PIX_FMT_NV21, RK_FORMAT_YCrCb_420_SP},
+      {PIX_FMT_YUV422P, RK_FORMAT_YCbCr_422_P},
+      {PIX_FMT_NV16, RK_FORMAT_YCbCr_422_SP},
+      {PIX_FMT_NV61, RK_FORMAT_YCrCb_422_SP},
       {PIX_FMT_YUYV422, -1},
       {PIX_FMT_UYVY422, -1},
       {PIX_FMT_RGB565, RK_FORMAT_RGB_565},
       {PIX_FMT_BGR565, -1},
       {PIX_FMT_RGB888, RK_FORMAT_BGR_888},
       {PIX_FMT_BGR888, RK_FORMAT_RGB_888},
-      {PIX_FMT_ARGB8888, RK_FORMAT_RGBA_8888},
-      {PIX_FMT_ABGR8888, RK_FORMAT_BGRA_8888}};
+      {PIX_FMT_ARGB8888, RK_FORMAT_BGRA_8888},
+      {PIX_FMT_ABGR8888, RK_FORMAT_RGBA_8888}};
   auto it = rga_format_map.find(f);
   if (it != rga_format_map.end())
     return it->second;

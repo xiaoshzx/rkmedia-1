@@ -54,10 +54,10 @@ static const struct V4L2FmtStringEntry {
                            {V4L2_PIX_FMT_UYVY, IMAGE_UYVY422},
                            {V4L2_PIX_FMT_SRGGB8, IMAGE_RGB332},
                            {V4L2_PIX_FMT_RGB565, IMAGE_RGB565},
-                           {V4L2_PIX_FMT_RGB24, IMAGE_RGB888},
-                           {V4L2_PIX_FMT_BGR24, IMAGE_BGR888},
-                           {V4L2_PIX_FMT_ARGB32, IMAGE_ARGB8888},
-                           {V4L2_PIX_FMT_ABGR32, IMAGE_ABGR8888},
+                           {V4L2_PIX_FMT_BGR24, IMAGE_RGB888},
+                           {V4L2_PIX_FMT_RGB24, IMAGE_BGR888},
+                           {V4L2_PIX_FMT_ABGR32, IMAGE_ARGB8888},
+                           {V4L2_PIX_FMT_ARGB32, IMAGE_ABGR8888},
                            {V4L2_PIX_FMT_MJPEG, IMAGE_JPEG},
                            {V4L2_PIX_FMT_H264, VIDEO_H264}};
 
