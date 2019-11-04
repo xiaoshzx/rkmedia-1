@@ -7,6 +7,7 @@
 
 #include "lock.h"
 #include "reflector.h"
+#include "message.h"
 
 #include <stdarg.h>
 
@@ -91,8 +92,11 @@ public:
 
   // The global event hander is the same thread to the born thread of this
   // object.
-  // void SetEventHandler(EventHandler *ev_handler);
-  // void NotifyToEventHandler();
+  void RegisterEventHandler(std::shared_ptr<Flow> flow, EventHook proc);
+  void UnRegisterEventHandler();
+  void EventHookWait();
+  void NotifyToEventHandler(EventMessage *msg);
+  EventMessage * GetEventMessages();
 
 protected:
   class FlowInputMap {
@@ -164,6 +168,7 @@ protected:
   std::vector<Input> v_input;
   std::list<std::shared_ptr<FlowCoroutine>> coroutines;
   std::shared_ptr<ConditionLockMutex> source_start_cond_mtx;
+
   int down_flow_num;
 
   // source flow
@@ -190,6 +195,9 @@ protected:
 private:
   volatile bool enable;
   volatile bool quit;
+
+  // event handler
+  EventHandler * event_handler_;
 
   friend class FlowCoroutine;
 
