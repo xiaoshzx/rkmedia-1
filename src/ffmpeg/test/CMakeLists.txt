@@ -15,6 +15,7 @@ set(CMAKE_CXX_STANDARD 11)
 add_definitions(-DDEBUG)
 
 add_executable(ffmpeg_enc_mux_test ffmpeg_enc_mux_test.cc)
+target_compile_features(ffmpeg_enc_mux_test PRIVATE cxx_std_17)
 add_dependencies(ffmpeg_enc_mux_test easymedia)
 target_link_libraries(ffmpeg_enc_mux_test ${FFMPEG_TEST_DEPENDENT_LIBS})
 install(TARGETS ffmpeg_enc_mux_test RUNTIME DESTINATION "bin")
