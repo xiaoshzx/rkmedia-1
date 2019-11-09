@@ -40,8 +40,10 @@ size_t GetSampleSize(const SampleInfo &sample_info) {
   case SAMPLE_FMT_U8:
     return sample_size;
   case SAMPLE_FMT_S16:
+  case SAMPLE_FMT_MP2:
     return sample_size << 1;
   case SAMPLE_FMT_S32:
+  case SAMPLE_FMT_AAC:
     return sample_size << 2;
   default:
     return 0;

@@ -67,6 +67,8 @@ enum AVSampleFormat SampleFmtToAVSamFmt(SampleFormat sfmt) {
       {SAMPLE_FMT_U8, AV_SAMPLE_FMT_U8},
       {SAMPLE_FMT_S16, AV_SAMPLE_FMT_S16},
       {SAMPLE_FMT_S32, AV_SAMPLE_FMT_S32},
+      {SAMPLE_FMT_AAC, AV_SAMPLE_FMT_FLTP},
+      {SAMPLE_FMT_MP2, AV_SAMPLE_FMT_S16},
   };
   FIND_ENTRY_TARGET(sfmt, sample_fmt_av_sfmt_map, fmt, av_sfmt)
   return AV_SAMPLE_FMT_NONE;
