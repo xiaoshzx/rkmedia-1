@@ -6,6 +6,7 @@
 #define EASYMEDIA_FFMPEG_UTILS_H_
 
 extern "C" {
+#define __STDC_CONSTANT_MACROS
 #include <libavformat/avformat.h>
 }
 
