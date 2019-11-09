@@ -32,6 +32,7 @@ public:
 private:
   AVCodec *av_codec;
   AVCodecContext *avctx;
+  AVFrame *frame;
   enum AVSampleFormat input_fmt;
   std::string output_data_type;
   std::string ff_codec_name;
@@ -49,8 +50,12 @@ FFMPEGAudioEncoder::FFMPEGAudioEncoder(const char *param)
 }
 
 FFMPEGAudioEncoder::~FFMPEGAudioEncoder() {
-  if (avctx)
+  if (frame) {
+    av_frame_free(&frame);
+  }
+  if (avctx) {
     avcodec_free_context(&avctx);
+  }
 }
 
 bool FFMPEGAudioEncoder::Init() {
@@ -145,30 +150,39 @@ bool FFMPEGAudioEncoder::InitConfig(const MediaConfig &cfg) {
   if (!(avctx->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE))
     mc.aud_cfg.sample_info.nb_samples = avctx->frame_size;
 
+  frame = av_frame_alloc();
+  if (!frame) {
+    fprintf(stderr, "Could not allocate audio frame\n");
+    return false;
+  }
+  auto &info = mc.aud_cfg.sample_info;
+  frame->nb_samples = info.nb_samples;
+  frame->channels = info.channels;
+  frame->channel_layout = av_get_default_channel_layout(info.channels);
+  frame->format = input_fmt;
+
   return AudioEncoder::InitConfig(mc);
 }
 
 int FFMPEGAudioEncoder::SendInput(const std::shared_ptr<MediaBuffer> &input) {
-  AVFrame *f = NULL;
-  AVFrame frame;
+  int ret = 0;
   if (input->IsValid()) {
     assert(input && input->GetType() == Type::Audio);
     auto in = std::static_pointer_cast<SampleBuffer>(input);
-    memset(&frame, 0, sizeof(frame));
-    auto &info = in->GetSampleInfo();
     if (in->GetSamples() > 0) {
-      frame.channels = info.channels;
-      frame.format = input_fmt;
-      assert(input_fmt == SampleFmtToAVSamFmt(in->GetSampleFormat()));
-      frame.nb_samples = in->GetSamples();
-      frame.channel_layout = av_get_default_channel_layout(info.channels);
-      frame.data[0] = (uint8_t *)in->GetPtr();
-      frame.extended_data = frame.data;
-      frame.pts = in->GetUSTimeStamp();
-      f = &frame;
+      ret = avcodec_fill_audio_frame(frame, avctx->channels, avctx->sample_fmt,
+                                     (const uint8_t *)in->GetPtr(),
+                                     in->GetValidSize(), 0);
+      if (ret < 0) {
+        PrintAVError(ret, "Fail to fill audio frame\n", av_codec->long_name);
+        return -1;
+      }
+      frame->pts = in->GetUSTimeStamp();
     }
+    ret = avcodec_send_frame(avctx, frame);
+  } else {
+    ret = avcodec_send_frame(avctx, nullptr);
   }
-  int ret = avcodec_send_frame(avctx, f);
   if (ret < 0) {
     if (ret == AVERROR(EAGAIN))
       return -EAGAIN;
