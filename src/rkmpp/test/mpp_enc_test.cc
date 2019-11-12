@@ -23,6 +23,102 @@
 
 static char optstr[] = "?i:o:w:h:f:";
 
+static int read_yuv_image(void *buf, int fd, ImageInfo &info) {
+  int ret = 0;
+  int read_size;
+  int row = 0;
+  int width = info.width;
+  int height = info.height;
+  int hor_stride = info.vir_width;
+  int ver_stride = info.vir_height;
+  PixelFormat fmt = info.pix_fmt;
+  unsigned char *buf_y = NULL;
+  unsigned char *buf_u = NULL;
+  unsigned char *buf_v = NULL;
+
+  // NOTE: diff from gen_yuv_image
+  buf_y = (unsigned char *)buf;
+  buf_u = buf_y + hor_stride * ver_stride;
+  buf_v = buf_u + hor_stride * ver_stride / 4;
+
+  switch (fmt) {
+    case PIX_FMT_NV12 : {
+      for (row = 0; row < height; row++) {
+        read_size = read(fd, buf_y + row * hor_stride, width);
+        if (read_size != width) {
+          if (read_size == 0)
+            printf("read the end of yuv file.\n");
+          else
+            printf("read ori yuv file luma failed\n");
+
+          ret  = -1;
+          goto err;
+        }
+      }
+
+      for (row = 0; row < height / 2; row++) {
+        read_size = read(fd, buf_u + row * hor_stride, width);
+        if (read_size != width) {
+          printf("read ori yuv file cb failed\n");
+          ret  = -1;
+          goto err;
+        }
+      }
+    } break;
+    case PIX_FMT_YUV420P : {
+      for (row = 0; row < height; row++) {
+        read_size = read(fd, buf_y + row * hor_stride, width);
+        if (read_size != width) {
+          if (read_size == 0)
+            printf("read the end of yuv file.\n");
+          else
+            printf("read ori yuv file luma failed\n");
+
+          ret  = -1;
+          goto err;
+        }
+      }
+
+      for (row = 0; row < height / 2; row++) {
+        read_size = read(fd, buf_u + row * hor_stride / 2, width / 2);
+        if (read_size != width / 2) {
+          printf("read ori yuv file cb failed\n");
+          ret  = -1;
+          goto err;
+        }
+      }
+
+      for (row = 0; row < height / 2; row++) {
+        read_size = read(fd, buf_v + row * hor_stride / 2, width / 2);
+        if (read_size != width / 2) {
+          printf("read ori yuv file cr failed\n");
+          ret  = -1;
+          goto err;
+        }
+      }
+    } break;
+    case PIX_FMT_ARGB8888 : {
+      for (row = 0; row < height; row++) {
+        read_size = read(fd, buf_y + row * hor_stride * 4, width * 4);
+      }
+    } break;
+    case PIX_FMT_YUYV422 :
+    case PIX_FMT_UYVY422 : {
+      for (row = 0; row < height; row++) {
+        read_size = read(fd, buf_y + row * hor_stride, width * 2);
+      }
+    } break;
+    default : {
+      printf("read image do not support fmt %d\n", fmt);
+      ret = -1;
+    } break;
+  }
+
+err:
+
+  return ret;
+}
+
 int main(int argc, char **argv) {
   int c;
   std::string input_path;
@@ -171,13 +267,9 @@ int main(int argc, char **argv) {
       len, easymedia::MediaBuffer::MemType::MEM_HARD_WARE);
   assert(dst_buffer && dst_buffer->GetSize() >= len);
 
-  ssize_t read_len;
-  // Suppose input yuv data organization keep to align up to 16 stride width and
-  // height, if not, you need reorder data organization.
-  size_t size = CalPixFmtSize(fmt, info.width, info.height, 0);
   int index = 0;
-  while ((read_len = read(input_file_fd, src_buffer->GetPtr(), size)) > 0) {
-    src_buffer->SetValidSize(read_len);
+  while (read_yuv_image(src_buffer->GetPtr(), input_file_fd, info) >= 0) {
+    src_buffer->SetValidSize(len);
     dst_buffer->SetValidSize(dst_buffer->GetSize());
     index++;
     if (0 != mpp_enc->Process(src_buffer, dst_buffer, nullptr)) {
