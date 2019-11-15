@@ -42,41 +42,37 @@ static const std::unordered_map<SampleFormat, AVSampleFormat> SampleFormatMap = 
 
 static void
 fill_audio_sin_data(std::shared_ptr<easymedia::SampleBuffer> &buffer) {
+  static float phase = 0;
+  float tincr = 2 * M_PI * 440.0f / buffer->GetSampleInfo().sample_rate;
+
   // TODO: Add common sine wave generator 
   if (buffer->GetSampleFormat() == SAMPLE_FMT_S16 ||
   buffer->GetSampleFormat() == SAMPLE_FMT_MP2) {
     // short
-    float t = 0;
-    float tincr = 2 * M_PI * 440.0f / buffer->GetSampleInfo().sample_rate;
     uint16_t *samples = (uint16_t *)buffer->GetPtr();
     for (int i = 0; i < buffer->GetSamples(); i++) {
-      samples[2 * i] = (int)(std::sin(t) * 10000);
+      samples[2 * i] = (int)(std::sin(phase) * 10000);
       for (int k = 1; k < buffer->GetSampleInfo().channels; k++)
         samples[2 * i + k] = samples[2 * i];
-      t += tincr;
+      phase += tincr;
     }
   } else if (buffer->GetSampleFormat() == SAMPLE_FMT_S32 ||
              buffer->GetSampleFormat() == SAMPLE_FMT_AAC ||
              buffer->GetSampleFormat() == SAMPLE_FMT_VORBIS) {
     // float
-    float frequency_hz = 440.0f;
-    float delta =
-        2.0f * frequency_hz * float(M_PI / buffer->GetSampleInfo().sample_rate);
-    float phase = 0;
     float *samples = (float *)buffer->GetPtr();
     for (int frame = 0; frame < buffer->GetSamples(); ++frame) {
-      float next_sample = std::sin(phase);
-      phase = std::fmod(phase + delta, 2.0f * static_cast<float>(M_PI));
       for (int channel = 0; channel < buffer->GetSampleInfo().channels;
            ++channel) {
         if (av_sample_fmt_is_planar(
                SampleFormatMap.at(buffer->GetSampleFormat()))) {
-          samples[channel * buffer->GetSamples() + frame] = 0.2f * next_sample;
+          samples[channel * buffer->GetSamples() + frame] = 0.2f * std::sin(phase);
         } else {
          samples[channel + buffer->GetSampleInfo().channels * frame] =
-             0.2f * next_sample;
+             0.2f * std::sin(phase);
         }
       }
+      phase += tincr;
     }
   } else {
     assert(0);
@@ -222,15 +218,11 @@ std::shared_ptr<easymedia::SampleBuffer> initAudioBuffer(MediaConfig &cfg) {
   auto &audio_info = cfg.aud_cfg.sample_info;
   fprintf(stderr, "sample number=%d\n", audio_info.nb_samples);
   int aud_size = GetSampleSize(audio_info) * audio_info.nb_samples;
-  auto aud_mb = easymedia::MediaBuffer::Alloc2(aud_size * 2);
+  auto aud_mb = easymedia::MediaBuffer::Alloc2(aud_size);
   auto aud_buffer =
       std::make_shared<easymedia::SampleBuffer>(aud_mb, audio_info);
   aud_buffer->SetValidSize(aud_size);
   assert(aud_buffer && (int)aud_buffer->GetSize() >= aud_size);
-  fill_audio_sin_data(aud_buffer);
-  FILE *fp = fopen("1.pcm", "wb+");
-  fwrite(aud_buffer->GetPtr(), 1, aud_size, fp);
-  fclose(fp);
   return aud_buffer;
 }
 
@@ -393,7 +385,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   // for ffmpeg, WriteHeader once, this call only dump info
-  mux->WriteHeader(aud_stream_no);
+  //mux->WriteHeader(aud_stream_no);
 
   int64_t vinterval_per_frame =
       1000000LL /* us */ / vid_enc->GetConfig().vid_cfg.frame_rate;
@@ -409,62 +401,66 @@ int main(int argc, char **argv) {
   // we want to read actual pixel size
   size_t len =
       CalPixFmtSize(vid_enc->GetConfig().vid_cfg.image_cfg.image_info, 0);
+
   int vid_index = 0;
   int first_video_time = 0;
   int aud_index = 0;
   int64_t first_audio_time = 0;
   while (true) {
-    // video
-    read_len = read(input_file_fd, src_buffer->GetPtr(), len);
-    if (read_len < 0) {
-      // if 0 Continue to drain all encoded buffer
-      fprintf(stderr, "%s read len %d\n", enc_codec_name.c_str(), read_len);
-      break;
-    } else if (read_len == 0 && enc_codec_name == "rkmpp") {
-      // rkmpp process does not accept empty buffer
-      // it will treat the result of nullptr input as normal
-      // though it is ugly, but we cannot change it by now
-      fprintf(stderr, "%s read len 0\n", enc_codec_name.c_str());
-      break;
-    }
-    if (first_video_time == 0) {
-      first_video_time = easymedia::gettimeofday();
-    }
-
-    // feed video buffer
-    src_buffer->SetValidSize(read_len); // important
-    src_buffer->SetUSTimeStamp(first_video_time +
-                               vid_index * vinterval_per_frame); // important
-    vid_index++;
-    if (enc_codec_name == "rkmpp") {
-      dst_buffer->SetValidSize(dst_buffer->GetSize());
-      if (0 != vid_enc->Process(src_buffer, dst_buffer, nullptr)) {
-        continue;
-      }
-      size_t out_len = dst_buffer->GetValidSize();
-      fprintf(stderr, "vframe %d encoded, type %s, out %d bytes\n", vid_index,
-              dst_buffer->GetUserFlag() & easymedia::MediaBuffer::kIntra
-                  ? "I frame"
-                  : "P frame",
-              (int)out_len);
-      mux->Write(dst_buffer, vid_stream_no);
-    } else if (enc_codec_name == "ffmpeg_vid") {
-      if (0 > encode<easymedia::VideoEncoder>(mux, vid_enc, src_buffer,
-                                              vid_stream_no)) {
-        fprintf(stderr, "Encode video frame %d failed\n", vid_index);
+    if (vid_index * vinterval_per_frame < aud_index * ainterval_per_frame) {
+      // video
+      read_len = read(input_file_fd, src_buffer->GetPtr(), len);
+      if (read_len < 0) {
+        // if 0 Continue to drain all encoded buffer
+        fprintf(stderr, "%s read len %d\n", enc_codec_name.c_str(), read_len);
+        break;
+      } else if (read_len == 0 && enc_codec_name == "rkmpp") {
+        // rkmpp process does not accept empty buffer
+        // it will treat the result of nullptr input as normal
+        // though it is ugly, but we cannot change it by now
+        fprintf(stderr, "%s read len 0\n", enc_codec_name.c_str());
         break;
       }
-    }
+      if (first_video_time == 0) {
+        first_video_time = easymedia::gettimeofday();
+      }
 
-    // audio
-    if (first_audio_time == 0)
-      first_audio_time = easymedia::gettimeofday();
-    aud_buffer->SetUSTimeStamp(first_audio_time +
-                               aud_index * ainterval_per_frame); // important
-    aud_index++;
-    if (0 > encode<easymedia::AudioEncoder>(mux, aud_enc, aud_buffer, aud_stream_no)) {
-      fprintf(stderr, "Encode audio frame %d failed\n", aud_index);
-      break;
+      // feed video buffer
+      src_buffer->SetValidSize(read_len); // important
+      src_buffer->SetUSTimeStamp(first_video_time +
+                                 vid_index * vinterval_per_frame); // important
+      vid_index++;
+      if (enc_codec_name == "rkmpp") {
+        dst_buffer->SetValidSize(dst_buffer->GetSize());
+        if (0 != vid_enc->Process(src_buffer, dst_buffer, nullptr)) {
+          continue;
+        }
+        size_t out_len = dst_buffer->GetValidSize();
+        fprintf(stderr, "vframe %d encoded, type %s, out %d bytes\n", vid_index,
+                dst_buffer->GetUserFlag() & easymedia::MediaBuffer::kIntra
+                    ? "I frame"
+                    : "P frame",
+                (int)out_len);
+        mux->Write(dst_buffer, vid_stream_no);
+      } else if (enc_codec_name == "ffmpeg_vid") {
+        if (0 > encode<easymedia::VideoEncoder>(mux, vid_enc, src_buffer,
+                                                vid_stream_no)) {
+          fprintf(stderr, "Encode video frame %d failed\n", vid_index);
+          break;
+        }
+      }
+    } else {
+      // audio
+      fill_audio_sin_data(aud_buffer);
+      if (first_audio_time == 0)
+        first_audio_time = easymedia::gettimeofday();
+      aud_buffer->SetUSTimeStamp(first_audio_time +
+                                 aud_index * ainterval_per_frame); // important
+      aud_index++;
+      if (0 > encode<easymedia::AudioEncoder>(mux, aud_enc, aud_buffer, aud_stream_no)) {
+        fprintf(stderr, "Encode audio frame %d failed\n", aud_index);
+        break;
+      }
     }
   }
 
