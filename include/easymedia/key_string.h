@@ -109,6 +109,12 @@
 
 #define KEY_OUTPUT_HOLD_INPUT "output_hold_input"
 
+// muxer flow
+#define KEY_FILE_PREFIX "file_prefix"
+#define KEY_FILE_DURATION "file_duration"
+#define KEY_FILE_INDEX "file_index"
+#define KEY_FILE_TIME "file_time"
+
 // drm
 #define KEY_CONNECTOR_ID "connector_id"
 #define KEY_CRTC_ID "crtc_id"

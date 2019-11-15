@@ -14,6 +14,7 @@ set(EASY_MEDIA_FLOW_SOURCE_FILES
     flow/filter_flow.cc
     flow/link_flow.cc
     flow/source_stream_flow.cc
+    flow/muxer_flow.cc
     flow/output_stream_flow.cc)
 
 set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
