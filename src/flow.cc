@@ -549,12 +549,11 @@ void Flow::RemoveDownFlow(std::shared_ptr<Flow> down) {
 }
 
 void Flow::SendInput(std::shared_ptr<MediaBuffer> &input, int in_slot_index) {
-#ifndef NDEBUG
   if (in_slot_index < 0 || in_slot_index >= input_slot_num) {
     errno = EINVAL;
+    LOG("ERROR: Input slot[%d] is vaild!\n", in_slot_index);
     return;
   }
-#endif
   if (enable) {
     auto &in = v_input[in_slot_index];
     CALL_MEMBER_FN(in, in.send_input_behavior)(input);
@@ -563,12 +562,11 @@ void Flow::SendInput(std::shared_ptr<MediaBuffer> &input, int in_slot_index) {
 
 bool Flow::SetOutput(const std::shared_ptr<MediaBuffer> &output,
                      int out_slot_index) {
-#ifndef NDEBUG
   if (out_slot_index < 0 || out_slot_index >= out_slot_num) {
     errno = EINVAL;
+    LOG("ERROR: Output slot[%d] is vaild!\n", out_slot_index);
     return false;
   }
-#endif
   if (enable) {
     auto &out = downflowmap[out_slot_index];
     CALL_MEMBER_FN(out, out.set_output_behavior)(output);
