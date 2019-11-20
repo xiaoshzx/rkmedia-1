@@ -103,8 +103,8 @@ int encode(std::shared_ptr<easymedia::Muxer> mux,
     size_t out_len = out->GetValidSize();
     if (out_len == 0)
       break;
-    fprintf(stderr, "[%d]: frame encoded, out %d bytes\n\n", stream_no,
-            (int)out_len);
+    fprintf(stderr, "[%d]: frame encoded, out %zu bytes\n\n", stream_no,
+            out_len);
     mux->Write(out, stream_no);
   }
 
@@ -231,7 +231,7 @@ initVideoBuffer(std::string &EncoderName, ImageInfo &image_info) {
   // The vir_width/vir_height have aligned when init video encoder
   size_t len = CalPixFmtSize(image_info.pix_fmt, image_info.vir_width,
                              image_info.vir_height, 0);
-  fprintf(stderr, "video buffer len %d\n", len);
+  fprintf(stderr, "video buffer len %zu\n", len);
   // Just treat all aligned memory to be hardware memory
   // need to know rkmpp needs DRM managed memory,
   // but ffmpeg software encoder doesn't need.
@@ -412,7 +412,7 @@ int main(int argc, char **argv) {
       read_len = read(input_file_fd, src_buffer->GetPtr(), len);
       if (read_len < 0) {
         // if 0 Continue to drain all encoded buffer
-        fprintf(stderr, "%s read len %d\n", enc_codec_name.c_str(), read_len);
+        fprintf(stderr, "%s read len %zu\n", enc_codec_name.c_str(), read_len);
         break;
       } else if (read_len == 0 && enc_codec_name == "rkmpp") {
         // rkmpp process does not accept empty buffer
@@ -436,11 +436,11 @@ int main(int argc, char **argv) {
           continue;
         }
         size_t out_len = dst_buffer->GetValidSize();
-        fprintf(stderr, "vframe %d encoded, type %s, out %d bytes\n", vid_index,
+        fprintf(stderr, "vframe %d encoded, type %s, out %zu bytes\n", vid_index,
                 dst_buffer->GetUserFlag() & easymedia::MediaBuffer::kIntra
                     ? "I frame"
                     : "P frame",
-                (int)out_len);
+                out_len);
         mux->Write(dst_buffer, vid_stream_no);
       } else if (enc_codec_name == "ffmpeg_vid") {
         if (0 > encode<easymedia::VideoEncoder>(mux, vid_enc, src_buffer,
