@@ -86,6 +86,9 @@ public:
     return Control(S_SUB_REQUEST, &subreq);
   }
 
+  //get input size for this flow
+  virtual int GetInputSize() {return 0;}
+
   // The global event hander is the same thread to the born thread of this
   // object.
   // void SetEventHandler(EventHandler *ev_handler);
