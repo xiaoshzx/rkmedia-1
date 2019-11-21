@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD 11)
 add_definitions(-DDEBUG)
 
 
-option(FLOW_EVENT_TEST "compile: flow wrapper test" ON)
+option(FLOW_EVENT_TEST "compile: flow event test" ON)
 
 if(FLOW_EVENT_TEST)
   add_definitions(-DFLOW_EVENT_TEST)
@@ -26,3 +26,15 @@ if(FLOW_EVENT_TEST)
   target_compile_features(flow_event_test PRIVATE cxx_std_11)
   install(TARGETS flow_event_test RUNTIME DESTINATION "bin")
 endif()
+
+option(AUDIO_ENCODER_FLOW_TEST "compile: audio encoder flow test" ON)
+
+if(AUDIO_ENCODER_FLOW_TEST)
+  set(AUDIO_ENCODER_FLOW_TEST_SRC_FILES audio_encoder_flow_test.cc)
+  add_executable(audio_encoder_flow_test ${AUDIO_ENCODER_FLOW_TEST_SRC_FILES})
+  target_link_libraries(audio_encoder_flow_test easymedia)
+  target_include_directories(audio_encoder_flow_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_compile_features(audio_encoder_flow_test PRIVATE cxx_std_11)
+  install(TARGETS audio_encoder_flow_test RUNTIME DESTINATION "bin")
+endif()
+

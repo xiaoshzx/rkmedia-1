@@ -8,6 +8,7 @@
 
 set(EASY_MEDIA_FLOW_SOURCE_FILES
     flow/video_encoder_flow.cc
+    flow/audio_encoder_flow.cc
     flow/decoder_flow.cc
     flow/file_flow.cc
     flow/filter_flow.cc
