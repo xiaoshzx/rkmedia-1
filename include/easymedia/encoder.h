@@ -99,7 +99,7 @@ class _API AudioEncoder : public Encoder {
 public:
   AudioEncoder() : output_fmt(SAMPLE_FMT_NONE) {}
   virtual ~AudioEncoder() = default;
-
+  virtual int GetNbSamples() { return 0; }
 protected:
   SampleFormat output_fmt; // out fmt of main output buffer
 

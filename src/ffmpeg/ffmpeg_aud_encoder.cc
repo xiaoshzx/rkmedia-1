@@ -25,6 +25,7 @@ public:
     errno = ENOSYS;
     return -1;
   }
+  virtual int GetNbSamples() override;
   // avcodec_send_frame()/avcodec_receive_packet()
   virtual int SendInput(const std::shared_ptr<MediaBuffer> &input) override;
   virtual std::shared_ptr<MediaBuffer> FetchOutput() override;
@@ -162,6 +163,10 @@ bool FFMPEGAudioEncoder::InitConfig(const MediaConfig &cfg) {
   frame->format = input_fmt;
 
   return AudioEncoder::InitConfig(mc);
+}
+
+int FFMPEGAudioEncoder::GetNbSamples() {
+  return avctx ? avctx->frame_size : 0;
 }
 
 int FFMPEGAudioEncoder::SendInput(const std::shared_ptr<MediaBuffer> &input) {
