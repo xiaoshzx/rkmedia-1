@@ -393,6 +393,7 @@ bool Flow::SetAsSource(const std::vector<int> &output_slots, FunctionProcess f,
   if (!source_start_cond_mtx)
     return false;
   SlotMap sm;
+  sm.input_slots = std::vector<int>{0};
   sm.output_slots = output_slots;
   sm.process = f;
   sm.thread_model = Model::SYNC;
