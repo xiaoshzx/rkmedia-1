@@ -456,8 +456,7 @@ static bool filter_ids_by_connector_condition(struct resources *res,
     auto dmc = get_connector_by_id(res, conn_id);
     assert(dmc);
     if (!f(dmc)) {
-      count = remove_element<uint32_t>(ids.count_connectors, ids.connector_ids,
-                                       conn_id);
+      count = remove_element<uint32_t>(count, ids.connector_ids, conn_id);
       continue;
     }
     i++;
