@@ -237,6 +237,18 @@ bool DRMStream::GetAgreeableIDSet() {
   if (i < ids.count_connectors) {
     auto dme = get_encoder_by_id(res, encoder_id);
     active = (dme->crtc_id > 0 && dme->crtc_id == crtc_id);
+    if (active) {
+      uint64_t value = 0;
+      get_property_id(res, DRM_MODE_OBJECT_PLANE, plane_id, KEY_CRTC_W, &value);
+      int crtc_w = (int) value;
+      value = 0;
+      get_property_id(res, DRM_MODE_OBJECT_PLANE, plane_id, KEY_CRTC_H, &value);
+      int crtc_h = (int) value;
+
+      /* Does the resolution meet current needs? */
+      active = ((img_info.width <= crtc_w) && (img_info.height <= crtc_h));
+    }
+
     if (!active) {
       auto dmc = get_connector_by_id(res, connector_id);
       int idx = -1;
