@@ -284,7 +284,7 @@ const FunctionProcess Flow::void_transaction00 = void_transaction<0, 0>;
 
 Flow::Flow()
     : out_slot_num(0), input_slot_num(0), down_flow_num(0), enable(true),
-      quit(false) {}
+      quit(false), event_handler_(nullptr) {}
 
 Flow::~Flow() { StopAllThread(); }
 
@@ -590,6 +590,47 @@ bool Flow::ParseWrapFlowParams(const char *param,
     return false;
   }
   return true;
+}
+
+void Flow::RegisterEventHandler(std::shared_ptr<Flow> flow, EventHook proc)
+{
+  if (event_handler_ != nullptr)
+   UnRegisterEventHandler();
+
+  event_handler_ = new EventHandler();
+  if (event_handler_) {
+    event_handler_->RegisterEventHook(flow, proc);
+  }
+}
+
+void Flow::UnRegisterEventHandler() {
+  if (event_handler_) {
+    event_handler_->UnRegisterEventHook();
+    delete event_handler_;
+    event_handler_ = nullptr;
+  }
+}
+
+void Flow::NotifyToEventHandler(EventMessage *msg)
+{
+  if (event_handler_) {
+    event_handler_->NotifyToEventHandler(msg);
+    event_handler_->SignalEventHook();
+  }
+}
+
+void Flow::EventHookWait()
+{
+  if (event_handler_)
+    event_handler_->EventHookWait();
+}
+
+EventMessage * Flow::GetEventMessages()
+{
+  if (event_handler_) {
+    return event_handler_->GetEventMessages();
+  }
+  return nullptr;
 }
 
 void Flow::Input::SyncSendInputBehavior(std::shared_ptr<MediaBuffer> &input) {
