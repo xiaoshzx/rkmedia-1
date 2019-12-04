@@ -98,6 +98,8 @@ public:
   void NotifyToEventHandler(EventMessage *msg);
   EventMessage * GetEventMessages();
 
+  bool IsAllBuffEmpty();
+
 protected:
   class FlowInputMap {
   public:
