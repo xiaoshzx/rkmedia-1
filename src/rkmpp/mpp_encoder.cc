@@ -17,11 +17,11 @@ MPPEncoder::MPPEncoder()
 void MPPEncoder::SetMppCodeingType(MppCodingType type) {
   coding_type = type;
   if (type == MPP_VIDEO_CodingMJPEG)
-    output_fmt = PIX_FMT_JPEG;
+    codec_type = CODEC_TYPE_JPEG;
   else if (type == MPP_VIDEO_CodingAVC)
-    output_fmt = PIX_FMT_H264;
+    codec_type = CODEC_TYPE_H264;
   else if (type == MPP_VIDEO_CodingHEVC)
-    output_fmt = PIX_FMT_H265;
+    codec_type = CODEC_TYPE_H265;
   // mpp always return a single nal
   if (type == MPP_VIDEO_CodingAVC || type == MPP_VIDEO_CodingHEVC)
     output_mb_flags |= MediaBuffer::kSingleNalUnit;
@@ -250,7 +250,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
     info = (coding_type == MPP_VIDEO_CodingMJPEG)
                ? in_cfg.img_cfg.image_info
                : in_cfg.vid_cfg.image_cfg.image_info;
-    info.pix_fmt = output_fmt;
+    //info.pix_fmt = codec_type;
   } else {
     output->SetType(Type::Video);
   }

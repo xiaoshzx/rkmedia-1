@@ -22,7 +22,7 @@ FFMpegVideoEncoder::FFMpegVideoEncoder(const char *param) {
   std::map<std::string, std::string> params;
   std::list<std::pair<const std::string, std::string &>> req_list;
   req_list.push_back(std::pair<const std::string, std::string &>(
-      KEY_OUTPUTDATATYPE, OutputFormat_));
+      KEY_OUTPUTDATATYPE, OutputType_));
   req_list.push_back(
       std::pair<const std::string, std::string &>(KEY_NAME, CodecName_));
   parse_media_param_match(param, params, req_list);
@@ -77,11 +77,11 @@ bool FFMpegVideoEncoder::InitConfig(const MediaConfig &cfg) {
 }
 
 bool FFMpegVideoEncoder::FFMpegVideoEncoder::Init() {
-  if (OutputFormat_.empty()) {
+  if (OutputType_.empty()) {
     LOG("missing %s\n", KEY_OUTPUTDATATYPE);
     return false;
   }
-  output_fmt = StringToPixFmt(OutputFormat_.c_str());
+  codec_type = StringToCodecType(OutputType_.c_str());
   if (!CodecName_.empty()) {
     if (CodecName_ == "h264_rkmpp") {
       LOG("EasyMedia using FFmpeg rkmpp hwaccel api is not implemented yet");
@@ -89,12 +89,12 @@ bool FFMpegVideoEncoder::FFMpegVideoEncoder::Init() {
     }
     Codec_ = avcodec_find_encoder_by_name(CodecName_.c_str());
   } else {
-    CodecId_ = PixFmtToAVCodecID(output_fmt);
+    CodecId_ = CodecTypeToAVCodecID(codec_type);
     Codec_ = avcodec_find_encoder(CodecId_);
   }
   if (!Codec_) {
     LOG("Fail to find ffmpeg codec, request codec name=%s, or format=%s\n",
-        CodecName_.c_str(), OutputFormat_.c_str());
+        CodecName_.c_str(), OutputType_.c_str());
     return false;
   }
   Context_ = avcodec_alloc_context3(Codec_);

@@ -12,14 +12,16 @@ extern "C" {
 
 #include "image.h"
 #include "sound.h"
+#include "media_type.h"
 
 namespace easymedia {
 
 enum AVPixelFormat PixFmtToAVPixFmt(PixelFormat fmt);
-enum AVCodecID PixFmtToAVCodecID(PixelFormat fmt);
 
 enum AVCodecID SampleFmtToAVCodecID(SampleFormat fmt);
 enum AVSampleFormat SampleFmtToAVSamFmt(SampleFormat sfmt);
+
+enum AVCodecID CodecTypeToAVCodecID(CodecType fmt);
 
 void PrintAVError(int err, const char *log, const char *mark);
 
