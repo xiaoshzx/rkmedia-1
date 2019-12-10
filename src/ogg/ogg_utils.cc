@@ -33,6 +33,7 @@ PackOggPackets(const std::list<ogg_packet> &ogg_packets) {
     memcpy(buffer, packet_data, packet.bytes);
     buffer += packet.bytes;
   }
+  out->SetValidSize(total_size);
   return out;
 }
 
