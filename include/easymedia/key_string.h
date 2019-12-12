@@ -43,6 +43,7 @@
 #define KEY_COMPRESS_RC_QUALITY "rc_quality"
 #define KEY_COMPRESS_RC_MODE "rc_mode"
 #define KEY_NEED_EXTRA_OUTPUT "need_extra_output"
+#define KEY_NEED_EXTRA_MERGE "need_extra_merge"
 
 #define KEY_WORST "worst"
 #define KEY_WORSE "worse"

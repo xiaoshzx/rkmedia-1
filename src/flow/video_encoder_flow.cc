@@ -27,6 +27,7 @@ public:
 private:
   std::shared_ptr<VideoEncoder> enc;
   bool extra_output;
+  bool extra_merge;
   std::list<std::shared_ptr<MediaBuffer>> extra_buffer_list;
 
   friend bool encode(Flow *f, MediaBufferVector &input_vector);
@@ -60,7 +61,8 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
   return ret;
 }
 
-VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false) {
+VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
+    extra_merge(false) {
   std::list<std::string> separate_list;
   std::map<std::string, std::string> params;
   if (!ParseWrapFlowParams(param, params, separate_list)) {
@@ -73,6 +75,12 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false) {
     SetError(-EINVAL);
     return;
   }
+
+  std::string &extra_merge_value = params[KEY_NEED_EXTRA_MERGE];
+  if (!extra_merge_value.empty()) {
+    extra_merge = !!std::stoi(extra_merge_value);
+  }
+
   const char *ccodec_name = codec_name.c_str();
   // check input/output type
   std::string &&rule = gen_datatype_rule(params);
@@ -118,10 +126,6 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false) {
   encoder->GetExtraData(&extra_data, &extra_data_size);
   // TODO: if not h264
   const std::string &output_dt = enc_params[KEY_OUTPUTDATATYPE];
-  if (extra_data && extra_data_size > 0 &&
-      (output_dt == VIDEO_H264 || output_dt == VIDEO_H265))
-    extra_buffer_list = split_h264_separate((const uint8_t *)extra_data,
-                                            extra_data_size, gettimeofday());
 
   enc = encoder;
 
@@ -141,9 +145,25 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false) {
     SetError(-EINVAL);
     return;
   }
-  for (auto &extra_buffer : extra_buffer_list) {
-    assert(extra_buffer->GetUserFlag() & MediaBuffer::kExtraIntra);
-    SetOutput(extra_buffer, 0);
+
+  if (extra_data && extra_data_size > 0 &&
+      (output_dt == VIDEO_H264 || output_dt == VIDEO_H265)) {
+
+    if (extra_merge) {
+      std::shared_ptr<MediaBuffer> extra_buf = std::make_shared<MediaBuffer>();
+      extra_buf->SetPtr(extra_data);
+      extra_buf->SetValidSize(extra_data_size);
+      extra_buf->SetUserFlag(MediaBuffer::kExtraIntra);
+      SetOutput(extra_buf, 0);
+    } else {
+      extra_buffer_list = split_h264_separate((const uint8_t *)extra_data,
+                                              extra_data_size, gettimeofday());
+      for (auto &extra_buffer : extra_buffer_list) {
+        assert(extra_buffer->GetUserFlag() & MediaBuffer::kExtraIntra);
+        SetOutput(extra_buffer, 0);
+      }
+    }
+
     if (extra_output) {
       std::shared_ptr<MediaBuffer> nullbuffer;
       SetOutput(nullbuffer, 1);
