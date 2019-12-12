@@ -64,12 +64,14 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     aud_cfg.bit_rate = std::stoi(value);
     CHECK_EMPTY(value, params, KEY_FLOAT_QUALITY)
     aud_cfg.quality = std::stof(value);
+    mc.type = Type::Audio;
     return true;
   }
   if (image_in) {
     ImageConfig &img_cfg = mc.img_cfg;
     img_cfg.image_info = info;
     img_cfg.qp_init = qp_init;
+    mc.type = Type::Image;
   } else if (video_in) {
     VideoConfig &vid_cfg = mc.vid_cfg;
     ImageConfig &img_cfg = vid_cfg.image_cfg;
@@ -97,6 +99,7 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     CHECK_EMPTY_WITH_DECLARE(const std::string &, rc_m, params,
                              KEY_COMPRESS_RC_MODE)
     vid_cfg.rc_mode = ConvertRcMode(rc_m);
+    mc.type = Type::Video;
   }
   return true;
 }
