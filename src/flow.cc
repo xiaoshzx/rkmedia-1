@@ -22,6 +22,7 @@ public:
   void Bind(std::vector<int> &in, std::vector<int> &out);
   bool Start();
   void RunOnce();
+  int GetCachedBufferCnt();
 
 private:
   void WhileRun();
@@ -246,6 +247,7 @@ void FlowCoroutine::SendBufferDown(Flow::FlowMap &fm,
     OutputHoldRelated(fm, fm.cached_buffer, in);
     f.flow->SendInput(fm.cached_buffer, f.index_of_in);
   }
+  fm.cached_buffer.reset();
 }
 
 void FlowCoroutine::SendBufferDownFromDeque(
@@ -276,6 +278,16 @@ FlowCoroutine::OutputHoldRelated(Flow::FlowMap &fm,
   return 0;
 }
 
+int FlowCoroutine::GetCachedBufferCnt() {
+  int cnt = 0;
+  for (auto inv: in_vector) {
+    if (inv)
+      cnt++;
+  }
+
+  return cnt;
+}
+
 DEFINE_REFLECTOR(Flow)
 DEFINE_FACTORY_COMMON_PARSE(Flow)
 DEFINE_PART_FINAL_EXPOSE_PRODUCT(Flow, Flow)
@@ -297,6 +309,50 @@ void Flow::StopAllThread() {
   }
   for (auto &coroutine : coroutines)
     coroutine.reset();
+}
+
+bool Flow::IsAllBuffEmpty() {
+#ifndef NDEBUG
+  int i = 0;
+
+  for (auto &input : v_input) {
+    LOG("#FLOW v_input-%d cached_buffers size:%zu\n",
+      i, input.cached_buffers.size());
+    LOG("#FLOW v_input-%d cached_buffer :%s\n",
+      i++, input.cached_buffer?"NotNull":"Null");
+  }
+
+  i = 0;
+  for (auto &coroutin : coroutines) {
+    LOG("#FLOW coroutin-%d in_vector size:%d\n",
+        i++, coroutin->GetCachedBufferCnt());
+  }
+
+  i = 0;
+  for (auto &fm : downflowmap) {
+    LOG("#FLOW downflowmap-%d cached_buffers size:%zu\n",
+      i, fm.cached_buffers.size());
+    LOG("#FLOW downflowmap-%d cached_buffer : %s\n",
+      i++, fm.cached_buffer?"NotNull":"Null");
+  }
+#endif
+
+  for (auto &input : v_input) {
+    if (input.cached_buffers.size() || input.cached_buffer)
+      return false;
+  }
+
+  for (auto &coroutin : coroutines) {
+    if (coroutin->GetCachedBufferCnt())
+      return false;
+  }
+
+  for (auto &fm : downflowmap) {
+    if (fm.cached_buffers.size() || fm.cached_buffer)
+      return false;
+  }
+
+  return true;
 }
 
 static bool check_slots(std::vector<int> &slots, const char *debugstr) {
@@ -636,6 +692,7 @@ EventMessage * Flow::GetEventMessages()
 void Flow::Input::SyncSendInputBehavior(std::shared_ptr<MediaBuffer> &input) {
   cached_buffer = input;
   coroutine->RunOnce();
+  cached_buffer.reset();
 }
 
 void Flow::Input::ASyncSendInputCommonBehavior(

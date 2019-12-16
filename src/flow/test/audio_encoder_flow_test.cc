@@ -142,8 +142,15 @@ int main(int argc, char **argv) {
   LOG("%s initial finish\n", argv[0]);
 
   signal(SIGINT, sigterm_handler);
+
   while (!quit) {
-    easymedia::msleep(10);
+    easymedia::msleep(100);
+    if (file_flow->IsAllBuffEmpty() &&
+        enc_flow->IsAllBuffEmpty() &&
+        save_flow->IsAllBuffEmpty()) {
+      LOG("Get end of stream!\n");
+      break;
+    }
   }
 
   LOG("%s reclaiming\n", argv[0]);
