@@ -118,7 +118,7 @@ AudioEncoderFlow::AudioEncoderFlow(const char *param) {
     return;
   }
 
-#if 0
+#if 1
   if (!REFLECTOR(Encoder)::IsMatch(ccodec_name, rule.c_str())) {
     LOG("Unsupport for audio encoder %s : [%s]\n", ccodec_name, rule.c_str());
     SetError(-EINVAL);
