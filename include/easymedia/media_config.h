@@ -11,6 +11,7 @@
 
 typedef struct {
   ImageInfo image_info;
+  CodecType codec_type;
   int qp_init; // h264 : 0 - 48, higher value means higher compress
                //        but lower quality
                // jpeg (quantization coefficient): 1 - 10,
@@ -40,6 +41,7 @@ typedef struct {
 
 typedef struct {
   SampleInfo sample_info;
+  CodecType codec_type;
   // uint64_t channel_layout;
   int bit_rate;
   float quality; // vorbis: 0.0 ~ 1.0;

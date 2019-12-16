@@ -64,11 +64,11 @@ bool FFMPEGAudioEncoder::Init() {
     LOG("missing %s\n", KEY_OUTPUTDATATYPE);
     return false;
   }
-  output_fmt = StringToSampleFmt(output_data_type.c_str());
+  codec_type = StringToCodecType(output_data_type.c_str());
   if (!ff_codec_name.empty()) {
     av_codec = avcodec_find_encoder_by_name(ff_codec_name.c_str());
   } else {
-    AVCodecID id = SampleFmtToAVCodecID(output_fmt);
+    AVCodecID id = CodecTypeToAVCodecID(codec_type);
     av_codec = avcodec_find_encoder(id);
   }
   if (!av_codec) {
@@ -148,6 +148,7 @@ bool FFMPEGAudioEncoder::InitConfig(const MediaConfig &cfg) {
   }
   auto mc = cfg;
   mc.type = Type::Audio;
+  mc.aud_cfg.codec_type = codec_type;
   if (!(avctx->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE))
     mc.aud_cfg.sample_info.nb_samples = avctx->frame_size;
 
@@ -207,12 +208,9 @@ std::shared_ptr<MediaBuffer> FFMPEGAudioEncoder::FetchOutput() {
   auto pkt = av_packet_alloc();
   if (!pkt)
     return nullptr;
-  MediaBuffer mb(pkt->data, 0, -1, pkt, __ffmpeg_packet_free);
-  auto buffer = std::make_shared<SampleBuffer>(mb, output_fmt);
-  if (!buffer) {
-    errno = ENOMEM;
-    return nullptr;
-  }
+  std::shared_ptr<MediaBuffer> buffer =
+    std::make_shared<MediaBuffer>(pkt->data, 0, -1, pkt, __ffmpeg_packet_free);
+
   int ret = avcodec_receive_packet(avctx, pkt);
   if (ret < 0) {
     if (ret == AVERROR(EAGAIN)) {

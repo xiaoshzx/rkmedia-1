@@ -48,7 +48,7 @@ private:
 };
 
 VorbisEncoder::VorbisEncoder(const char *param _UNUSED) {
-  output_fmt = SAMPLE_FMT_VORBIS;
+  codec_type = CODEC_TYPE_VORBIS;
   vorbis_info_init(&vi);
   vorbis_comment_init(&vc);
   memset(&vd, 0, sizeof(vd));
@@ -165,9 +165,9 @@ int VorbisEncoder::SendInput(const std::shared_ptr<MediaBuffer> &input) {
         errno = ENOMEM;
         return -1;
       }
-      MediaBuffer mb(new_packet->packet, new_packet->bytes, -1, new_packet,
+      std::shared_ptr<MediaBuffer> buffer =
+        std::make_shared<MediaBuffer>(new_packet->packet, new_packet->bytes, -1, new_packet,
                      __ogg_packet_free);
-      auto buffer = std::make_shared<SampleBuffer>(mb, SAMPLE_FMT_VORBIS);
       if (!buffer) {
         errno = ENOMEM;
         return -1;

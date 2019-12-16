@@ -28,7 +28,7 @@ extern "C" {
 #include "encoder.h"
 #include "key_string.h"
 #include "muxer.h"
-
+#include "media_type.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846 /* pi */
@@ -36,8 +36,7 @@ extern "C" {
 
 static const std::unordered_map<SampleFormat, AVSampleFormat> SampleFormatMap = {
     {SAMPLE_FMT_U8, AV_SAMPLE_FMT_U8},   {SAMPLE_FMT_S16, AV_SAMPLE_FMT_S16},
-    {SAMPLE_FMT_S32, AV_SAMPLE_FMT_S32}, {SAMPLE_FMT_AAC, AV_SAMPLE_FMT_FLTP},
-    {SAMPLE_FMT_MP2, AV_SAMPLE_FMT_S16},
+    {SAMPLE_FMT_S32, AV_SAMPLE_FMT_S32}, {SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_FLTP},
 };
 
 static void
@@ -46,8 +45,7 @@ fill_audio_sin_data(std::shared_ptr<easymedia::SampleBuffer> &buffer) {
   float tincr = 2 * M_PI * 440.0f / buffer->GetSampleInfo().sample_rate;
 
   // TODO: Add common sine wave generator 
-  if (buffer->GetSampleFormat() == SAMPLE_FMT_S16 ||
-  buffer->GetSampleFormat() == SAMPLE_FMT_MP2) {
+  if (buffer->GetSampleFormat() == SAMPLE_FMT_S16) {
     // short
     uint16_t *samples = (uint16_t *)buffer->GetPtr();
     for (int i = 0; i < buffer->GetSamples(); i++) {
@@ -56,9 +54,7 @@ fill_audio_sin_data(std::shared_ptr<easymedia::SampleBuffer> &buffer) {
         samples[2 * i + k] = samples[2 * i];
       phase += tincr;
     }
-  } else if (buffer->GetSampleFormat() == SAMPLE_FMT_S32 ||
-             buffer->GetSampleFormat() == SAMPLE_FMT_AAC ||
-             buffer->GetSampleFormat() == SAMPLE_FMT_VORBIS) {
+  } else if (buffer->GetSampleFormat() == SAMPLE_FMT_FLTP) {
     // float
     float *samples = (float *)buffer->GetPtr();
     for (int frame = 0; frame < buffer->GetSamples(); ++frame) {
@@ -112,9 +108,9 @@ int encode(std::shared_ptr<easymedia::Muxer> mux,
 }
 
 std::shared_ptr<easymedia::AudioEncoder>
-initAudioEncoder(std::string OutFormat) {
+initAudioEncoder(std::string EncType, std::string SampFormat) {
   std::string param;
-  PARAM_STRING_APPEND(param, KEY_OUTPUTDATATYPE, OutFormat);
+  PARAM_STRING_APPEND(param, KEY_OUTPUTDATATYPE, EncType);
   auto aud_enc = easymedia::REFLECTOR(Encoder)::Create<easymedia::AudioEncoder>(
       "ffmpeg_aud", param.c_str());
   if (!aud_enc) {
@@ -123,12 +119,13 @@ initAudioEncoder(std::string OutFormat) {
   }
 
   // s16 2ch stereo, 1024 nb_samples
-  SampleInfo aud_info = {SAMPLE_FMT_NONE, 2, 48000, 1024};
-  aud_info.fmt = StringToSampleFmt(OutFormat.c_str());
+  SampleInfo aud_info = {SAMPLE_FMT_NONE, 2, 44100, 1024};
+  aud_info.fmt = StringToSampleFmt(SampFormat.c_str());
   MediaConfig aud_enc_config;
   auto &ac = aud_enc_config.aud_cfg;
   ac.sample_info = aud_info;
   ac.bit_rate = 64000; // 64kbps
+  ac.codec_type = StringToCodecType(EncType.c_str());
   aud_enc_config.type = Type::Audio;
   if (!aud_enc->InitConfig(aud_enc_config)) {
     fprintf(stderr, "Init config of ffmpeg_aud encoder failed\n");
@@ -288,7 +285,8 @@ int main(int argc, char **argv) {
   std::string input_format;
   std::string enc_format;
   std::string enc_codec_name = "rkmpp";   // rkmpp, ffmpeg_vid
-  std::string aud_enc_format = AUDIO_MP2; // test mp2, aac
+  std::string aud_enc_format = AUDIO_AAC; // test mp2, aac
+  std::string aud_input_format = AUDIO_PCM_FLTP;
 
   opterr = 1;
   while ((c = getopt(argc, argv, optstr)) != -1) {
@@ -358,7 +356,7 @@ int main(int argc, char **argv) {
   easymedia::REFLECTOR(Encoder)::DumpFactories();
   auto vid_enc =
       initVideoEncoder(enc_codec_name, input_format, enc_format, w, h);
-  auto aud_enc = initAudioEncoder(aud_enc_format);
+  auto aud_enc = initAudioEncoder(aud_enc_format, aud_input_format);
   auto aud_buffer = initAudioBuffer(aud_enc->GetConfig());
   auto src_buffer = initVideoBuffer(enc_codec_name, vid_enc->GetConfig().img_cfg.image_info);
   std::shared_ptr<easymedia::MediaBuffer> dst_buffer;

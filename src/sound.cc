@@ -15,8 +15,7 @@ static const struct SampleFormatEntry {
   const char *fmt_str;
 } sample_format_string_map[] = {
     {SAMPLE_FMT_U8, AUDIO_PCM_U8},   {SAMPLE_FMT_S16, AUDIO_PCM_S16},
-    {SAMPLE_FMT_S32, AUDIO_PCM_S32}, {SAMPLE_FMT_VORBIS, AUDIO_VORBIS},
-    {SAMPLE_FMT_AAC, AUDIO_AAC},     {SAMPLE_FMT_MP2, AUDIO_MP2},
+    {SAMPLE_FMT_S32, AUDIO_PCM_S32}, {SAMPLE_FMT_FLTP, AUDIO_PCM_FLTP},
 };
 
 const char *SampleFmtToString(SampleFormat fmt) {
@@ -40,10 +39,9 @@ size_t GetSampleSize(const SampleInfo &sample_info) {
   case SAMPLE_FMT_U8:
     return sample_size;
   case SAMPLE_FMT_S16:
-  case SAMPLE_FMT_MP2:
     return sample_size << 1;
   case SAMPLE_FMT_S32:
-  case SAMPLE_FMT_AAC:
+  case SAMPLE_FMT_FLTP:
     return sample_size << 2;
   default:
     return 0;

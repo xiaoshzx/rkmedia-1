@@ -31,18 +31,6 @@ enum AVPixelFormat PixFmtToAVPixFmt(PixelFormat fmt) {
   return AV_PIX_FMT_NONE;
 }
 
-enum AVCodecID PixFmtToAVCodecID(PixelFormat fmt) {
-  static const struct PixFmtAVCodecIDEntry {
-    PixelFormat fmt;
-    enum AVCodecID av_codecid;
-  } pix_fmt_av_codecid_map[] = {
-      {PIX_FMT_H264, AV_CODEC_ID_H264},
-      {PIX_FMT_H265, AV_CODEC_ID_H265},
-  };
-  FIND_ENTRY_TARGET(fmt, pix_fmt_av_codecid_map, fmt, av_codecid)
-  return AV_CODEC_ID_NONE;
-}
-
 enum AVCodecID SampleFmtToAVCodecID(SampleFormat fmt) {
   static const struct SampleFmtAVCodecIDEntry {
     SampleFormat fmt;
@@ -51,11 +39,23 @@ enum AVCodecID SampleFmtToAVCodecID(SampleFormat fmt) {
       {SAMPLE_FMT_U8, AV_CODEC_ID_PCM_U8},
       {SAMPLE_FMT_S16, AV_CODEC_ID_PCM_S16LE},
       {SAMPLE_FMT_S32, AV_CODEC_ID_PCM_S32LE},
-      {SAMPLE_FMT_VORBIS, AV_CODEC_ID_VORBIS},
-      {SAMPLE_FMT_AAC, AV_CODEC_ID_AAC},
-      {SAMPLE_FMT_MP2, AV_CODEC_ID_MP2},
   };
   FIND_ENTRY_TARGET(fmt, sample_fmt_av_codecid_map, fmt, av_codecid)
+  return AV_CODEC_ID_NONE;
+}
+
+enum AVCodecID CodecTypeToAVCodecID(CodecType type) {
+  static const struct SampleFmtAVCodecIDEntry {
+    CodecType type;
+    enum AVCodecID av_codecid;
+  } codec_type_av_codecid_map[] = {
+      {CODEC_TYPE_AAC, AV_CODEC_ID_AAC},
+      {CODEC_TYPE_MP2, AV_CODEC_ID_MP2},
+      {CODEC_TYPE_VORBIS, AV_CODEC_ID_VORBIS},
+      {CODEC_TYPE_H264, AV_CODEC_ID_H264},
+      {CODEC_TYPE_H265, AV_CODEC_ID_H265},
+  };
+  FIND_ENTRY_TARGET(type, codec_type_av_codecid_map, type, av_codecid)
   return AV_CODEC_ID_NONE;
 }
 
@@ -67,8 +67,7 @@ enum AVSampleFormat SampleFmtToAVSamFmt(SampleFormat sfmt) {
       {SAMPLE_FMT_U8, AV_SAMPLE_FMT_U8},
       {SAMPLE_FMT_S16, AV_SAMPLE_FMT_S16},
       {SAMPLE_FMT_S32, AV_SAMPLE_FMT_S32},
-      {SAMPLE_FMT_AAC, AV_SAMPLE_FMT_FLTP},
-      {SAMPLE_FMT_MP2, AV_SAMPLE_FMT_S16},
+      {SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_FLTP},
   };
   FIND_ENTRY_TARGET(sfmt, sample_fmt_av_sfmt_map, fmt, av_sfmt)
   return AV_SAMPLE_FMT_NONE;

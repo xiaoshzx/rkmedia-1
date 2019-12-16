@@ -100,10 +100,11 @@ static bool _convert_to_avcodecparam(AVFormatContext *c, const MediaConfig *mc,
   case Type::Video: {
     const VideoConfig &vc = mc->vid_cfg;
     const ImageConfig &ic = (type == Type::Image) ? mc->img_cfg : vc.image_cfg;
+
     par->codec_type = AVMEDIA_TYPE_VIDEO;
     par->codec_id = (type == Type::Image)
                         ? AV_CODEC_ID_RAWVIDEO
-                        : PixFmtToAVCodecID(ic.image_info.pix_fmt);
+                        : CodecTypeToAVCodecID(ic.codec_type);
     if (par->codec_id == AV_CODEC_ID_NONE)
       return false;
     auto av_fmt = PixFmtToAVPixFmt(ic.image_info.pix_fmt);
@@ -127,7 +128,7 @@ static bool _convert_to_avcodecparam(AVFormatContext *c, const MediaConfig *mc,
   case Type::Audio: {
     const AudioConfig &ac = mc->aud_cfg;
     par->codec_type = AVMEDIA_TYPE_AUDIO;
-    par->codec_id = SampleFmtToAVCodecID(ac.sample_info.fmt);
+    par->codec_id = CodecTypeToAVCodecID(ac.codec_type);
     if (par->codec_id == AV_CODEC_ID_NONE)
       return false;
     par->codec_tag = av_codec_get_tag(c->oformat->codec_tag, par->codec_id);

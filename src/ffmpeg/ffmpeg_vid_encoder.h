@@ -37,7 +37,7 @@ private:
   AVCodecContext *Context_;
   AVFrame *frame;
   AVPacket *pkt;
-  std::string OutputFormat_;
+  std::string OutputType_;
   std::string CodecName_;
 };
 

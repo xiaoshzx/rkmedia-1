@@ -406,12 +406,15 @@ MPPFinalEncoder::MPPFinalEncoder(const char *param) : mpp_config(nullptr) {
 
 bool MPPFinalEncoder::InitConfig(const MediaConfig &cfg) {
   assert(!mpp_config);
+  MediaConfig new_cfg = cfg;
   switch (coding_type) {
   case MPP_VIDEO_CodingMJPEG:
     mpp_config = new MPPMJPEGConfig();
+    new_cfg.img_cfg.codec_type = codec_type;
     break;
   case MPP_VIDEO_CodingAVC:
   case MPP_VIDEO_CodingHEVC:
+    new_cfg.vid_cfg.image_cfg.codec_type = codec_type;
     mpp_config = new MPPCommonConfig(coding_type);
     break;
   default:
@@ -422,7 +425,7 @@ bool MPPFinalEncoder::InitConfig(const MediaConfig &cfg) {
     LOG_NO_MEMORY();
     return false;
   }
-  return mpp_config->InitConfig(*this, cfg);
+  return mpp_config->InitConfig(*this, new_cfg);
 }
 
 bool MPPFinalEncoder::CheckConfigChange(
