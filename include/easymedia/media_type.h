@@ -56,6 +56,8 @@ enum class Type { None = -1, Audio = 0, Image, Video, Text };
 #define AUDIO_AAC "audio:aac"
 #define AUDIO_MP2 "audio:mp2"
 #define AUDIO_VORBIS "audio:vorbis"
+#define AUDIO_G711A "audio:g711a"
+#define AUDIO_G711U "audio:g711U"
 
 #define TEXT_PREFIX "text:"
 
@@ -75,6 +77,8 @@ typedef enum {
   CODEC_TYPE_AAC,
   CODEC_TYPE_MP2,
   CODEC_TYPE_VORBIS,
+  CODEC_TYPE_G711A,
+  CODEC_TYPE_G711U,
   //Video
   CODEC_TYPE_H264,
   CODEC_TYPE_H265,
