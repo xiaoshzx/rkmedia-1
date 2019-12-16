@@ -176,6 +176,8 @@ int FFMPEGAudioEncoder::SendInput(const std::shared_ptr<MediaBuffer> &input) {
     assert(input && input->GetType() == Type::Audio);
     auto in = std::static_pointer_cast<SampleBuffer>(input);
     if (in->GetSamples() > 0) {
+      frame->nb_samples = in->GetValidSize() /
+        (avctx->channels * av_get_bytes_per_sample(avctx->sample_fmt));
       ret = avcodec_fill_audio_frame(frame, avctx->channels, avctx->sample_fmt,
                                      (const uint8_t *)in->GetPtr(),
                                      in->GetValidSize(), 0);
