@@ -58,6 +58,7 @@ enum class Type { None = -1, Audio = 0, Image, Video, Text };
 #define AUDIO_VORBIS "audio:vorbis"
 #define AUDIO_G711A "audio:g711a"
 #define AUDIO_G711U "audio:g711U"
+#define AUDIO_G726 "audio:g726"
 
 #define TEXT_PREFIX "text:"
 
@@ -79,6 +80,7 @@ typedef enum {
   CODEC_TYPE_VORBIS,
   CODEC_TYPE_G711A,
   CODEC_TYPE_G711U,
+  CODEC_TYPE_G726,
   //Video
   CODEC_TYPE_H264,
   CODEC_TYPE_H265,
