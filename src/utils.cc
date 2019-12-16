@@ -6,6 +6,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <algorithm>
 #include <sstream>
@@ -84,6 +85,10 @@ bool has_intersection(const char *str, const char *expect,
                       std::list<std::string> *expect_list) {
   std::list<std::string> request;
   // LOG("request: %s; expect: %s\n", str, expect);
+
+  if (!expect || (strlen(expect) == 0))
+    return true;
+
   if (!parse_media_param_list(str, request, ','))
     return false;
   if (expect_list->empty() && !parse_media_param_list(expect, *expect_list))
