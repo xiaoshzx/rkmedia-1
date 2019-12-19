@@ -10,6 +10,7 @@
 #include "alsa_utils.h"
 #include "media_type.h"
 #include "utils.h"
+#include "buffer.h"
 
 namespace easymedia {
 
@@ -18,6 +19,7 @@ public:
   AlsaCaptureStream(const char *param);
   virtual ~AlsaCaptureStream();
   static const char *GetStreamName() { return "alsa_capture_stream"; }
+  virtual std::shared_ptr<MediaBuffer> Read();
   virtual size_t Read(void *ptr, size_t size, size_t nmemb) final;
   virtual int Seek(int64_t offset _UNUSED, int whence _UNUSED) final {
     return -1;
@@ -88,6 +90,28 @@ size_t AlsaCaptureStream::Read(void *ptr, size_t size, size_t nmemb) {
   }
 
   return gotten * frame_size / size;
+}
+
+std::shared_ptr<MediaBuffer> AlsaCaptureStream::Read() {
+  int buffer_size = frame_size * sample_info.nb_samples;
+  int read_cnt = -1;
+  struct timespec crt_tm = {0, 0};
+
+  auto sample_buffer = std::make_shared<easymedia::SampleBuffer>(
+      MediaBuffer::Alloc2(buffer_size), sample_info);
+
+  if (!sample_buffer) {
+    LOG("Alloc audio frame buffer failed:%d,%d!\n", buffer_size, frame_size);
+    return nullptr;
+  }
+
+  clock_gettime(CLOCK_MONOTONIC, &crt_tm);
+  read_cnt = Read(sample_buffer->GetPtr(), frame_size, sample_info.nb_samples);
+  sample_buffer->SetValidSize(read_cnt * frame_size);
+  sample_buffer->SetSamples(read_cnt);
+  sample_buffer->SetUSTimeStamp(crt_tm.tv_sec*1000000LL + crt_tm.tv_nsec/1000);
+
+  return sample_buffer;
 }
 
 int AlsaCaptureStream::Open() {

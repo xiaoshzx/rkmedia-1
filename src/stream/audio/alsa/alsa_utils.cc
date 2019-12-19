@@ -55,6 +55,10 @@ int ParseAlsaParams(const char *param,
       ret++;
     } else if (key == KEY_DEVICE) {
       device = p.second;
+      ret++;
+    } else if (key == KEY_FRAMES) {
+      sample_info.nb_samples = stoi(p.second);
+      ret++;
     }
   }
   return ret;
