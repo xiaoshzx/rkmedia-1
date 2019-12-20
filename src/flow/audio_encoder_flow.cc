@@ -79,16 +79,16 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
   while (ret >= 0) {
     dst = enc->FetchOutput();
     if (!dst) {
-      if (errno != EAGAIN)
+      if (errno != EAGAIN) {
         fprintf(stderr, "[Audio]: frame fetch failed, ret=%d\n", errno);
-
-      result = false;
+        result = false;
+      }
       break;
     }
     size_t out_len = dst->GetValidSize();
     if (out_len == 0)
       break;
-    LOGD(stderr, "[Audio]: frame encoded, out %d bytes\n\n", (int)out_len);
+    LOGD("[Audio]: frame encoded, out %d bytes\n\n", (int)out_len);
     result = af->SetOutput(dst, 0);
     if (!result)
       break;
