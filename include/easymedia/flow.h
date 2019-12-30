@@ -43,6 +43,12 @@ using FunctionProcess =
     std::add_pointer<bool(Flow *f, MediaBufferVector &input_vector)>::type;
 template <int in_index, int out_index>
 bool void_transaction(Flow *f, MediaBufferVector &input_vector);
+using LinkVideoHandler = std::add_pointer<void(unsigned char *buffer,
+    unsigned int buffer_size, unsigned int present_time, int nat_type)>::type;
+using LinkAudioHandler = std::add_pointer<void(unsigned char *buffer,
+    unsigned int buffer_size, unsigned int present_time)>::type;
+using LinkCaptureHandler = std::add_pointer<void(unsigned char *buffer,
+    unsigned int buffer_size, int type, const char* id)>::type;
 
 class _API SlotMap {
 public:
@@ -97,6 +103,14 @@ public:
   void EventHookWait();
   void NotifyToEventHandler(EventMessage *msg);
   EventMessage * GetEventMessages();
+
+  //Add Link hander For app Link
+  void SetVideoHandler(LinkVideoHandler hander){link_video_handler_ = hander; }
+  LinkVideoHandler GetVideoHandler(){ return link_video_handler_; }
+  void SetAudioHandler(LinkAudioHandler hander){link_audio_handler_ = hander; }
+  LinkAudioHandler GetAudioHandler(){ return link_audio_handler_; }
+  void SetCaptureHandler(LinkCaptureHandler hander){link_capture_handler_ = hander; }
+  LinkCaptureHandler GetCaptureHandler(){ return link_capture_handler_; }
 
   bool IsAllBuffEmpty();
 
@@ -202,6 +216,10 @@ private:
   EventHandler * event_handler_;
 
   friend class FlowCoroutine;
+
+  LinkVideoHandler link_video_handler_;
+  LinkAudioHandler link_audio_handler_;
+  LinkCaptureHandler link_capture_handler_;
 
   DEFINE_ERR_GETSET()
   DECLARE_PART_FINAL_EXPOSE_PRODUCT(Flow)

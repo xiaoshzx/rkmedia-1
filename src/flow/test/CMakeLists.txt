@@ -38,3 +38,13 @@ if(AUDIO_ENCODER_FLOW_TEST)
   install(TARGETS audio_encoder_flow_test RUNTIME DESTINATION "bin")
 endif()
 
+option(LINK_FLOW_TEST "compile: link flow test" ON)
+
+if(LINK_FLOW_TEST)
+  set(LINK_FLOW_TEST_SRC_FILES link_flow_test.cc)
+  add_executable(link_flow_test ${LINK_FLOW_TEST_SRC_FILES})
+  target_link_libraries(link_flow_test easymedia)
+  target_include_directories(link_flow_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_compile_features(link_flow_test PRIVATE cxx_std_11)
+  install(TARGETS link_flow_test RUNTIME DESTINATION "bin")
+endif()
