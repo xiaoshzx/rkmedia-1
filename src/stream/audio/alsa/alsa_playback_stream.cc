@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <errno.h>
 
+#include "buffer.h"
 #include "alsa_utils.h"
 #include "media_type.h"
 #include "utils.h"
@@ -30,6 +31,7 @@ public:
   }
   virtual long Tell() final { return -1; }
   virtual size_t Write(const void *ptr, size_t size, size_t nmemb) final;
+  virtual bool Write(std::shared_ptr<MediaBuffer>);
   virtual int Open() final;
   virtual int Close() final;
 
@@ -88,6 +90,16 @@ size_t AlsaPlayBackStream::Write(const void *ptr, size_t size, size_t nmemb) {
 
 out:
   return (buffer_len - frames * frame_size) / size;
+}
+
+bool AlsaPlayBackStream::Write(std::shared_ptr<MediaBuffer> mb)
+{
+  if (mb->IsValid()) {
+    auto in = std::static_pointer_cast<SampleBuffer>(mb);
+    Write(in->GetPtr(), in->GetSamples(), in->GetSampleSize());
+    return 0;
+  }
+  return -1;
 }
 
 static int ALSA_finalize_hardware(snd_pcm_t *pcm_handle, uint32_t samples,
