@@ -50,11 +50,14 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
   }
   ImageInfo info;
   int qp_init;
+  CodecType codec_type;
   if (image_in || video_in) {
     if (!ParseImageInfoFromMap(params, info))
       return false;
     CHECK_EMPTY(value, params, KEY_COMPRESS_QP_INIT)
     qp_init = std::stoi(value);
+    CHECK_EMPTY(value, params, KEY_CODECTYPE)
+    codec_type = (CodecType)std::stoi(value);
   } else {
     // audio
     AudioConfig &aud_cfg = mc.aud_cfg;
@@ -64,6 +67,8 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     aud_cfg.bit_rate = std::stoi(value);
     CHECK_EMPTY(value, params, KEY_FLOAT_QUALITY)
     aud_cfg.quality = std::stof(value);
+    CHECK_EMPTY(value, params, KEY_CODECTYPE)
+    aud_cfg.codec_type = (CodecType)std::stoi(value);
     mc.type = Type::Audio;
     return true;
   }
@@ -71,12 +76,14 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     ImageConfig &img_cfg = mc.img_cfg;
     img_cfg.image_info = info;
     img_cfg.qp_init = qp_init;
+    img_cfg.codec_type = codec_type;
     mc.type = Type::Image;
   } else if (video_in) {
     VideoConfig &vid_cfg = mc.vid_cfg;
     ImageConfig &img_cfg = vid_cfg.image_cfg;
     img_cfg.image_info = info;
     img_cfg.qp_init = qp_init;
+    img_cfg.codec_type = codec_type;
     CHECK_EMPTY(value, params, KEY_COMPRESS_QP_STEP)
     vid_cfg.qp_step = std::stoi(value);
     CHECK_EMPTY(value, params, KEY_COMPRESS_QP_MIN)
@@ -107,6 +114,7 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
 std::string to_param_string(const ImageConfig &img_cfg) {
   std::string ret = to_param_string(img_cfg.image_info);
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_INIT, img_cfg.qp_init);
+  PARAM_STRING_APPEND_TO(ret, KEY_CODECTYPE, img_cfg.codec_type);
   return ret;
 }
 
@@ -130,6 +138,7 @@ std::string to_param_string(const AudioConfig &aud_cfg) {
   std::string ret = to_param_string(aud_cfg.sample_info);
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_BITRATE, aud_cfg.bit_rate);
   PARAM_STRING_APPEND_TO(ret, KEY_FLOAT_QUALITY, aud_cfg.quality);
+  PARAM_STRING_APPEND_TO(ret, KEY_CODECTYPE, aud_cfg.codec_type);
   return ret;
 }
 

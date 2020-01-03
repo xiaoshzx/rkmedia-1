@@ -22,6 +22,7 @@
 #define KEY_BUFFER_HEIGHT "height"
 #define KEY_BUFFER_VIR_WIDTH "virtual_width"
 #define KEY_BUFFER_VIR_HEIGHT "virtual_height"
+#define KEY_CODECTYPE "codec_type"
 
 // (src_left, src_top, src_width, src_height)->(dst_left, dst_top, dst_width,
 // dst_height)
