@@ -229,6 +229,7 @@ std::shared_ptr<MediaBuffer> FFMPEGAudioEncoder::FetchOutput() {
   buffer->SetPtr(pkt->data);
   buffer->SetValidSize(pkt->size);
   buffer->SetUSTimeStamp(pkt->pts);
+  buffer->SetType(Type::Audio);
   return buffer;
 }
 
