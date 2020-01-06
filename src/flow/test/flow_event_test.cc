@@ -18,6 +18,12 @@
 #include "stream.h"
 #include "utils.h"
 
+static bool quit = false;
+static void sigterm_handler(int sig) {
+  fprintf(stderr, "signal %d\n", sig);
+  quit = true;
+}
+
 namespace easymedia {
 
 class TestReadFlow : public Flow {
@@ -163,10 +169,12 @@ void TestReadFlow::ReadThreadRun() {
   }
   while (loop) {
     if (fstream->Eof()) {
-      if (loop_time-- > 0)
+      if (loop_time-- > 0) {
         fstream->Seek(0, SEEK_SET);
-      else
+      } else {
+        NotifyToEventHandler(MSG_FLOW_EVENT_INFO_EOS, MESSAGE_TYPE_LIFO);
         break;
+      }
     }
     auto buffer = MediaBuffer::Alloc(alloc_size, mtype);
     if (!buffer) {
@@ -174,14 +182,16 @@ void TestReadFlow::ReadThreadRun() {
       continue;
     }
 #if FLOW_EVENT_TEST
-    //while dequeue, EventMessage * msg should be delete to released
     static int cnt = 0;
     cnt++;
     if ((cnt % 15) == 1) {
-      static int param = 0;
-      EventMessage *msg = new EventMessage(this, 2, param++, nullptr,
-                                           MESSAGE_TYPE_LIFO);
-      this->NotifyToEventHandler(msg);
+      int msg_id = 2;
+      static int msg_param = 0;
+      msg_param++;
+      EventParamPtr param = std::make_shared<EventParam>(msg_id, msg_param);
+      char params[6] = "hello";
+      param->SetParams(params, 6);
+      NotifyToEventHandler(param, MESSAGE_TYPE_LIFO);
     }
 #endif
     if (is_image) {
@@ -281,9 +291,10 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
   TestWriteFlow *flow = static_cast<TestWriteFlow *>(f);
   auto &buffer = input_vector[0];
 #if FLOW_EVENT_TEST
-  //while dequeue, EventMessage * msg should be delete to released
-  EventMessage *msg = new EventMessage(flow, 1, 2);
-  flow->NotifyToEventHandler(msg);
+  int msg_id = 1;
+  int msg_param = 2;
+  EventParamPtr param = std::make_shared<EventParam>(msg_id, msg_param);
+  flow->NotifyToEventHandler(param);
 #endif
   if (!buffer)
     return true;
@@ -296,7 +307,7 @@ const char *FACTORY(TestWriteFlow)::OutPutDataType() { return ""; }
 
 } // namespace media
 
-static char optstr[] = "?i:o:w:h:";
+static char optstr[] = "?i:o:w:h:t:";
 
 int GetRandom()
 {
@@ -307,15 +318,25 @@ int GetRandom()
 int InputFlowEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
   while (loop) {
     flow->EventHookWait();
-    auto auto_msg = std::make_shared<easymedia::AutoMessage>(
-                                     flow->GetEventMessages());
-    auto msg = auto_msg->GetMessage();
-    if (msg == nullptr)
+    auto msg = flow->GetEventMessage();
+    auto param = flow->GetEventParam(msg);
+    if (param == nullptr)
       continue;
     printf("InputFlowEventProc flow %p msg id %d param %d\n",
-           flow.get(), msg->GetId(), msg->GetParam());
-	// TODO
-    std::this_thread::sleep_for(std::chrono::milliseconds(GetRandom()));
+           flow.get(), param->GetId(), param->GetParam());
+    auto params = param->GetParams();
+    if (params)
+      printf("params -------------- %s\n", (char *)params);
+    // TODO
+    switch (param->GetId()) {
+      case MSG_FLOW_EVENT_INFO_EOS:
+        loop = false;
+        quit = true;
+      break;
+      default:
+        std::this_thread::sleep_for(std::chrono::milliseconds(GetRandom()));
+      break;
+    }
   }
   return 0;
 }
@@ -323,14 +344,13 @@ int InputFlowEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
 int EncFlowEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
   while (loop) {
     flow->EventHookWait();
-    auto auto_msg = std::make_shared<easymedia::AutoMessage>(
-                                     flow->GetEventMessages());
-    auto msg = auto_msg->GetMessage();
-    if (msg == nullptr)
+    auto msg = flow->GetEventMessage();
+    auto param = flow->GetEventParam(msg);
+    if (param == nullptr)
       continue;
     printf("InputFlowEventProc flow %p msg id %d param %d\n",
-           flow.get(), msg->GetId(), msg->GetParam());
-	// TODO
+           flow.get(), param->GetId(), param->GetParam());
+    // TODO
     std::this_thread::sleep_for(std::chrono::milliseconds(GetRandom()));
   }
   return 0;
@@ -339,23 +359,16 @@ int EncFlowEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
 int OutPutFlowEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
   while (loop) {
     flow->EventHookWait();
-    auto auto_msg = std::make_shared<easymedia::AutoMessage>(
-                                     flow->GetEventMessages());
-    auto msg = auto_msg->GetMessage();
-    if (msg == nullptr)
+    auto msg = flow->GetEventMessage();
+    auto param = flow->GetEventParam(msg);
+    if (param == nullptr)
       continue;
     printf("OutPutFlowEventProc flow %p msg id %d param %d\n",
-           flow.get(), msg->GetId(), msg->GetParam());
+           flow.get(), param->GetId(), param->GetParam());
     // TODO
     std::this_thread::sleep_for(std::chrono::milliseconds(GetRandom()));
   }
   return 0;
-}
-
-static bool quit = false;
-static void sigterm_handler(int sig) {
-  fprintf(stderr, "signal %d\n", sig);
-  quit = true;
 }
 
 int main(int argc, char **argv) {
@@ -364,6 +377,7 @@ int main(int argc, char **argv) {
   std::string output_path;
   int w = 0, h = 0;
   std::string input_format;
+  int loop_times = 0;
 
   std::string flow_name;
   std::string flow_param;
@@ -391,10 +405,14 @@ int main(int argc, char **argv) {
     case 'h':
       h = atoi(optarg);
       break;
+    case 't':
+      loop_times = atoi(optarg);
+      printf("loop_times: %d\n", loop_times);
+      break;
     case '?':
     default:
       printf("usage example: \n");
-      printf("flow_event_test -i input.yuv -o output.h264 -w 320 -h 240\n");
+      printf("flow_event_test -i input.yuv -o output.h264 -w 320 -h 240 -t 0\n");
       exit(0);
     }
   }
@@ -428,7 +446,7 @@ int main(int argc, char **argv) {
   PARAM_STRING_APPEND(flow_param, KEY_MEM_TYPE, KEY_MEM_HARDWARE);
   flow_param += easymedia::to_param_string(info);
   PARAM_STRING_APPEND_TO(flow_param, KEY_FPS, fps); // rhythm reading
-  PARAM_STRING_APPEND_TO(flow_param, KEY_LOOP_TIME, 9999);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_LOOP_TIME, loop_times);
   printf("\nflow_param 1:\n%s\n", flow_param.c_str());
 
   input_flow_ = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
@@ -501,7 +519,7 @@ int main(int argc, char **argv) {
   output_flow_->RegisterEventHandler(output_flow_, OutPutFlowEventProc);
 
   while (!quit)
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
   output_flow_->UnRegisterEventHandler();
   enc_flow_->UnRegisterEventHandler();

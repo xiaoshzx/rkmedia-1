@@ -667,9 +667,20 @@ void Flow::UnRegisterEventHandler() {
   }
 }
 
-void Flow::NotifyToEventHandler(EventMessage *msg)
+void Flow::NotifyToEventHandler(EventParamPtr param, int type)
 {
   if (event_handler_) {
+    MessagePtr msg = std::make_shared<EventMessage>(this, param, type);
+    event_handler_->NotifyToEventHandler(msg);
+    event_handler_->SignalEventHook();
+  }
+}
+
+void Flow::NotifyToEventHandler(int id, int type)
+{
+  if (event_handler_) {
+    EventParamPtr event_param = std::make_shared<EventParam>(id, 0);
+    MessagePtr msg = std::make_shared<EventMessage>(this, event_param, type);
     event_handler_->NotifyToEventHandler(msg);
     event_handler_->SignalEventHook();
   }
@@ -681,11 +692,16 @@ void Flow::EventHookWait()
     event_handler_->EventHookWait();
 }
 
-EventMessage * Flow::GetEventMessages()
+MessagePtr Flow::GetEventMessage()
 {
-  if (event_handler_) {
-    return event_handler_->GetEventMessages();
-  }
+  if (event_handler_)
+    return event_handler_->GetEventMessage();
+  return nullptr;
+}
+
+EventParamPtr Flow::GetEventParam(MessagePtr msg) {
+  if (msg)
+    return msg->GetEventParam();
   return nullptr;
 }
 

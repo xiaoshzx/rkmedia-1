@@ -101,8 +101,10 @@ public:
   void RegisterEventHandler(std::shared_ptr<Flow> flow, EventHook proc);
   void UnRegisterEventHandler();
   void EventHookWait();
-  void NotifyToEventHandler(EventMessage *msg);
-  EventMessage * GetEventMessages();
+  void NotifyToEventHandler(EventParamPtr param, int type = MESSAGE_TYPE_FIFO);
+  void NotifyToEventHandler(int id, int type = MESSAGE_TYPE_FIFO);
+  MessagePtr GetEventMessage();
+  EventParamPtr GetEventParam(MessagePtr msg);
 
   //Add Link hander For app Link
   void SetVideoHandler(LinkVideoHandler hander){link_video_handler_ = hander; }
