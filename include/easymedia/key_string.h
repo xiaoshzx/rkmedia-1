@@ -45,6 +45,10 @@
 #define KEY_NEED_EXTRA_OUTPUT "need_extra_output"
 #define KEY_NEED_EXTRA_MERGE "need_extra_merge"
 
+#define KEY_H265_MAX_I_QP "h265_max_i_qp"
+#define KEY_H265_MIN_I_QP "h265_min_i_qp"
+#define KEY_H264_TRANS_8x8 "h264_trans_8x8"
+
 #define KEY_WORST "worst"
 #define KEY_WORSE "worse"
 #define KEY_MEDIUM "medium"

@@ -24,8 +24,11 @@ typedef struct {
   int qp_step;
   int qp_min;
   int qp_max;
+  int max_i_qp; // h265 encoder.
+  int min_i_qp; // h265 encoder.
   int bit_rate;
   int frame_rate;
+  int trans_8x8; // h264 encoder.
   int level;
   int gop_size;
   int profile;
