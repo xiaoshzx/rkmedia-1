@@ -113,10 +113,12 @@ void FileReadFlow::ReadThreadRun() {
   }
   while (loop) {
     if (fstream->Eof()) {
-      if (loop_time-- > 0)
+      if (loop_time-- > 0) {
         fstream->Seek(0, SEEK_SET);
-      else
+      } else {
+        NotifyToEventHandler(MSG_FLOW_EVENT_INFO_EOS);
         break;
+      }
     }
     auto buffer = MediaBuffer::Alloc(alloc_size, mtype);
     if (!buffer) {

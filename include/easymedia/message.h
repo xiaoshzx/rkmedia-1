@@ -12,53 +12,63 @@
 #include <thread>
 
 #include "lock.h"
+#include "message_type.h"
 
 namespace easymedia {
 
-
-enum EventMessageType {
-  MESSAGE_TYPE_FIFO = 0,
-  MESSAGE_TYPE_LIFO,
-  MESSAGE_TYPE_UNIQUE
-};
-
 class EventMessage;
-void EventMsgAssign(EventMessage &, const EventMessage &);
-bool operator==(const EventMessage &, const EventMessage &);
-bool operator!=(const EventMessage &, const EventMessage &);
-
 class Flow;
-class EventMessage {
+
+class EventParam {
 public:
-  EventMessage()
-    : sender_(nullptr), id_(0), param_(0), params_(nullptr), type_(0) {}
-  EventMessage(void *sender, int id, int param,
-                     void *params = nullptr, int type = 0)
-    : sender_(sender), id_(id), param_(param)
-    , params_(params), type_(type) {}
-  ~EventMessage(){}
-
-  friend void EventMsgAssign(EventMessage &, const EventMessage &);
-  friend bool operator==(const EventMessage &, const EventMessage &);
-  friend bool operator!=(const EventMessage &, const EventMessage &);
-
-  void * GetSender() { return sender_; }
+  EventParam() = delete;
+  EventParam(int id, int param = 0)
+    : id_(id), param_(param), params_(nullptr) {}
+  ~EventParam() {
+    if (params_) {
+      free(params_);
+      params_ = nullptr;
+    }
+  }
+  int SetParams(void *params, int size) {
+    params_ = malloc(size);
+    if(params_ == nullptr)
+      return -1;
+    memcpy(params_, params, size);
+    return 0;
+  }
   int GetId() { return id_; }
   int GetParam() { return param_; }
   void * GetParams() { return params_; }
+  int GetParamsSize() { return params_size_; }
+private:
+  int id_;
+  int param_;
+  void *params_;
+  int params_size_;
+};
+
+typedef std::shared_ptr<EventParam> EventParamPtr;
+
+class EventMessage {
+public:
+  EventMessage();
+  EventMessage(void *sender, EventParamPtr param, int type = 0)
+    : sender_(sender), param_(param), type_(type) {}
+  ~EventMessage(){}
+  void * GetSender() { return sender_; }
+  EventParamPtr GetEventParam() { return param_; }
   int GetType() { return type_; }
 
 private:
   void *sender_;
-  int id_;
-  int param_;
-  void *params_;
+  EventParamPtr param_;
   int type_;
 };
 
 typedef int (* EventHook)(std::shared_ptr<Flow>flow, bool &loop);
-typedef std::vector<EventMessage> MessageQueue;
-typedef std::vector<EventMessage *> PMessageQueue;
+typedef std::shared_ptr<EventMessage> MessagePtr;
+typedef std::vector<MessagePtr> MessagePtrQueue;
 
 class EventHandler {
 public:
@@ -70,10 +80,10 @@ public:
   void EventHookWait();
   void SignalEventHook();
 
-  void CleanRepeatMessage(EventMessage *msg);
-  void InsertMessage(EventMessage *msg, bool front = false);
-  EventMessage * GetEventMessages();
-  void NotifyToEventHandler(EventMessage *msg);
+  void CleanRepeatMessage(MessagePtr msg);
+  void InsertMessage(MessagePtr msg, bool front = false);
+  MessagePtr GetEventMessage();
+  void NotifyToEventHandler(MessagePtr msg);
 
 public:
 
@@ -81,25 +91,9 @@ private:
   EventHook process_;
   bool event_thread_loop_;
   std::thread *event_thread_;
-  PMessageQueue event_msgs_;
+  MessagePtrQueue event_msgs_;
   ConditionLockMutex event_cond_mtx_;
   ReadWriteLockMutex event_queue_mtx_;
-};
-
-class AutoMessage {
-public:
-  AutoMessage() = delete;
-  AutoMessage(EventMessage *msg) : msg_(msg) { }
-  ~AutoMessage()
-  {
-    if(msg_ != nullptr) {
-      delete msg_;
-      msg_ = nullptr;
-    }
-  }
-  EventMessage *GetMessage(){ return msg_;}
-private:
-  EventMessage *msg_;
 };
 
 } // namespace easymedia
