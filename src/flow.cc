@@ -5,7 +5,7 @@
 #include "flow.h"
 
 #include <assert.h>
-
+#include <sys/prctl.h>
 #include <algorithm>
 
 #include "buffer.h"
@@ -157,6 +157,10 @@ void FlowCoroutine::RunOnce() {
 }
 
 void FlowCoroutine::WhileRun() {
+#ifndef NDEBUG
+  prctl(PR_SET_NAME, this->name.c_str());
+  LOGD("flow-name %s\n", this->name.c_str());
+#endif
   while (!flow->quit)
     RunOnce();
 }
@@ -165,6 +169,10 @@ void FlowCoroutine::WhileRunSleep() {
   int64_t times = 0;
   AutoDuration ad;
   assert(interval > 0);
+#ifndef NDEBUG
+  prctl(PR_SET_NAME, this->name.c_str());
+  LOGD("flow-name %s\n", this->name.c_str());
+#endif
   while (!flow->quit) {
     if (times == 0)
       ad.Reset();
@@ -188,22 +196,31 @@ void FlowCoroutine::SyncFetchInput(MediaBufferVector &in) {
 }
 
 void FlowCoroutine::ASyncFetchInputCommon(MediaBufferVector &in) {
+  flow->cond_mtx.lock();
+  bool empty = true;
   for (size_t i = 0; i < in_slots.size(); i++) {
     int idx = in_slots[i];
     auto &input = flow->v_input[idx];
-    AutoLockMutex _am(input.cond_mtx);
+    auto &v = input.cached_buffers;
+    if (!v.empty())
+      empty = false;
+  }
+  if (empty)
+    flow->cond_mtx.wait();
+  flow->cond_mtx.unlock();
+
+  for (size_t i = 0; i < in_slots.size(); i++) {
+    int idx = in_slots[i];
+    auto &input = flow->v_input[idx];
     auto &v = input.cached_buffers;
     if (v.empty()) {
-      if (!input.fetch_block) {
-        in[i] = nullptr;
-        continue;
-      }
-      input.cond_mtx.wait();
+      continue;
     }
     if (!flow->enable) {
       in.assign(in_slots.size(), nullptr);
       break;
     }
+    AutoLockMutex _alm(input.mtx);
     assert(!v.empty());
     in[i] = v.front();
     v.pop_front();
@@ -301,12 +318,11 @@ Flow::Flow()
 Flow::~Flow() { StopAllThread(); }
 
 void Flow::StopAllThread() {
-  for (auto &in : v_input) {
-    AutoLockMutex _alm(in.cond_mtx);
-    enable = false;
-    quit = true;
-    in.cond_mtx.notify();
-  }
+  enable = false;
+  quit = true;
+  cond_mtx.lock();
+  cond_mtx.notify();
+  cond_mtx.unlock();
   for (auto &coroutine : coroutines)
     coroutine.reset();
 }
@@ -713,14 +729,18 @@ void Flow::Input::SyncSendInputBehavior(std::shared_ptr<MediaBuffer> &input) {
 
 void Flow::Input::ASyncSendInputCommonBehavior(
     std::shared_ptr<MediaBuffer> &input) {
-  AutoLockMutex _alm(cond_mtx);
+  mtx.lock();
   if (max_cache_num > 0 && max_cache_num <= (int)cached_buffers.size()) {
     bool ret = (this->*async_full_behavior)(flow->enable);
-    if (!ret)
+    if (!ret) {
+      mtx.unlock();
       return;
+    }
   }
+  mtx.unlock();
   cached_buffers.push_back(input);
-  cond_mtx.notify();
+  AutoLockMutex _alm(flow->cond_mtx);
+  flow->cond_mtx.notify();
 }
 
 void Flow::Input::ASyncSendInputAtomicBehavior(
@@ -732,12 +752,12 @@ void Flow::Input::ASyncSendInputAtomicBehavior(
 bool Flow::Input::ASyncFullBlockingBehavior(volatile bool &pred) {
   do {
     msleep(5);
-    cond_mtx.unlock();
+    mtx.unlock();
     if (max_cache_num > (int)cached_buffers.size()) {
-      cond_mtx.lock();
+      mtx.lock();
       break;
     }
-    cond_mtx.lock();
+    mtx.lock();
   } while (pred);
 
   return pred;

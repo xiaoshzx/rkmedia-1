@@ -168,7 +168,7 @@ protected:
     Model thread_model;
     bool fetch_block;
     std::deque<std::shared_ptr<MediaBuffer>> cached_buffers;
-    ConditionLockMutex cond_mtx;
+    ConditionLockMutex mtx;
     int max_cache_num;
     InputMode mode_when_full;
     std::shared_ptr<MediaBuffer> cached_buffer;
@@ -213,6 +213,7 @@ protected:
 private:
   volatile bool enable;
   volatile bool quit;
+  ConditionLockMutex cond_mtx;
 
   // event handler
   EventHandler * event_handler_;
