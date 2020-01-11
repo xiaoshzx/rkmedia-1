@@ -138,6 +138,7 @@ int V4L2CaptureStream::Open() {
   }
   const char *data_type_str = data_type.c_str();
   struct v4l2_format fmt;
+  memset(&fmt, 0, sizeof(fmt));
   fmt.type = capture_type;
   fmt.fmt.pix.width = width;
   fmt.fmt.pix.height = height;
