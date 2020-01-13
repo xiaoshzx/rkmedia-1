@@ -152,6 +152,9 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   MppEncCodecCfg codec_cfg;
   unsigned int need_block = 1;
   int dummy = 1;
+  memset(&rc_cfg, 0, sizeof(rc_cfg));
+  memset(&prep_cfg, 0, sizeof(prep_cfg));
+  memset(&codec_cfg, 0, sizeof(codec_cfg));
 
   mpi_cmd = MPP_SET_INPUT_BLOCK;
   param = &need_block;
@@ -230,6 +233,17 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
         (profile == 66 || profile == 77) ? (0) : (1);
     codec_cfg.h264.cabac_init_idc = 0;
 
+#ifdef RK_MPP_VERSION_NEW
+    if (vconfig.trans_8x8) {
+      if (profile == 100) {
+        codec_cfg.h264.change |= MPP_ENC_H264_CFG_CHANGE_TRANS_8x8;
+        codec_cfg.h264.transform8x8_mode = vconfig.trans_8x8;
+      } else {
+        LOG("the profile must be greater than 100"
+          "to enable h264 enc trans_8x8.\n");
+      }
+    }
+#endif
     // setup QP on CQP mode
     codec_cfg.h264.change |= MPP_ENC_H264_CFG_CHANGE_QP_LIMIT;
     codec_cfg.h264.qp_init = img_cfg.qp_init;
@@ -238,9 +252,18 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
     codec_cfg.h264.qp_max_step = vconfig.qp_step;
     break;
   case MPP_VIDEO_CodingHEVC:
-    // copy from mpi_enc_test.c
+#ifdef RK_MPP_VERSION_NEW
+    codec_cfg.h265.change =
+      MPP_ENC_H265_CFG_INTRA_QP_CHANGE | MPP_ENC_H265_CFG_RC_QP_CHANGE;
+    codec_cfg.h265.qp_init = img_cfg.qp_init;
+    codec_cfg.h265.max_i_qp = vconfig.max_i_qp;
+    codec_cfg.h265.min_i_qp = vconfig.min_i_qp;
+    codec_cfg.h265.max_qp = vconfig.qp_max;
+    codec_cfg.h265.min_qp = vconfig.qp_min;
+#else
     codec_cfg.h265.change = MPP_ENC_H265_CFG_INTRA_QP_CHANGE;
     codec_cfg.h265.intra_qp = img_cfg.qp_init;
+#endif
     break;
   default:
     // will never go here, avoid gcc warning
@@ -441,6 +464,15 @@ DEFINE_VIDEO_ENCODER_FACTORY(MPPFinalEncoder)
 const char *FACTORY(MPPFinalEncoder)::ExpectedInputDataType() {
   return MppAcceptImageFmts();
 }
-const char *FACTORY(MPPFinalEncoder)::OutPutDataType() { return VIDEO_H264; }
+
+#define IMAGE_JPEG "image:jpeg"
+#define VIDEO_H264 "video:h264"
+#define VIDEO_H265 "video:h265"
+
+#define VIDEO_ENC_OUTPUT                     \
+  TYPENEAR(IMAGE_JPEG) TYPENEAR(VIDEO_H264)  \
+  TYPENEAR(VIDEO_H265)
+
+const char *FACTORY(MPPFinalEncoder)::OutPutDataType() { return VIDEO_ENC_OUTPUT; }
 
 } // namespace easymedia

@@ -8,6 +8,8 @@
 #include "encoder.h"
 #include "mpp_inc.h"
 
+#define  RK_MPP_VERSION_NEW 1
+
 namespace easymedia {
 
 // A encoder which call the mpp interface directly.

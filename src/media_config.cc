@@ -106,6 +106,12 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     CHECK_EMPTY_WITH_DECLARE(const std::string &, rc_m, params,
                              KEY_COMPRESS_RC_MODE)
     vid_cfg.rc_mode = ConvertRcMode(rc_m);
+    CHECK_EMPTY(value, params, KEY_H265_MAX_I_QP)
+    vid_cfg.max_i_qp = std::stoi(value);
+    CHECK_EMPTY(value, params, KEY_H265_MIN_I_QP)
+    vid_cfg.min_i_qp = std::stoi(value);
+    CHECK_EMPTY(value, params, KEY_H264_TRANS_8x8)
+    vid_cfg.trans_8x8 = std::stoi(value);
     mc.type = Type::Video;
   }
   return true;
@@ -131,6 +137,9 @@ std::string to_param_string(const VideoConfig &vid_cfg) {
   PARAM_STRING_APPEND_TO(ret, KEY_PROFILE, vid_cfg.profile);
   PARAM_STRING_APPEND(ret, KEY_COMPRESS_RC_QUALITY, vid_cfg.rc_quality);
   PARAM_STRING_APPEND(ret, KEY_COMPRESS_RC_MODE, vid_cfg.rc_mode);
+  PARAM_STRING_APPEND_TO(ret, KEY_H265_MAX_I_QP, vid_cfg.max_i_qp);
+  PARAM_STRING_APPEND_TO(ret, KEY_H265_MIN_I_QP, vid_cfg.min_i_qp);
+  PARAM_STRING_APPEND_TO(ret, KEY_H264_TRANS_8x8, vid_cfg.trans_8x8);
   return ret;
 }
 
