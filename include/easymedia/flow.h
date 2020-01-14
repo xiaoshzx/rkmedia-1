@@ -98,7 +98,7 @@ public:
 
   // The global event hander is the same thread to the born thread of this
   // object.
-  void RegisterEventHandler(int pipe_index, int flow_index, EventHook proc);
+  void RegisterEventHandler(std::shared_ptr<Flow> flow, EventHook proc);
   void UnRegisterEventHandler();
   void EventHookWait();
   void NotifyToEventHandler(EventParamPtr param, int type = MESSAGE_TYPE_FIFO);
