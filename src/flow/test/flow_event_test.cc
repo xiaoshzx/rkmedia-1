@@ -24,6 +24,8 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
+static std::vector<std::shared_ptr<easymedia::Flow>> flows;
+
 namespace easymedia {
 
 class TestReadFlow : public Flow {
@@ -315,8 +317,11 @@ int GetRandom()
   return rand() % 33;
 }
 
-int InputFlowEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
+int InputFlowEventProc(int pipe_index, int flow_index, bool &loop) {
+  if(pipe_index < 0)
+    return 0;
   while (loop) {
+    auto flow = flows[flow_index];
     flow->EventHookWait();
     auto msg = flow->GetEventMessage();
     auto param = flow->GetEventParam(msg);
@@ -341,8 +346,12 @@ int InputFlowEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
   return 0;
 }
 
-int EncFlowEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
+int EncFlowEventProc(int pipe_index, int flow_index, bool &loop) {
+  if(pipe_index < 0)
+    return 0;
+
   while (loop) {
+    auto flow = flows[flow_index];
     flow->EventHookWait();
     auto msg = flow->GetEventMessage();
     auto param = flow->GetEventParam(msg);
@@ -356,8 +365,12 @@ int EncFlowEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
   return 0;
 }
 
-int OutPutFlowEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
+int OutPutFlowEventProc(int pipe_index, int flow_index, bool &loop) {
+  if(pipe_index < 0)
+    return 0;
+
   while (loop) {
+    auto flow = flows[flow_index];
     flow->EventHookWait();
     auto msg = flow->GetEventMessage();
     auto param = flow->GetEventParam(msg);
@@ -455,6 +468,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
     exit(EXIT_FAILURE);
   }
+  flows.emplace_back(input_flow_);
 
   flow_name = "video_enc";
   flow_param = "";
@@ -494,6 +508,7 @@ int main(int argc, char **argv) {
     input_flow_.reset();
     exit(EXIT_FAILURE);
   }
+  flows.emplace_back(enc_flow_);
 
   flow_name = "write_flow_test";
   flow_param = "";
@@ -510,13 +525,14 @@ int main(int argc, char **argv) {
     enc_flow_.reset();
     exit(EXIT_FAILURE);
   }
+  flows.emplace_back(output_flow_);
 
   enc_flow_->AddDownFlow(output_flow_, 0, 0);
   input_flow_->AddDownFlow(enc_flow_, 0, 0);
 
-  input_flow_->RegisterEventHandler(input_flow_, InputFlowEventProc);
-  enc_flow_->RegisterEventHandler(enc_flow_, EncFlowEventProc);
-  output_flow_->RegisterEventHandler(output_flow_, OutPutFlowEventProc);
+  input_flow_->RegisterEventHandler(0, 0, InputFlowEventProc);
+  enc_flow_->RegisterEventHandler(0, 1, EncFlowEventProc);
+  output_flow_->RegisterEventHandler(0, 2, OutPutFlowEventProc);
 
   while (!quit)
     std::this_thread::sleep_for(std::chrono::milliseconds(10));

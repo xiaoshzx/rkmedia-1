@@ -66,7 +66,7 @@ private:
   int type_;
 };
 
-typedef int (* EventHook)(std::shared_ptr<Flow>flow, bool &loop);
+using EventHook = std::add_pointer<int(int, int, bool &)>::type;
 typedef std::shared_ptr<EventMessage> MessagePtr;
 typedef std::vector<MessagePtr> MessagePtrQueue;
 
@@ -75,7 +75,7 @@ public:
   EventHandler() {}
   virtual ~EventHandler() {}
 
-  void RegisterEventHook(std::shared_ptr<Flow>flow, EventHook proc);
+  void RegisterEventHook(int pipe_index, int flow_index, EventHook proc);
   void UnRegisterEventHook();
   void EventHookWait();
   void SignalEventHook();

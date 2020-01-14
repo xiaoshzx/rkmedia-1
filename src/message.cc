@@ -15,12 +15,12 @@
 
 namespace easymedia {
 
-void EventHandler::RegisterEventHook(std::shared_ptr<easymedia::Flow> flow,
-                                          EventHook proc)
+void EventHandler::RegisterEventHook(int pipe_index, int flow_index, EventHook proc)
 {
   process_ = proc;
   event_thread_loop_ = true;
-  event_thread_ = new std::thread(process_, flow, std::ref(event_thread_loop_));
+  event_thread_ = new std::thread(process_, pipe_index,
+                                  flow_index, std::ref(event_thread_loop_));
 }
 
 void EventHandler::UnRegisterEventHook()
