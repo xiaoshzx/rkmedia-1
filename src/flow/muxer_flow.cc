@@ -94,8 +94,8 @@ MuxerFlow::MuxerFlow(const char *param)
   sm.input_slots.push_back(1);
   sm.thread_model = Model::ASYNCCOMMON;
   sm.mode_when_full = InputMode::DROPFRONT;
-  sm.input_maxcachenum.push_back(0);
-  sm.input_maxcachenum.push_back(0);
+  sm.input_maxcachenum.push_back(10);
+  sm.input_maxcachenum.push_back(20);
   sm.fetch_block.push_back(false);
   sm.fetch_block.push_back(false);
   sm.process = save_buffer;
