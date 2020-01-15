@@ -46,6 +46,8 @@ public:
   virtual ~MediaBuffer() = default;
   virtual PixelFormat GetPixelFormat() const { return PIX_FMT_NONE; }
   virtual SampleFormat GetSampleFormat() const { return SAMPLE_FMT_NONE; }
+  void BeginCPUAccess(bool readonly);
+  void EndCPUAccess(bool readonly);
   int GetFD() const { return fd; }
   void SetFD(int new_fd) { fd = new_fd; }
   void *GetPtr() const { return ptr; }

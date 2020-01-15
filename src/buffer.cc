@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include<sys/ioctl.h>
 
 #include "key_string.h"
 #include "utils.h"
@@ -315,13 +316,26 @@ static int free_drm_memory(void *buffer) {
   return 0;
 }
 
+ /* memory type definitions. */
+enum drm_rockchip_gem_mem_type {
+  /* Physically Continuous memory. */
+  ROCKCHIP_BO_CONTIG    = 1 << 0,
+  /* cachable mapping. */
+  ROCKCHIP_BO_CACHABLE  = 1 << 1,
+  /* write-combine mapping. */
+  ROCKCHIP_BO_WC        = 1 << 2,
+  ROCKCHIP_BO_SECURE    = 1 << 3,
+  ROCKCHIP_BO_MASK      = ROCKCHIP_BO_CONTIG | ROCKCHIP_BO_CACHABLE |
+                          ROCKCHIP_BO_WC
+};
+
 static MediaBuffer alloc_drm_memory(size_t size, bool map = true) {
   static auto drm_dev = std::make_shared<DrmDevice>();
   DrmBuffer *db = nullptr;
   do {
     if (!drm_dev || !drm_dev->Valid())
       break;
-    db = new DrmBuffer(drm_dev, size);
+    db = new DrmBuffer(drm_dev, size, ROCKCHIP_BO_CACHABLE);
     if (!db || !db->Valid())
       break;
     if (map && !db->MapToVirtual())
@@ -382,6 +396,52 @@ void MediaBuffer::CopyAttribute(MediaBuffer &src_attr) {
   user_flag = src_attr.GetUserFlag();
   ustimestamp = src_attr.GetUSTimeStamp();
   eof = src_attr.IsEOF();
+}
+
+struct dma_buf_sync {
+        __u64 flags;
+};
+
+#define DMA_BUF_SYNC_READ (1 << 0)
+#define DMA_BUF_SYNC_WRITE (2 << 0)
+#define DMA_BUF_SYNC_RW (DMA_BUF_SYNC_READ | DMA_BUF_SYNC_WRITE)
+#define DMA_BUF_SYNC_START (0 << 2)
+#define DMA_BUF_SYNC_END (1 << 2)
+#define DMA_BUF_SYNC_VALID_FLAGS_MASK \
+        (DMA_BUF_SYNC_RW | DMA_BUF_SYNC_END)
+#define DMA_BUF_BASE 'b'
+#define DMA_BUF_IOCTL_SYNC _IOW(DMA_BUF_BASE, 0, struct dma_buf_sync)
+
+void MediaBuffer::BeginCPUAccess(bool readonly) {
+  struct dma_buf_sync sync = { 0 };
+
+  if (fd < 0)
+    return;
+
+  if (readonly)
+    sync.flags = DMA_BUF_SYNC_READ| DMA_BUF_SYNC_START;
+  else
+    sync.flags = DMA_BUF_SYNC_RW| DMA_BUF_SYNC_START;
+
+  int ret = ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
+  if (!ret)
+    LOG("%s: ret %d\n", __func__, ret);
+}
+
+void MediaBuffer::EndCPUAccess(bool readonly) {
+  struct dma_buf_sync sync = { 0 };
+
+  if (fd < 0)
+    return;
+
+  if (readonly)
+    sync.flags = DMA_BUF_SYNC_READ| DMA_BUF_SYNC_START;
+  else
+    sync.flags = DMA_BUF_SYNC_RW| DMA_BUF_SYNC_START;
+
+  int ret = ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
+  if (!ret)
+    LOG("%s: ret %d\n", __func__, ret);
 }
 
 } // namespace easymedia
