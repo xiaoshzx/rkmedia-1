@@ -435,9 +435,9 @@ void MediaBuffer::EndCPUAccess(bool readonly) {
     return;
 
   if (readonly)
-    sync.flags = DMA_BUF_SYNC_READ| DMA_BUF_SYNC_START;
+    sync.flags = DMA_BUF_SYNC_READ| DMA_BUF_SYNC_END;
   else
-    sync.flags = DMA_BUF_SYNC_RW| DMA_BUF_SYNC_START;
+    sync.flags = DMA_BUF_SYNC_RW| DMA_BUF_SYNC_END;
 
   int ret = ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
   if (!ret)
