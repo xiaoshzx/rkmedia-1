@@ -62,6 +62,7 @@ private:
   std::shared_ptr<Muxer> muxer;
   int vid_stream_id;
   int aud_stream_id;
+  void ClearStream();
 };
 
 } // namespace easymedia
