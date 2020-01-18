@@ -87,7 +87,10 @@ MuxerFlow::MuxerFlow(const char *param)
     }
   }
 
-  muxer_param = std::string(param);
+  std::string token;
+  std::istringstream tokenStream(param);
+  std::getline(tokenStream, token, FLOW_PARAM_SEPARATE_CHAR);
+  muxer_param = token;
 
   SlotMap sm;
   sm.input_slots.push_back(0);
