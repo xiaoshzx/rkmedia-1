@@ -154,6 +154,7 @@ std::string to_param_string(const AudioConfig &aud_cfg) {
 std::string to_param_string(const MediaConfig &mc,
                             const std::string &out_type) {
   std::string ret;
+  MediaConfig mc_temp = mc;
   bool image_in = string_start_withs(out_type, IMAGE_PREFIX);
   bool video_in = string_start_withs(out_type, VIDEO_PREFIX);
   bool audio_in = string_start_withs(out_type, AUDIO_PREFIX);
@@ -163,14 +164,20 @@ std::string to_param_string(const MediaConfig &mc,
   }
 
   PARAM_STRING_APPEND(ret, KEY_OUTPUTDATATYPE, out_type);
-  if (image_in)
-    ret.append(to_param_string(mc.img_cfg));
+  if (image_in) {
+    mc_temp.img_cfg.codec_type = StringToCodecType(out_type.c_str());
+    ret.append(to_param_string(mc_temp.img_cfg));
+  }
 
-  if (video_in)
-    ret.append(to_param_string(mc.vid_cfg));
+  if (video_in) {
+    mc_temp.vid_cfg.image_cfg.codec_type = StringToCodecType(out_type.c_str());
+    ret.append(to_param_string(mc_temp.vid_cfg));
+  }
 
-  if (audio_in)
-    ret.append(to_param_string(mc.aud_cfg));
+  if (audio_in) {
+    mc_temp.aud_cfg.codec_type = StringToCodecType(out_type.c_str());
+    ret.append(to_param_string(mc_temp.aud_cfg));
+  }
 
   return ret;
 }
