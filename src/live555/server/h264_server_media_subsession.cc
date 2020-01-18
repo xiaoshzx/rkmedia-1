@@ -26,8 +26,8 @@ H264ServerMediaSubsession::~H264ServerMediaSubsession() {
   LOG_FILE_FUNC_LINE();
 }
 
-std::mutex H264ServerMediaSubsession::kMutex;
-std::list<unsigned int> H264ServerMediaSubsession::kSessionIdList;
+//std::mutex H264ServerMediaSubsession::kMutex;
+//std::list<unsigned int> H264ServerMediaSubsession::kSessionIdList;
 
 void H264ServerMediaSubsession::startStream(
     unsigned clientSessionId, void *streamToken, TaskFunc *rtcpRRHandler,
@@ -39,21 +39,21 @@ void H264ServerMediaSubsession::startStream(
       clientSessionId, streamToken, rtcpRRHandler, rtcpRRHandlerClientData,
       rtpSeqNum, rtpTimestamp, serverRequestAlternativeByteHandler,
       serverRequestAlternativeByteHandlerClientData);
-  kMutex.lock();
+  //kMutex.lock();
   if (kSessionIdList.empty())
     fMediaInput.Start(envir());
   LOG("%s - clientSessionId: 0x%08x\n", __func__, clientSessionId);
   kSessionIdList.push_back(clientSessionId);
-  kMutex.unlock();
+  //kMutex.unlock();
 }
 void H264ServerMediaSubsession::deleteStream(unsigned clientSessionId,
                                              void *&streamToken) {
-  kMutex.lock();
+  //kMutex.lock();
   LOG("%s - clientSessionId: 0x%08x\n", __func__, clientSessionId);
   kSessionIdList.remove(clientSessionId);
   if (kSessionIdList.empty())
     fMediaInput.Stop(envir());
-  kMutex.unlock();
+  //kMutex.unlock();
   OnDemandServerMediaSubsession::deleteStream(clientSessionId, streamToken);
 }
 

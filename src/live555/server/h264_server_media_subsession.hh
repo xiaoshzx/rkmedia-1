@@ -50,8 +50,8 @@ private:
   RTPSink *fDummyRTPSink; // ditto
   int fGetSdpTimeOut;
 
-  static std::mutex kMutex;
-  static std::list<unsigned int> kSessionIdList;
+  std::mutex kMutex;
+  std::list<unsigned int> kSessionIdList;
 
   enum { INITIAL, GETTING_SDP_LINES, GET_SDP_LINES_TIMEOUT, GOT_SDP_LINES };
   int sdpState;
