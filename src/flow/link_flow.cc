@@ -39,8 +39,12 @@ LinkFlow::LinkFlow(const char *param)
 
   SlotMap sm;
   sm.input_slots.push_back(0);
-  sm.thread_model = Model::ASYNCCOMMON;
-  sm.mode_when_full = InputMode::DROPFRONT;
+  if (sm.thread_model == Model::NONE)
+    sm.thread_model =
+        !params[KEY_FPS].empty() ? Model::ASYNCATOMIC : Model::ASYNCCOMMON;
+  if (sm.mode_when_full == InputMode::NONE)
+    sm.mode_when_full = InputMode::DROPCURRENT;
+
   sm.input_maxcachenum.push_back(0);
   sm.process = process_buffer;
 
