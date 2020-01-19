@@ -179,7 +179,11 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
     if (aud_buffer == nullptr) {
       break;
     }
-    recoder->Write(flow, aud_buffer);
+
+    if (!recoder->Write(flow, aud_buffer)) {
+      recoder.reset();
+      return true;
+    }
   } while (0);
 
   // process video stream here
@@ -198,7 +202,10 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
       flow->video_extra = vid_buffer;
     }
 
-    recoder->Write(flow, vid_buffer);
+    if (!recoder->Write(flow, vid_buffer)) {
+      recoder.reset();
+      return true;
+    }
 
     if (last_ts == 0) {
       last_ts = vid_buffer->GetUSTimeStamp();
@@ -233,19 +240,27 @@ VideoRecorder::VideoRecorder(const char *param)
 }
 
 VideoRecorder::~VideoRecorder() {
-  if (muxer) {
+  if (vid_stream_id != -1) {
     auto buffer = easymedia::MediaBuffer::Alloc(1);
     buffer->SetEOF(true);
     buffer->SetValidSize(0);
     muxer->Write(buffer, vid_stream_id);
+  }
+
+  if (muxer) {
     muxer.reset();
   }
+}
+
+void VideoRecorder::ClearStream() {
+  vid_stream_id = -1;
+  aud_stream_id = -1;
 }
 
 bool VideoRecorder::Write(MuxerFlow *f, std::shared_ptr<MediaBuffer> buffer) {
   MuxerFlow *flow = static_cast<MuxerFlow *>(f);
 
-  if (flow->video_extra && vid_stream_id == -1) {
+  if (flow->video_in && flow->video_extra && vid_stream_id == -1) {
     if (!muxer->NewMuxerStream(flow->vid_enc_config, flow->video_extra,
                                vid_stream_id)) {
       LOG("NewMuxerStream failed for video\n");
@@ -253,25 +268,34 @@ bool VideoRecorder::Write(MuxerFlow *f, std::shared_ptr<MediaBuffer> buffer) {
       LOG("Video: create video stream finished!\n");
     }
 
-    if (!muxer->NewMuxerStream(flow->aud_enc_config, nullptr, aud_stream_id)) {
-      LOG("NewMuxerStream failed for audio\n");
-    } else {
-      LOG("Audio: create audio stream finished!\n");
+    if (flow->audio_in) {
+      if (!muxer->NewMuxerStream(flow->aud_enc_config, nullptr,
+                                 aud_stream_id)) {
+        LOG("NewMuxerStream failed for audio\n");
+      } else {
+        LOG("Audio: create audio stream finished!\n");
+      }
     }
 
     auto header = muxer->WriteHeader(vid_stream_id);
     if (!header) {
       LOG("WriteHeader on video stream return nullptr\n");
+      ClearStream();
+      return false;
     }
   }
 
   if (buffer->GetType() == Type::Video && vid_stream_id != -1) {
     if (nullptr == muxer->Write(buffer, vid_stream_id)) {
       LOG("Write on video stream return nullptr\n");
+      ClearStream();
+      return false;
     }
   } else if (buffer->GetType() == Type::Audio && aud_stream_id != -1) {
     if (nullptr == muxer->Write(buffer, aud_stream_id)) {
       LOG("Write on audio stream return nullptr\n");
+      ClearStream();
+      return false;
     }
   }
 
