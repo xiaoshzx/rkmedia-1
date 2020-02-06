@@ -123,6 +123,7 @@ static void common_reduction(std::list<std::shared_ptr<MediaBuffer>> &mb_list) {
   if (mb_list.size() > MAX_CACHE_NUMBER) {
     for (int i = 0; i < MAX_CACHE_NUMBER / 2; i++)
       mb_list.pop_front();
+    LOG("call common_reduction.\n");
   }
 }
 
@@ -302,10 +303,11 @@ bool VideoFramedSource::readFromList(bool flush _UNUSED) {
       goto err;
   }
   if (buffer) {
-    fPresentationTime = buffer->GetTimeVal();
+    // fPresentationTime = buffer->GetTimeVal();
+    gettimeofday(&fPresentationTime, NULL);
 #ifdef DEBUG_SEND
-    envir() << "video frame time: " << (int)fPresentationTime.tv_sec << "s, "
-            << (int)fPresentationTime.tv_usec << "us. \n";
+    fprintf(stderr, "video frame time: %ld, %ld.\n", fPresentationTime.tv_sec,
+            fPresentationTime.tv_usec);
 #endif
     fFrameSize = buffer->GetValidSize();
 #ifdef DEBUG_SEND
@@ -350,6 +352,50 @@ AudioFramedSource::AudioFramedSource(UsageEnvironment &env,
 AudioFramedSource::~AudioFramedSource() { fInput.audio_source = NULL; }
 
 bool AudioFramedSource::readFromList(bool flush _UNUSED) {
+#ifdef DEBUG_SEND
+  fprintf(stderr, "$$$$ %s, %d\n", __func__, __LINE__);
+#endif
+  std::shared_ptr<MediaBuffer> buffer;
+  uint8_t *p;
+
+  int i = 0;
+  ssize_t read_size = (ssize_t)sizeof(i);
+  ssize_t ret = read(fReadFd, &i, sizeof(i));
+  if (ret != read_size) {
+    LOG("%s:%d, read from pipe error, %m\n", __func__, __LINE__);
+    envir() << __LINE__ << " read from pipe error: " << errno << "\n";
+    goto err;
+  }
+
+  buffer = fInput.as->Pop();
+  p = (uint8_t *)buffer->GetPtr();
+  if (buffer) {
+    fPresentationTime = buffer->GetTimeVal();
+#ifdef DEBUG_SEND
+    fprintf(stderr, "audio frame time: %ld, %ld.\n", fPresentationTime.tv_sec,
+            fPresentationTime.tv_usec);
+#endif
+    fFrameSize = buffer->GetValidSize();
+#ifdef DEBUG_SEND
+    envir() << "audio frame size: " << fFrameSize << "\n";
+#endif
+    assert(fFrameSize > 0);
+    if (fFrameSize > fMaxSize) {
+      LOG("%s : %d, fFrameSize(%d) > fMaxSize(%d)\n", __func__, __LINE__,
+          fFrameSize, fMaxSize);
+      fNumTruncatedBytes = fFrameSize - fMaxSize;
+      fFrameSize = fMaxSize;
+    } else {
+      fNumTruncatedBytes = 0;
+    }
+    memcpy(fTo, p, fFrameSize);
+    return true;
+  }
+
+err:
+  fFrameSize = 0;
+  fNumTruncatedBytes = 0;
+
 #if 0
   assert(fFileNo > 0);
 #ifdef DEBUG_SEND

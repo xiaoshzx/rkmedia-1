@@ -21,7 +21,9 @@ endif()
 
 set(EASY_MEDIA_LIVE555_SERVER_SOURCE_FILES
     ${EASY_MEDIA_LIVE555_SERVER_SOURCE_FILES}
-    live555/server/live555_media_input.cc live555/server/rtsp_server.cc)
+    live555/server/live555_media_input.cc
+    live555/server/rtsp_server.cc
+    live555/server/aac_server_media_subsession.cc)
 
 set(EASY_MEDIA_LIVE555_SOURCE_FILES
     ${EASY_MEDIA_LIVE555_SOURCE_FILES} ${EASY_MEDIA_LIVE555_SERVER_SOURCE_FILES}

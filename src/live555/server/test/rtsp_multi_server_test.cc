@@ -24,6 +24,8 @@
 #include "stream.h"
 #include "utils.h"
 
+#define AAC_FROM_FILE 1
+
 static bool quit = false;
 static void sigterm_handler(int sig) {
   fprintf(stderr, "signal %d\n", sig);
@@ -38,9 +40,10 @@ static void print_usage() {
          "rtsp://admin:123456@192.168.xxx.xxx/main_stream2\n");
 }
 
-std::shared_ptr<easymedia::Flow>
-create_live555_rtsp_server_flow(std::string channel_name,
-                                std::string media_type) {
+std::shared_ptr<easymedia::Flow> create_live555_rtsp_server_flow(
+    std::string channel_name, std::string media_type,
+    unsigned fSamplingFrequency = 0, unsigned fNumChannels = 0,
+    unsigned profile = 0) {
   std::shared_ptr<easymedia::Flow> rtsp_flow;
 
   std::string flow_name;
@@ -51,6 +54,9 @@ create_live555_rtsp_server_flow(std::string channel_name,
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, media_type);
   PARAM_STRING_APPEND(flow_param, KEY_CHANNEL_NAME, channel_name);
   PARAM_STRING_APPEND_TO(flow_param, KEY_PORT_NUM, 554);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_SAMPLE_RATE, fSamplingFrequency);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_CHANNELS, fNumChannels);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_PROFILE, profile);
 
   printf("\nRtspFlow:\n%s\n", flow_param.c_str());
   rtsp_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
@@ -158,8 +164,144 @@ create_video_read_flow(std::string input_path, std::string pixel_format,
   return video_read_flow;
 }
 
+#if AAC_FROM_FILE
+static unsigned const samplingFrequencyTable[16] = {
+    96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050,
+    16000, 12000, 11025, 8000,  7350,  0,     0,     0};
+struct argument {
+  u_int8_t profile;
+  unsigned fSamplingFrequency;
+  unsigned fNumChannels;
+  unsigned fuSecsPerFrame;
+  int count_buf;
+};
+
+// read from file
+std::vector<std::shared_ptr<easymedia::MediaBuffer>>
+read_aac_frome_file(struct argument &arg, std::string input_path) {
+  std::vector<std::shared_ptr<easymedia::MediaBuffer>> buffer_list;
+  buffer_list.resize(10000);
+
+  // 1. read adts file to buffer list
+  do {
+    FILE *fid = fopen(input_path.c_str(), "re");
+    // Now, having opened the input file, read the fixed header of the first
+    // frame,
+    // to get the audio stream's parameters:
+    unsigned char fixedHeader[4]; // it's actually 3.5 bytes long
+    if (fread(fixedHeader, 1, sizeof fixedHeader, fid) < sizeof fixedHeader)
+      break;
+
+    // Check the 'syncword':
+    if (!(fixedHeader[0] == 0xFF && (fixedHeader[1] & 0xF0) == 0xF0)) {
+      printf("Bad 'syncword' at start of ADTS file");
+      break;
+    }
+
+    // Get and check the 'profile':
+    u_int8_t profile = (fixedHeader[2] & 0xC0) >> 6; // 2 bits
+    if (profile == 3) {
+      printf("Bad (reserved) 'profile': 3 in first frame of ADTS file");
+      break;
+    }
+
+    // Get and check the 'sampling_frequency_index':
+    u_int8_t sampling_frequency_index = (fixedHeader[2] & 0x3C) >> 2; // 4 bits
+    if (samplingFrequencyTable[sampling_frequency_index] == 0) {
+      printf("Bad 'sampling_frequency_index' in first frame of ADTS file");
+      break;
+    }
+
+    // Get and check the 'channel_configuration':
+    u_int8_t channel_configuration = ((fixedHeader[2] & 0x01) << 2) |
+                                     ((fixedHeader[3] & 0xC0) >> 6); // 3 bits
+
+    // If we get here, the frame header was OK.
+    // Reset the fid to the beginning of the file:
+    // SeekFile64(fid, SEEK_SET,0);
+    fseeko(fid, (off_t)(SEEK_SET), 0);
+
+    printf("Read first frame: profile %d, "
+           "sampling_frequency_index %d => samplingFrequency %d, "
+           "channel_configuration %d.\n",
+           profile, sampling_frequency_index,
+           samplingFrequencyTable[sampling_frequency_index],
+           channel_configuration);
+    unsigned fSamplingFrequency =
+        samplingFrequencyTable[sampling_frequency_index];
+    unsigned fNumChannels =
+        channel_configuration == 0 ? 2 : channel_configuration;
+    unsigned fuSecsPerFrame = (1024 /*samples-per-frame*/ * 1000000) /
+                              fSamplingFrequency /*samples-per-second*/;
+
+    unsigned char audioSpecificConfig[2];
+    unsigned char const audioObjectType = profile + 1;
+    audioSpecificConfig[0] =
+        (audioObjectType << 3) | (sampling_frequency_index >> 1);
+    audioSpecificConfig[1] =
+        (sampling_frequency_index << 7) | (channel_configuration << 3);
+    char fConfigStr[5];
+    sprintf(fConfigStr, "%02X%02x", audioSpecificConfig[0],
+            audioSpecificConfig[1]);
+    printf("fConfigStr = %s, fNumChannels = %d, fuSecsPerFrame = %d\n",
+           fConfigStr, fNumChannels, fuSecsPerFrame);
+    // start read to buf
+    int index = 0;
+    do {
+      // Begin by reading the 7-byte fixed_variable headers:
+      unsigned char headers[7];
+      if (fread(headers, 1, sizeof headers, fid) < sizeof headers ||
+          feof(fid) || ferror(fid)) {
+        // The input source has ended:
+        // handleClosure();
+        break;
+      }
+      // Extract important fields from the headers:
+      bool protection_absent = headers[1] & 0x01;
+      u_int16_t frame_length = ((headers[3] & 0x03) << 11) | (headers[4] << 3) |
+                               ((headers[5] & 0xE0) >> 5);
+
+      unsigned numBytesToRead =
+          frame_length > sizeof headers ? frame_length - sizeof headers : 0;
+
+      // If there's a 'crc_check' field, skip it:
+      if (!protection_absent) {
+        // SeekFile64(fFid, 2, SEEK_CUR);
+        fseeko(fid, (off_t)2, SEEK_CUR);
+        numBytesToRead = numBytesToRead > 2 ? numBytesToRead - 2 : 0;
+      }
+
+      // Next, read the raw frame data into the buffer provided:
+      // if (numBytesToRead > fMaxSize) {
+      //	fNumTruncatedBytes = numBytesToRead - fMaxSize;
+      //	numBytesToRead = fMaxSize;
+      //}
+      // printf("numBytesToRead = %d.\n", numBytesToRead);
+      auto buffer = easymedia::MediaBuffer::Alloc(numBytesToRead);
+      int numBytesRead = fread(buffer->GetPtr(), 1, numBytesToRead, fid);
+      if (numBytesRead < 0)
+        numBytesRead = 0;
+      buffer->SetValidSize(numBytesRead);
+
+      buffer_list[index] = buffer;
+      index++;
+    } while (1);
+    printf("index = %d.\n", index);
+
+    arg.count_buf = index;
+    arg.profile = profile;
+    arg.fNumChannels = fNumChannels;
+    arg.fSamplingFrequency = fSamplingFrequency;
+    arg.fuSecsPerFrame = fuSecsPerFrame;
+  } while (0);
+
+  return buffer_list;
+}
+
+#endif
 int main() {
   print_usage();
+  // test main_stream1
   // test 1280*720 h264
   std::shared_ptr<easymedia::Flow> video_read_flow =
       create_video_read_flow("/dev/video0", IMAGE_NV12, 1280, 720);
@@ -172,6 +314,7 @@ int main() {
     video_read_flow->AddDownFlow(video_enc_flow, 0, 0);
   }
 
+  // test main_steram2
   // test 640*480 h264
   std::shared_ptr<easymedia::Flow> video_read_flow_1 =
       create_video_read_flow("/dev/video1", IMAGE_NV12, 640, 480);
@@ -183,8 +326,45 @@ int main() {
     video_enc_flow_1->AddDownFlow(rtsp_flow_1, 0, 0);
     video_read_flow_1->AddDownFlow(video_enc_flow_1, 0, 0);
   }
+  // aac frome file
 
   signal(SIGINT, sigterm_handler);
+// test aac in main_stream1 and main_stream2
+#if AAC_FROM_FILE
+  // aac frome file
+  struct argument arg;
+  std::vector<std::shared_ptr<easymedia::MediaBuffer>> buffer_list =
+      read_aac_frome_file(arg, "./test.aac");
+
+  // 2. create rtsp flow
+  std::shared_ptr<easymedia::Flow> rtsp_flow_aac =
+      create_live555_rtsp_server_flow("main_stream1", AUDIO_AAC,
+                                      arg.fSamplingFrequency, arg.fNumChannels,
+                                      arg.profile);
+  std::shared_ptr<easymedia::Flow> rtsp_flow_aac_1 =
+      create_live555_rtsp_server_flow("main_stream2", AUDIO_AAC,
+                                      arg.fSamplingFrequency, arg.fNumChannels,
+                                      arg.profile);
+
+  // 3. send data to live555
+
+  int buffer_idx = 0;
+  while (!quit) {
+    auto &buf = buffer_list[buffer_idx];
+    if (!buf) {
+      buffer_idx = 0;
+      continue;
+    }
+    buf->SetUSTimeStamp(easymedia::gettimeofday());
+    rtsp_flow_aac->SendInput(buf, 0);
+    rtsp_flow_aac_1->SendInput(buf, 0);
+    buffer_idx++;
+    if (buffer_idx >= arg.count_buf)
+      buffer_idx = 0;
+    easymedia::msleep(arg.fuSecsPerFrame / 1000);
+  }
+
+#endif
   while (!quit)
     easymedia::msleep(100);
 

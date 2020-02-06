@@ -24,6 +24,7 @@
 #ifdef LIVE555_SERVER_H265
 #include "h265_server_media_subsession.hh"
 #endif
+#include "aac_server_media_subsession.hh"
 #include "live555_media_input.hh"
 
 #include "buffer.h"
@@ -34,7 +35,7 @@
 namespace easymedia {
 
 static bool SendVideoToServer(Flow *f, MediaBufferVector &input_vector);
-// static bool SendAudioToServer(Flow *f, MediaBufferVector &input_vector);
+static bool SendAudioToServer(Flow *f, MediaBufferVector &input_vector);
 
 class RtspConnection {
 public:
@@ -199,7 +200,7 @@ private:
   std::shared_ptr<RtspConnection> rtspConnection;
 
   friend bool SendVideoToServer(Flow *f, MediaBufferVector &input_vector);
-  // friend bool SendAudioToServer(Flow *f, MediaBufferVector &input_vector);
+  friend bool SendAudioToServer(Flow *f, MediaBufferVector &input_vector);
 };
 
 bool SendVideoToServer(Flow *f, MediaBufferVector &input_vector) {
@@ -214,13 +215,11 @@ bool SendVideoToServer(Flow *f, MediaBufferVector &input_vector) {
   return true;
 }
 
-#if 0
 bool SendAudioToServer(Flow *f, MediaBufferVector &input_vector) {
   RtspServerFlow *rtsp_flow = (RtspServerFlow *)f;
-  rtsp_flow->server_input->PushNewAudio(input_vector[1]);
+  rtsp_flow->server_input->PushNewAudio(input_vector[0]);
   return true;
 }
-#endif
 
 RtspServerFlow::RtspServerFlow(const char *param) {
   std::list<std::string> input_data_types;
@@ -269,6 +268,24 @@ RtspServerFlow::RtspServerFlow(const char *param) {
             *(rtspConnection->getEnv()), *server_input);
 #endif
         sm.process = SendVideoToServer;
+      } else if (type == AUDIO_AAC) {
+        int sample_rate = 0, channels = 0, profiles = 0;
+        value = params[KEY_SAMPLE_RATE];
+        if (!value.empty())
+          sample_rate = std::stoi(value);
+
+        value = params[KEY_CHANNELS];
+        if (!value.empty())
+          channels = std::stoi(value);
+
+        value = params[KEY_PROFILE];
+        if (!value.empty())
+          profiles = std::stoi(value);
+
+        subsession = AACServerMediaSubsession::createNew(
+            *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
+            profiles);
+        sm.process = SendAudioToServer;
       } else if (string_start_withs(type, AUDIO_PREFIX)) {
         // pcm or vorbis
         LOG_TODO();
