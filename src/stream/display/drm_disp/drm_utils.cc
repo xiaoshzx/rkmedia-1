@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "drm_utils.h"
 
 #include <assert.h>
 #include <fcntl.h>
@@ -11,6 +10,8 @@
 
 #include <algorithm>
 
+#include <functional>
+#include "drm_utils.h"
 #include "key_string.h"
 #include "media_type.h"
 #include "utils.h"
