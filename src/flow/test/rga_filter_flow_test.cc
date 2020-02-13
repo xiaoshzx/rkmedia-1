@@ -1,0 +1,198 @@
+#include <assert.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
+#include <signal.h>
+
+#include <string>
+
+#include "buffer.h"
+#include "encoder.h"
+#include "flow.h"
+#include "key_string.h"
+#include "media_config.h"
+#include "media_type.h"
+#include "message.h"
+#include "stream.h"
+#include "utils.h"
+#include "image.h"
+
+static bool quit = false;
+static void sigterm_handler(int sig) {
+  fprintf(stderr, "signal %d\n", sig);
+  quit = true;
+}
+
+static char optstr[] = "?:i:o:w:h:f:n:";
+
+static void print_usage(char *name) {
+  printf("usage example: \n");
+  printf("%s -i /dev/video0 -o output.h264 -w 1920 -h 1080 "
+         "-f nv12 -n 10\n", name);
+  printf("-f: input video formate\n");
+  printf("-n: input video frame cnt\n");
+}
+
+int main(int argc, char **argv) {
+  int c, frame_cnt = 10;
+  int video_width = 1920;
+  int video_height = 1080;
+  std::string pixel_format;
+
+  std::string output_path;
+  std::string input_path;
+
+  std::string flow_name;
+  std::string flow_param;
+  std::string stream_param;
+  std::string filter_param;
+
+  std::shared_ptr<easymedia::Flow> video_read_flow;
+  std::shared_ptr<easymedia::Flow> video_encoder_flow;
+  std::shared_ptr<easymedia::Flow> video_save_flow;
+
+  opterr = 1;
+  while ((c = getopt(argc, argv, optstr)) != -1) {
+    switch (c) {
+    case 'i':
+      input_path = optarg;
+      printf("#IN ARGS: input path: %s\n", input_path.c_str());
+      break;
+    case 'o':
+      output_path = optarg;
+      printf("#IN ARGS: output file path: %s\n", output_path.c_str());
+      break;
+    case 'w':
+      video_width = atoi(optarg);
+      printf("#IN ARGS: video_width: %d\n", video_width);
+      break;
+    case 'h':
+      video_height = atoi(optarg);
+      printf("#IN ARGS: video_height: %d\n", video_height);
+      break;
+    case 'f':
+      pixel_format = optarg;
+      printf("#IN ARGS: pixel_format: %s\n", pixel_format.c_str());
+      break;
+    case 'n':
+      frame_cnt = atoi(optarg);
+      printf("#IN ARGS: frame_cnt: %d\n", frame_cnt);
+      break;
+    case '?':
+    default:
+      print_usage(argv[0]);
+      exit(0);
+    }
+  }
+
+  if (input_path.empty() || output_path.empty()) {
+    printf("ERROR: path is not valid!\n");
+    exit(EXIT_FAILURE);
+  }
+
+  //add prefix for pixformat
+  pixel_format = "image:" + pixel_format;
+  if (StringToPixFmt(pixel_format.c_str()) == PIX_FMT_NONE) {
+    printf("ERROR: image type:%s not support!\n", pixel_format.c_str());
+    exit(EXIT_FAILURE);
+  }
+
+  signal(SIGINT, sigterm_handler);
+  printf("#Dump factroys:");
+  easymedia::REFLECTOR(Flow)::DumpFactories();
+  printf("#Dump streams:");
+  easymedia::REFLECTOR(Stream)::DumpFactories();
+
+  //Reading yuv from camera
+  flow_name = "source_stream";
+  flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "v4l2_capture_stream");
+  PARAM_STRING_APPEND(flow_param, KEK_THREAD_SYNC_MODEL, KEY_SYNC);
+  PARAM_STRING_APPEND(flow_param, KEK_INPUT_MODEL, KEY_DROPFRONT);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_INPUT_CACHE_NUM, 5);
+  stream_param = "";
+  PARAM_STRING_APPEND_TO(stream_param, KEY_USE_LIBV4L2, 1);
+  PARAM_STRING_APPEND(stream_param, KEY_DEVICE, input_path);
+  PARAM_STRING_APPEND(stream_param, KEY_V4L2_CAP_TYPE, KEY_V4L2_C_TYPE(VIDEO_CAPTURE));
+  PARAM_STRING_APPEND(stream_param, KEY_V4L2_MEM_TYPE, KEY_V4L2_M_TYPE(MEMORY_DMABUF));
+  PARAM_STRING_APPEND_TO(stream_param, KEY_FRAMES, 4); // if not set, default is 2
+  PARAM_STRING_APPEND(stream_param, KEY_OUTPUTDATATYPE, pixel_format);
+  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_WIDTH, video_width);
+  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_HEIGHT, video_height);
+
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, stream_param);
+  printf("\n#VideoCapture flow param:\n%s\n", flow_param.c_str());
+  video_read_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!video_read_flow) {
+    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+    exit(EXIT_FAILURE);
+  }
+
+  // Crop to half of the original image
+  int target_width = video_width / 2;
+  int target_height = video_height / 2;
+
+  flow_name = "filter";
+  flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkrga");
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
+  //Set output buffer type.
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, pixel_format);
+  //Set output buffer size.
+  PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_WIDTH, target_width);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_HEIGHT, target_height);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_WIDTH, target_width);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_HEIGHT, target_height);
+  filter_param = "";
+  ImageRect src_rect = {0, 0, video_width, video_height};
+  ImageRect dst_rect = {0, 0, target_width, target_height};
+  std::vector<ImageRect> rect_vect;
+  rect_vect.push_back(src_rect);
+  rect_vect.push_back(dst_rect);
+  PARAM_STRING_APPEND(filter_param, KEY_BUFFER_RECT,
+    easymedia::TwoImageRectToString(rect_vect).c_str());
+  PARAM_STRING_APPEND_TO(filter_param, KEY_BUFFER_ROTATE, 0);
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, filter_param);
+  printf("\n#Rkrga Filter flow param:\n%s\n", flow_param.c_str());
+  video_encoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!video_encoder_flow) {
+    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+    exit(EXIT_FAILURE);
+  }
+
+  flow_name = "file_write_flow";
+  flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_PATH, output_path.c_str());
+  PARAM_STRING_APPEND(flow_param, KEY_OPEN_MODE, "w+"); // read and close-on-exec
+  printf("\n#FileWrite:\n%s\n", flow_param.c_str());
+  video_save_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!video_save_flow) {
+    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+    exit(EXIT_FAILURE);
+  }
+
+  video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);
+  video_read_flow->AddDownFlow(video_encoder_flow, 0, 0);
+
+  LOG("%s initial finish\n", argv[0]);
+
+  while(!quit && (frame_cnt-- > 0)) {
+    easymedia::msleep(100);
+  }
+
+  LOG("%s quit!\n", argv[0]);
+
+  video_read_flow->RemoveDownFlow(video_encoder_flow);
+  video_read_flow.reset();
+  video_encoder_flow->RemoveDownFlow(video_save_flow);
+  video_encoder_flow.reset();
+  video_save_flow.reset();
+
+  return 0;
+}
+

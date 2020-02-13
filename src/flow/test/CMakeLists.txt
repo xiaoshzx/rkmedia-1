@@ -70,3 +70,15 @@ if(VIDEO_ENCODER_FLOW_TEST)
   target_compile_features(video_encoder_flow_test PRIVATE cxx_std_11)
   install(TARGETS video_encoder_flow_test RUNTIME DESTINATION "bin")
 endif()
+
+option(RGA_FILTER_FLOW_TEST "compile: video encoder flow test" ON)
+
+if(RGA_FILTER_FLOW_TEST)
+  set(RGA_FILTER_FLOW_TEST_SRC_FILES rga_filter_flow_test.cc)
+  add_executable(rga_filter_flow_test ${RGA_FILTER_FLOW_TEST_SRC_FILES})
+  target_link_libraries(rga_filter_flow_test easymedia)
+  target_include_directories(rga_filter_flow_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_compile_features(rga_filter_flow_test PRIVATE cxx_std_11)
+  install(TARGETS rga_filter_flow_test RUNTIME DESTINATION "bin")
+endif()
+
