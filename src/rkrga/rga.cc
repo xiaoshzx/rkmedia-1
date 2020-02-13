@@ -109,6 +109,27 @@ static int get_rga_format(PixelFormat f) {
   return -1;
 }
 
+#ifndef NDEBUG
+static void dummp_rga_info(rga_info_t info, std::string name) {
+  LOGD("\n### %s dummp info:\n", name.c_str());
+  LOGD("\t info.fd = %d\n", info.fd);
+  LOGD("\t info.mmuFlag = %d\n", info.mmuFlag);
+  LOGD("\t info.rotation = %d\n", info.rotation);
+  LOGD("\t info.blend = %d\n", info.blend);
+  LOGD("\t info.virAddr = %p\n", info.virAddr);
+  LOGD("\t info.phyAddr = %p\n", info.phyAddr);
+  LOGD("\t info.rect.xoffset = %d\n", info.rect.xoffset);
+  LOGD("\t info.rect.yoffset = %d\n", info.rect.yoffset);
+  LOGD("\t info.rect.width = %d\n", info.rect.width);
+  LOGD("\t info.rect.height = %d\n", info.rect.height);
+  LOGD("\t info.rect.wstride = %d\n", info.rect.wstride);
+  LOGD("\t info.rect.hstride = %d\n", info.rect.hstride);
+  LOGD("\t info.rect.format = %d\n", info.rect.format);
+  LOGD("\t info.rect.size = %d\n", info.rect.size);
+  LOGD("\n");
+}
+#endif
+
 int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
              ImageRect *src_rect, ImageRect *dst_rect, int rotate) {
   if (!src || !src->IsValid())
@@ -145,10 +166,19 @@ int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
                  dst->GetVirWidth(), dst->GetVirHeight(),
                  get_rga_format(dst->GetPixelFormat()));
 
+#ifndef NDEBUG
+  dummp_rga_info(src_info, "SrcInfo");
+  dummp_rga_info(dst_info, "DstInfo");
+#endif
+
   int ret = RgaFilter::gRkRga.RkRgaBlit(&src_info, &dst_info, NULL);
   if (ret) {
+    dst->SetValidSize(0);
     LOG("Fail to RkRgaBlit, ret=%d\n", ret);
   } else {
+    size_t valid_size = CalPixFmtSize(dst->GetPixelFormat(),
+      dst->GetVirWidth(), dst->GetVirHeight(), 1);
+    dst->SetValidSize(valid_size);
     if (src->GetUSTimeStamp() > dst->GetUSTimeStamp())
       dst->SetUSTimeStamp(src->GetUSTimeStamp());
   }
