@@ -177,7 +177,7 @@ int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
     LOG("Fail to RkRgaBlit, ret=%d\n", ret);
   } else {
     size_t valid_size = CalPixFmtSize(dst->GetPixelFormat(),
-      dst->GetVirWidth(), dst->GetVirHeight(), 1);
+      dst->GetVirWidth(), dst->GetVirHeight(), 0);
     dst->SetValidSize(valid_size);
     if (src->GetUSTimeStamp() > dst->GetUSTimeStamp())
       dst->SetUSTimeStamp(src->GetUSTimeStamp());

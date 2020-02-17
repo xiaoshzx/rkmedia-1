@@ -191,7 +191,7 @@ static int SetImageBufferWithMppFrame(std::shared_ptr<ImageBuffer> ib,
   info.height = mpp_frame_get_height(frame);
   info.vir_width = mpp_frame_get_hor_stride(frame);
   info.vir_height = mpp_frame_get_ver_stride(frame);
-  size_t size = CalPixFmtSize(info.pix_fmt, info.vir_width, info.vir_height);
+  size_t size = CalPixFmtSize(info);
   auto pts = mpp_frame_get_pts(frame);
   bool eos = mpp_frame_get_eos(frame) ? true : false;
   if (!ib->IsValid()) {
