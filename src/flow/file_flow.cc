@@ -148,7 +148,6 @@ void FileReadFlow::ReadThreadRun() {
         SetDisable();
         break;
       }
-      buffer->SetValidSize(buffer->GetSize());
     }
     buffer->SetUSTimeStamp(gettimeofday());
     SendInput(buffer, 0);
