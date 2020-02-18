@@ -71,7 +71,7 @@ if(VIDEO_ENCODER_FLOW_TEST)
   install(TARGETS video_encoder_flow_test RUNTIME DESTINATION "bin")
 endif()
 
-option(RGA_FILTER_FLOW_TEST "compile: video encoder flow test" ON)
+option(RGA_FILTER_FLOW_TEST "compile: rga filter flow test" ON)
 
 if(RGA_FILTER_FLOW_TEST)
   set(RGA_FILTER_FLOW_TEST_SRC_FILES rga_filter_flow_test.cc)

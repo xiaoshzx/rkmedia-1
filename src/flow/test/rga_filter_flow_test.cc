@@ -28,15 +28,14 @@ static void sigterm_handler(int sig) {
 static char optstr[] = "?:i:o:w:h:f:n:";
 
 static void print_usage(char *name) {
-  printf("usage example: \n");
-  printf("%s -i /dev/video0 -o output.h264 -w 1920 -h 1080 "
-         "-f nv12 -n 10\n", name);
-  printf("-f: input video formate\n");
-  printf("-n: input video frame cnt\n");
+  printf("@function:\nCrop input image to half of original.\n");
+  printf("@usage example: \n");
+  printf("%s -i /dev/video0 -o output.yuv -w 1920 -h 1080 "
+         "-f nv12\n", name);
 }
 
 int main(int argc, char **argv) {
-  int c, frame_cnt = 10;
+  int c;
   int video_width = 1920;
   int video_height = 1080;
   std::string pixel_format;
@@ -50,7 +49,7 @@ int main(int argc, char **argv) {
   std::string filter_param;
 
   std::shared_ptr<easymedia::Flow> video_read_flow;
-  std::shared_ptr<easymedia::Flow> video_encoder_flow;
+  std::shared_ptr<easymedia::Flow> video_process_flow;
   std::shared_ptr<easymedia::Flow> video_save_flow;
 
   opterr = 1;
@@ -75,10 +74,6 @@ int main(int argc, char **argv) {
     case 'f':
       pixel_format = optarg;
       printf("#IN ARGS: pixel_format: %s\n", pixel_format.c_str());
-      break;
-    case 'n':
-      frame_cnt = atoi(optarg);
-      printf("#IN ARGS: frame_cnt: %d\n", frame_cnt);
       break;
     case '?':
     default:
@@ -157,9 +152,9 @@ int main(int argc, char **argv) {
   PARAM_STRING_APPEND_TO(filter_param, KEY_BUFFER_ROTATE, 0);
   flow_param = easymedia::JoinFlowParam(flow_param, 1, filter_param);
   printf("\n#Rkrga Filter flow param:\n%s\n", flow_param.c_str());
-  video_encoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+  video_process_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
       flow_name.c_str(), flow_param.c_str());
-  if (!video_encoder_flow) {
+  if (!video_process_flow) {
     fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
     exit(EXIT_FAILURE);
   }
@@ -176,21 +171,21 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);
-  video_read_flow->AddDownFlow(video_encoder_flow, 0, 0);
+  video_process_flow->AddDownFlow(video_save_flow, 0, 0);
+  video_read_flow->AddDownFlow(video_process_flow, 0, 0);
 
   LOG("%s initial finish\n", argv[0]);
 
-  while(!quit && (frame_cnt-- > 0)) {
+  while(!quit) {
     easymedia::msleep(100);
   }
 
   LOG("%s quit!\n", argv[0]);
 
-  video_read_flow->RemoveDownFlow(video_encoder_flow);
+  video_read_flow->RemoveDownFlow(video_process_flow);
   video_read_flow.reset();
-  video_encoder_flow->RemoveDownFlow(video_save_flow);
-  video_encoder_flow.reset();
+  video_process_flow->RemoveDownFlow(video_save_flow);
+  video_process_flow.reset();
   video_save_flow.reset();
 
   return 0;
