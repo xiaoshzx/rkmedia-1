@@ -226,8 +226,7 @@ std::shared_ptr<easymedia::SampleBuffer> initAudioBuffer(MediaConfig &cfg) {
 std::shared_ptr<easymedia::MediaBuffer>
 initVideoBuffer(std::string &EncoderName, ImageInfo &image_info) {
   // The vir_width/vir_height have aligned when init video encoder
-  size_t len = CalPixFmtSize(image_info.pix_fmt, image_info.vir_width,
-                             image_info.vir_height, 0);
+  size_t len = CalPixFmtSize(image_info);
   fprintf(stderr, "video buffer len %zu\n", len);
   // Just treat all aligned memory to be hardware memory
   // need to know rkmpp needs DRM managed memory,
@@ -361,7 +360,7 @@ int main(int argc, char **argv) {
   auto src_buffer = initVideoBuffer(enc_codec_name, vid_enc->GetConfig().img_cfg.image_info);
   std::shared_ptr<easymedia::MediaBuffer> dst_buffer;
   if (enc_codec_name == "rkmpp") {
-    size_t dst_len = CalPixFmtSize(vid_enc->GetConfig().img_cfg.image_info, 16);
+    size_t dst_len = CalPixFmtSize(vid_enc->GetConfig().img_cfg.image_info);
     dst_buffer = easymedia::MediaBuffer::Alloc(
         dst_len, easymedia::MediaBuffer::MemType::MEM_HARD_WARE);
     assert(dst_buffer && dst_buffer->GetSize() >= dst_len);
@@ -398,7 +397,7 @@ int main(int argc, char **argv) {
   // Since the input is packed yuv images, no padding buffer,
   // we want to read actual pixel size
   size_t len =
-      CalPixFmtSize(vid_enc->GetConfig().vid_cfg.image_cfg.image_info, 0);
+      CalPixFmtSize(vid_enc->GetConfig().vid_cfg.image_cfg.image_info.pix_fmt, w, h);
 
   int vid_index = 0;
   int first_video_time = 0;

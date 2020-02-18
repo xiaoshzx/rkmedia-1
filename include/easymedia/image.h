@@ -52,9 +52,9 @@ typedef struct {
 
 _API void GetPixFmtNumDen(const PixelFormat &fmt, int &num, int &den);
 _API int CalPixFmtSize(const PixelFormat &fmt, const int width,
-                       const int height, int align = 16);
-_API inline int CalPixFmtSize(const ImageInfo &ii, int align = 16) {
-  return CalPixFmtSize(ii.pix_fmt, ii.width, ii.height, align);
+                       const int height, int align = 0);
+_API inline int CalPixFmtSize(const ImageInfo &ii) {
+  return CalPixFmtSize(ii.pix_fmt, ii.vir_width, ii.vir_height, 0);
 }
 _API PixelFormat StringToPixFmt(const char *type);
 _API const char *PixFmtToString(PixelFormat fmt);

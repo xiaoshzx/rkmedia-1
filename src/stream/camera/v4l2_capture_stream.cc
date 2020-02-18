@@ -184,7 +184,7 @@ int V4L2CaptureStream::Open() {
   if (memory_type == V4L2_MEMORY_DMABUF) {
     int size = 0;
     if (pix_fmt != PIX_FMT_NONE)
-      size = CalPixFmtSize(pix_fmt, w, h);
+      size = CalPixFmtSize(pix_fmt, w, h, 16);
     if (size == 0) // unknown pixel format
       size = w * h * 4;
     for (size_t i = 0; i < req.count; i++) {
