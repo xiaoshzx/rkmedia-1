@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <inttypes.h>
 #include <sys/time.h>
 
 #include "buffer.h"
@@ -56,13 +57,13 @@ MuxerFlow::MuxerFlow(const char *param)
   std::string index_str = params[KEY_FILE_INDEX];
   if (!index_str.empty()) {
     file_index = std::stoi(index_str);
-    LOG("Muxer will record video start with index %lld\n", file_index);
+    LOG("Muxer will record video start with index %" PRId64"\n", file_index);
   }
 
   std::string &duration_str = params[KEY_FILE_DURATION];
   if (!duration_str.empty()) {
     file_duration = std::stoi(duration_str);
-    LOG("Muxer will save video file per %lld sec\n", file_duration);
+    LOG("Muxer will save video file per %" PRId64"sec\n", file_duration);
   }
 
   for (auto param_str : separate_list) {
