@@ -42,8 +42,13 @@ public:
   getInstance(int ports[], std::string username, std::string userpwd) {
     kMutex.lock();
     if (m_rtspConnection == nullptr) {
-      RtspConnection *p = new RtspConnection(ports, username, userpwd);
-      m_rtspConnection = std::shared_ptr<RtspConnection>(p);
+      struct make_shared_enabler : public RtspConnection {
+        make_shared_enabler(int ports[], std::string username,
+                            std::string userpwd)
+            : RtspConnection(ports, username, userpwd){};
+      };
+      m_rtspConnection =
+          std::make_shared<make_shared_enabler>(ports, username, userpwd);
       if (!init_ok) {
         m_rtspConnection = nullptr;
       }
