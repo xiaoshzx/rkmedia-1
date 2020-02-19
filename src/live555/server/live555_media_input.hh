@@ -22,7 +22,8 @@ using ListReductionPtr = std::add_pointer<void(
     std::list<std::shared_ptr<MediaBuffer>> &mb_list)>::type;
 class Live555MediaInput : public Medium {
 public:
-  static Live555MediaInput *createNew(UsageEnvironment &env);
+  static Live555MediaInput *createNew(UsageEnvironment &env,
+                                      std::string media_type);
   virtual ~Live555MediaInput();
   FramedSource *videoSource();
   FramedSource *audioSource();
@@ -33,7 +34,7 @@ public:
   void PushNewAudio(std::shared_ptr<MediaBuffer> &buffer);
 
 private:
-  Live555MediaInput(UsageEnvironment &env);
+  Live555MediaInput(UsageEnvironment &env, std::string media_type);
   Boolean initialize(UsageEnvironment &env);
   Boolean initAudio(UsageEnvironment &env);
   Boolean initVideo(UsageEnvironment &env);
@@ -59,6 +60,8 @@ private:
   volatile bool connecting;
   VideoFramedSource *video_source;
   AudioFramedSource *audio_source;
+
+  std::string mediaType;
 
   friend class VideoFramedSource;
   friend class AudioFramedSource;

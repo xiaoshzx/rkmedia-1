@@ -244,10 +244,6 @@ RtspServerFlow::RtspServerFlow(const char *param) {
   std::string &userpwd = params[KEY_USERPASSWORD];
   rtspConnection = RtspConnection::getInstance(ports, username, userpwd);
 
-  server_input = Live555MediaInput::createNew(*(rtspConnection->getEnv()));
-  if (!server_input)
-    goto err;
-
   if (rtspConnection) {
     int in_idx = 0;
     std::string markname;
@@ -256,6 +252,11 @@ RtspServerFlow::RtspServerFlow(const char *param) {
     for (auto &type : input_data_types) {
       SlotMap sm;
       ServerMediaSubsession *subsession = nullptr;
+      server_input =
+          Live555MediaInput::createNew(*(rtspConnection->getEnv()), type);
+      if (!server_input)
+        goto err;
+
       if (type == VIDEO_H264) {
 #ifdef LIVE555_SERVER_H264
         subsession = H264ServerMediaSubsession::createNew(

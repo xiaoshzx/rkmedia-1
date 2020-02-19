@@ -81,6 +81,7 @@ create_video_enc_flow(std::string pixel_format, std::string video_enc_type,
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, video_enc_type);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_NEED_EXTRA_MERGE, 1);
 
   MediaConfig enc_config;
   memset(&enc_config, 0, sizeof(enc_config));
