@@ -165,11 +165,10 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
   MuxerFlow *flow = static_cast<MuxerFlow *>(f);
   auto &&recoder = flow->video_recorder;
   int64_t duration_us = flow->file_duration;
-  static int64_t last_ts = 0;
 
   if (recoder == nullptr) {
     recoder = flow->NewRecoder(flow->GenFilePath().c_str());
-    last_ts = 0;
+    flow->last_ts = 0;
   }
 
   // process audio stream here
@@ -211,15 +210,15 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
       return true;
     }
 
-    if (last_ts == 0) {
-      last_ts = vid_buffer->GetUSTimeStamp();
+    if (flow->last_ts == 0 || vid_buffer->GetUSTimeStamp() < flow->last_ts) {
+      flow->last_ts = vid_buffer->GetUSTimeStamp();
     }
 
     if (duration_us <= 0) {
       break;
     }
 
-    if (vid_buffer->GetUSTimeStamp() - last_ts >= duration_us * 1000000) {
+    if (vid_buffer->GetUSTimeStamp() - flow->last_ts >= duration_us * 1000000) {
       recoder.reset();
       recoder = nullptr;
     }

@@ -47,6 +47,7 @@ private:
   bool audio_in;
   int64_t file_duration;
   int64_t file_index;
+  int64_t last_ts;
   bool file_time_en;
   std::string GenFilePath();
 };
