@@ -108,24 +108,31 @@ private:
   MppCodingType code_type;
 };
 
-static int CalcMppBps(MppEncRcCfg *rc_cfg, int bps) {
-  if (bps > MPPCommonConfig::kMPPMaxBps) {
-    LOG("bps <%d> too large\n", bps);
+static int CalcMppBps(MppEncRcCfg *rc_cfg, int bps_max) {
+  if (bps_max > MPPCommonConfig::kMPPMaxBps) {
+    LOG("bps <%d> too large\n", bps_max);
     return -1;
   }
 
   switch (rc_cfg->rc_mode) {
   case MPP_ENC_RC_MODE_CBR:
     // constant bitrate has very small bps range of 1/16 bps
-    rc_cfg->bps_target = bps;
-    rc_cfg->bps_max = bps * 17 / 16;
-    rc_cfg->bps_min = bps * 15 / 16;
+    rc_cfg->bps_target = bps_max;
+    rc_cfg->bps_max = bps_max * 17 / 16;
+    rc_cfg->bps_min = bps_max * 15 / 16;
     break;
   case MPP_ENC_RC_MODE_VBR:
-    // variable bitrate has large bps range
-    rc_cfg->bps_target = bps;
-    rc_cfg->bps_max = bps * 3 / 2;
-    rc_cfg->bps_min = bps * 1 / 2;
+    if (rc_cfg->quality == MPP_ENC_RC_QUALITY_CQP) {
+      /* constant QP does not have bps */
+      rc_cfg->bps_target   = -1;
+      rc_cfg->bps_max      = -1;
+      rc_cfg->bps_min      = -1;
+    } else {
+      // variable bitrate has large bps range
+      rc_cfg->bps_target = bps_max * 2 / 3;
+      rc_cfg->bps_max = bps_max;
+      rc_cfg->bps_min = bps_max * 1 / 3;
+    }
     break;
   default:
     // TODO
@@ -453,6 +460,13 @@ bool MPPFinalEncoder::InitConfig(const MediaConfig &cfg) {
 
 bool MPPFinalEncoder::CheckConfigChange(
     std::pair<uint32_t, std::shared_ptr<ParameterBuffer>> change_pair) {
+  //common ConfigChange process
+  if (change_pair.first & VideoEncoder::kEnableStatistics) {
+    bool value = (change_pair.second->GetValue())?true:false;
+    set_statistics_switch(value);
+    return true;
+  }
+
   assert(mpp_config);
   if (!mpp_config)
     return false;

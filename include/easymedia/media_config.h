@@ -8,6 +8,7 @@
 #include "image.h"
 #include "media_type.h"
 #include "sound.h"
+#include "flow.h"
 
 typedef struct {
   ImageInfo image_info;
@@ -71,6 +72,12 @@ _API std::string to_param_string(const VideoConfig &vid_cfg);
 _API std::string to_param_string(const AudioConfig &aud_cfg);
 _API std::string to_param_string(const MediaConfig &mc,
                                  const std::string &out_type);
+
+_API int video_encoder_set_maxbps(
+  std::shared_ptr<Flow> &enc_flow, unsigned int bpsmax);
+
+_API int video_encoder_enable_statistics(
+  std::shared_ptr<Flow> &enc_flow, int enable);
 } // namespace easymedia
 
 #endif // #ifndef EASYMEDIA_MEDIA_CONFIG_H_

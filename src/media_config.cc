@@ -9,6 +9,7 @@
 #include "key_string.h"
 #include "media_type.h"
 #include "utils.h"
+#include "encoder.h"
 
 namespace easymedia {
 
@@ -180,6 +181,35 @@ std::string to_param_string(const MediaConfig &mc,
   }
 
   return ret;
+}
+
+int video_encoder_set_maxbps(
+  std::shared_ptr<Flow> &enc_flow, unsigned int bpsmax) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  if (bpsmax >= 98 * 1000 * 1000) {
+    LOG("ERROR: bpsmax should be less then 98Mb\n");
+    return -EINVAL;
+  }
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetValue(bpsmax);
+  enc_flow->Control(VideoEncoder::kBitRateChange, pbuff);
+
+  return 0;
+}
+
+int video_encoder_enable_statistics(
+  std::shared_ptr<Flow> &enc_flow, int enable) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetValue(enable);
+  enc_flow->Control(VideoEncoder::kEnableStatistics, pbuff);
+
+  return 0;
 }
 
 } // namespace easymedia

@@ -12,7 +12,9 @@
 namespace easymedia {
 
 MPPEncoder::MPPEncoder()
-    : coding_type(MPP_VIDEO_CodingAutoDetect), output_mb_flags(0) {}
+    : coding_type(MPP_VIDEO_CodingAutoDetect),
+      output_mb_flags(0), encoder_sta_en(false),
+      stream_size_1s(0), frame_cnt_1s(0), last_ts(0), cur_ts(0) {}
 
 void MPPEncoder::SetMppCodeingType(MppCodingType type) {
   coding_type = type;
@@ -216,6 +218,37 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
   pts = mpp_packet_get_pts(packet);
   if (pts <= 0)
     pts = mpp_packet_get_dts(packet);
+
+  // Calculate bit rate statistics.
+  if (encoder_sta_en) {
+    MediaConfig &cfg = GetConfig();
+    int target_fps = cfg.vid_cfg.frame_rate;
+    int target_bps = cfg.vid_cfg.bit_rate;
+    frame_cnt_1s += 1;
+    stream_size_1s += packet_len;
+    //Refresh every second
+    if ((frame_cnt_1s + 1) % target_fps == 0) {
+        // Calculate the frame rate based on the system time.
+        cur_ts = gettimeofday() / 1000;
+        encoded_fps = ((float)target_fps / (cur_ts - last_ts)) * 1000;
+        last_ts = cur_ts;
+        // convert bytes to bits
+        encoded_bps = stream_size_1s * 8;
+        // reset 1s variable
+        stream_size_1s = 0;
+        frame_cnt_1s = 0;
+        LOG("[INFO: MPP ENCODER] bps:%d, actual_bps:%d, "
+          "fps:%d, actual_fps:%f\n",
+          target_bps, encoded_bps, target_fps, encoded_fps);
+    }
+  } else if (cur_ts) {
+    // clear tmp statistics variable.
+    stream_size_1s = 0;
+    frame_cnt_1s = 0;
+    cur_ts = 0;
+    last_ts = 0;
+  }
+
   if (output->IsValid()) {
     if (!import_packet) {
       // !!time-consuming operation
@@ -360,6 +393,23 @@ int MPPEncoder::EncodeControl(int cmd, void *param) {
   }
 
   return 0;
+}
+
+void MPPEncoder::set_statistics_switch(bool value) {
+  LOG("[INFO] MPP ENCODER %s statistics\n", value?"enable":"disable");
+  encoder_sta_en = value;
+}
+
+int MPPEncoder::get_statistics_bps() {
+  if (!encoder_sta_en)
+    LOG("[WARN] MPP ENCODER statistics should enable first!\n");
+  return encoded_bps;
+}
+
+int MPPEncoder::get_statistics_fps() {
+    if (!encoder_sta_en)
+    LOG("[WARN] MPP ENCODER statistics should enable first!\n");
+  return encoded_fps;
 }
 
 } // namespace easymedia
