@@ -219,6 +219,14 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
   if (pts <= 0)
     pts = mpp_packet_get_dts(packet);
 
+  // out fps < in fps ?
+  if (packet_len == 0) {
+    output->SetValidSize(0);
+    if (extra_output)
+      extra_output->SetValidSize(0);
+    goto ENCODE_OUT;
+  }
+
   // Calculate bit rate statistics.
   if (encoder_sta_en) {
     MediaConfig &cfg = GetConfig();
