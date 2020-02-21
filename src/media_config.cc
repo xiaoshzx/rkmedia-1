@@ -200,6 +200,23 @@ int video_encoder_set_maxbps(
   return 0;
 }
 
+int video_encoder_set_fps(
+  std::shared_ptr<Flow> &enc_flow, unsigned int fps) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  if (fps >= 120) {
+    LOG("ERROR: fps should be less then 120.\n");
+    return -EINVAL;
+  }
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetValue(fps);
+  enc_flow->Control(VideoEncoder::kFrameRateChange, pbuff);
+
+  return 0;
+}
+
 int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable) {
   if (!enc_flow)

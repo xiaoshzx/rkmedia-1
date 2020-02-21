@@ -76,6 +76,9 @@ _API std::string to_param_string(const MediaConfig &mc,
 _API int video_encoder_set_maxbps(
   std::shared_ptr<Flow> &enc_flow, unsigned int bpsmax);
 
+_API int video_encoder_set_fps(
+  std::shared_ptr<Flow> &enc_flow, unsigned int fps);
+
 _API int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable);
 } // namespace easymedia
