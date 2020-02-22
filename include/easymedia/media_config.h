@@ -77,7 +77,7 @@ _API int video_encoder_set_maxbps(
   std::shared_ptr<Flow> &enc_flow, unsigned int bpsmax);
 
 _API int video_encoder_set_fps(
-  std::shared_ptr<Flow> &enc_flow, unsigned int fps);
+  std::shared_ptr<Flow> &enc_flow, uint8_t num, uint8_t den);
 
 _API int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable);

@@ -200,18 +200,22 @@ int video_encoder_set_maxbps(
   return 0;
 }
 
-int video_encoder_set_fps(
-  std::shared_ptr<Flow> &enc_flow, unsigned int fps) {
+_API int video_encoder_set_fps(
+  std::shared_ptr<Flow> &enc_flow, uint8_t num, uint8_t den) {
   if (!enc_flow)
     return -EINVAL;
 
-  if (fps >= 120) {
-    LOG("ERROR: fps should be less then 120.\n");
+  if (!den || !num || (den > 16) || (num > 120)) {
+    LOG("ERROR: fps(%d/%d) is invalid! num:[1,120], den:[1, 16].\n",
+      num, den);
     return -EINVAL;
   }
 
   auto pbuff = std::make_shared<ParameterBuffer>(0);
-  pbuff->SetValue(fps);
+  uint8_t *fps_array = (uint8_t *)malloc(2 * sizeof(uint8_t));
+  fps_array[0] = num;
+  fps_array[1] = den;
+  pbuff->SetPtr(fps_array, 2);
   enc_flow->Control(VideoEncoder::kFrameRateChange, pbuff);
 
   return 0;
