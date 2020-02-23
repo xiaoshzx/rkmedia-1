@@ -21,6 +21,7 @@ extern "C" {
 #include "sound.h"
 
 snd_pcm_format_t SampleFormatToAlsaFormat(SampleFormat fmt);
+int SampleFormatToInterleaved(SampleFormat fmt);
 void ShowAlsaAvailableFormats(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
 int ParseAlsaParams(const char *param,
                     std::map<std::string, std::string> &params,

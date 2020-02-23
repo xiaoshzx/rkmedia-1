@@ -19,6 +19,7 @@ typedef enum {
   SAMPLE_FMT_S16,
   SAMPLE_FMT_S32,
   SAMPLE_FMT_FLTP,
+  SAMPLE_FMT_FLT,
   SAMPLE_FMT_NB
 } SampleFormat;
 

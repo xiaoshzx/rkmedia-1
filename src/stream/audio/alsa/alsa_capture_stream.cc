@@ -33,10 +33,15 @@ public:
   virtual int Close() final;
 
 private:
+  size_t Readi(void *ptr, size_t size, size_t nmemb);
+  size_t Readn(void *ptr, size_t size, size_t nmemb);
+
+private:
   SampleInfo sample_info;
   std::string device;
   snd_pcm_t *alsa_handle;
   size_t frame_size;
+  int interleaved;
 };
 
 AlsaCaptureStream::AlsaCaptureStream(const char *param)
@@ -52,6 +57,7 @@ AlsaCaptureStream::AlsaCaptureStream(const char *param)
     SetReadable(true);
   else
     LOG("missing some necessary param\n");
+  interleaved = SampleFormatToInterleaved(sample_info.fmt);
 }
 
 AlsaCaptureStream::~AlsaCaptureStream() {
@@ -60,12 +66,19 @@ AlsaCaptureStream::~AlsaCaptureStream() {
 }
 
 size_t AlsaCaptureStream::Read(void *ptr, size_t size, size_t nmemb) {
+  if (interleaved)
+    return Readi(ptr, size, nmemb);
+  else
+    return Readn(ptr, size, nmemb);
+}
+
+size_t AlsaCaptureStream::Readi(void *vptr, size_t size, size_t nmemb) {
+  uint8_t *ptr = (uint8_t *)vptr;
   size_t buffer_len = size * nmemb;
   snd_pcm_sframes_t gotten = 0;
   snd_pcm_sframes_t nb_samples =
       (size == frame_size ? nmemb : buffer_len / frame_size);
   while (nb_samples > 0) {
-    // SND_PCM_ACCESS_RW_INTERLEAVED
     int status = snd_pcm_readi(alsa_handle, ptr, nb_samples);
     if (status < 0) {
       if (status == -EAGAIN) {
@@ -87,6 +100,48 @@ size_t AlsaCaptureStream::Read(void *ptr, size_t size, size_t nmemb) {
     }
     nb_samples -= status;
     gotten += status;
+    ptr += status * frame_size;
+  }
+
+  return gotten * frame_size / size;
+}
+
+size_t AlsaCaptureStream::Readn(void *ptr, size_t size, size_t nmemb) {
+  uint8_t *bufs[32];
+  int channels = sample_info.channels;
+  size_t sample_size = frame_size / channels;
+  size_t buffer_len = size * nmemb;
+  snd_pcm_sframes_t gotten = 0;
+  snd_pcm_sframes_t nb_samples =
+      (size == frame_size ? nmemb : buffer_len / frame_size);
+
+  for (int channel = 0; channel < channels; channel++)
+    bufs[channel] = (uint8_t *)ptr + nb_samples * sample_size * channel;
+
+  while (nb_samples > 0) {
+    int status = snd_pcm_readn(alsa_handle, (void **)bufs, nb_samples);
+    if (status < 0) {
+      if (status == -EAGAIN) {
+        /* Apparently snd_pcm_recover() doesn't handle this case - does it
+         * assume snd_pcm_wait() above? */
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+        errno = EAGAIN;
+        break;
+      }
+      status = snd_pcm_recover(alsa_handle, status, 0);
+      if (status < 0) {
+        /* Hmm, not much we can do - abort */
+        LOG("ALSA write failed (unrecoverable): %s\n", snd_strerror(status));
+        errno = EIO;
+        break;
+      }
+      errno = EIO;
+      break;
+    }
+    nb_samples -= status;
+    gotten += status;
+    for (int channel = 0; channel < channels; channel++)
+      bufs[channel] +=  sample_size * status;
   }
 
   return gotten * frame_size / size;
@@ -158,6 +213,7 @@ int AlsaCaptureStream::Open() {
   return 0;
 
 err:
+  LOG("AlsaCaptureStream::Open() failed\n");
   if (hwparams)
     snd_pcm_hw_params_free(hwparams);
   if (pcm_handle) {
