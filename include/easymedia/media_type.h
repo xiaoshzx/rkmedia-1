@@ -48,10 +48,12 @@ enum class Type { None = -1, Audio = 0, Image, Video, Text };
 #define AUDIO_PCM_S16 "audio:pcm_s16"
 #define AUDIO_PCM_S32 "audio:pcm_s32"
 #define AUDIO_PCM_FLTP "audio:pcm_fltp"
+#define AUDIO_PCM_FLT "audio:pcm_flt"
 
 #define AUDIO_PCM                                 \
   TYPENEAR(AUDIO_PCM_U8) TYPENEAR(AUDIO_PCM_S16)  \
-  TYPENEAR(AUDIO_PCM_S32) TYPENEAR(AUDIO_PCM_FLTP)
+  TYPENEAR(AUDIO_PCM_S32) TYPENEAR(AUDIO_PCM_FLTP) \
+  TYPENEAR(AUDIO_PCM_FLT)
 
 #define AUDIO_AAC "audio:aac"
 #define AUDIO_MP2 "audio:mp2"

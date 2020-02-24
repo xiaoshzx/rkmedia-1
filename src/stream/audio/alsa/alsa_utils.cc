@@ -10,15 +10,23 @@
 static const struct SampleFormatEntry {
   SampleFormat fmt;
   snd_pcm_format_t alsa_fmt;
+  int interleaved;
 } sample_format_alsa_map[] = {
-    {SAMPLE_FMT_U8, SND_PCM_FORMAT_U8},
-    {SAMPLE_FMT_S16, SND_PCM_FORMAT_S16_LE},
-    {SAMPLE_FMT_S32, SND_PCM_FORMAT_S32_LE},
+    {SAMPLE_FMT_U8, SND_PCM_FORMAT_U8, 1},
+    {SAMPLE_FMT_S16, SND_PCM_FORMAT_S16_LE, 1},
+    {SAMPLE_FMT_S32, SND_PCM_FORMAT_S32_LE, 1},
+    {SAMPLE_FMT_FLT, SND_PCM_FORMAT_FLOAT_LE, 1},
+    {SAMPLE_FMT_FLTP, SND_PCM_FORMAT_FLOAT_LE, 0}
 };
 
 snd_pcm_format_t SampleFormatToAlsaFormat(SampleFormat fmt) {
   FIND_ENTRY_TARGET(fmt, sample_format_alsa_map, fmt, alsa_fmt)
   return SND_PCM_FORMAT_UNKNOWN;
+}
+
+int SampleFormatToInterleaved(SampleFormat fmt) {
+  FIND_ENTRY_TARGET(fmt, sample_format_alsa_map, fmt, interleaved)
+  return 1;
 }
 
 void ShowAlsaAvailableFormats(snd_pcm_t *handle, snd_pcm_hw_params_t *params) {
@@ -73,6 +81,7 @@ snd_pcm_t *AlsaCommonOpenSetHwParams(const char *device,
   unsigned int rate = sample_info.sample_rate;
   unsigned int channels;
   snd_pcm_format_t pcm_fmt = SampleFormatToAlsaFormat(sample_info.fmt);
+  int interleaved = SampleFormatToInterleaved(sample_info.fmt);
   if (pcm_fmt == SND_PCM_FORMAT_UNKNOWN)
     return NULL;
 
@@ -99,11 +108,15 @@ snd_pcm_t *AlsaCommonOpenSetHwParams(const char *device,
     snd_output_close(log);
   }
 #endif
-  // TODO: fixed SND_PCM_ACCESS_RW_INTERLEAVED
-  status = snd_pcm_hw_params_set_access(pcm_handle, hwparams,
+
+  if (interleaved)
+    status = snd_pcm_hw_params_set_access(pcm_handle, hwparams,
                                         SND_PCM_ACCESS_RW_INTERLEAVED);
+  else
+    status = snd_pcm_hw_params_set_access(pcm_handle, hwparams,
+                                        SND_PCM_ACCESS_RW_NONINTERLEAVED);
   if (status < 0) {
-    LOG("Couldn't set interleaved access: %s\n", snd_strerror(status));
+    LOG("Couldn't set access type: %s\n", snd_strerror(status));
     goto err;
   }
   status = snd_pcm_hw_params_set_format(pcm_handle, hwparams, pcm_fmt);

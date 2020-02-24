@@ -16,6 +16,7 @@ static const struct SampleFormatEntry {
 } sample_format_string_map[] = {
     {SAMPLE_FMT_U8, AUDIO_PCM_U8},   {SAMPLE_FMT_S16, AUDIO_PCM_S16},
     {SAMPLE_FMT_S32, AUDIO_PCM_S32}, {SAMPLE_FMT_FLTP, AUDIO_PCM_FLTP},
+    {SAMPLE_FMT_FLT, AUDIO_PCM_FLT}
 };
 
 const char *SampleFmtToString(SampleFormat fmt) {
