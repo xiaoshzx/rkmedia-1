@@ -22,6 +22,24 @@
 #include "easymedia/stream.h"
 #include "easymedia/media_config.h"
 
+std::string CodecToString(CodecType type) {
+  switch (type) {
+  case CODEC_TYPE_AAC:
+    return AUDIO_AAC;
+  case CODEC_TYPE_MP2:
+    return AUDIO_MP2;
+  case CODEC_TYPE_VORBIS:
+    return AUDIO_VORBIS;
+  case CODEC_TYPE_G711A:
+    return AUDIO_G711A;
+  case CODEC_TYPE_G711U:
+    return AUDIO_G711U;
+  case CODEC_TYPE_G726:
+    return AUDIO_G726;
+  default:
+    return "";
+  }
+}
 std::shared_ptr<easymedia::Flow> create_flow(const std::string &flow_name,
                                              const std::string &flow_param,
                                              const std::string &elem_param);
@@ -33,7 +51,104 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
-static char optstr[] = "?a:v:o:";
+std::shared_ptr<easymedia::Flow> create_alsa_flow(std::string aud_in_path,
+                                                  SampleInfo &info) {
+  std::string flow_name;
+  std::string flow_param;
+  std::string sub_param;
+  std::string stream_name;
+
+  flow_name = "source_stream";
+  flow_param = "";
+  sub_param = "";
+  stream_name = "alsa_capture_stream";
+
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, stream_name);
+  PARAM_STRING_APPEND(sub_param, KEY_DEVICE, aud_in_path);
+  PARAM_STRING_APPEND(sub_param, KEY_SAMPLE_FMT, SampleFmtToString(info.fmt));
+  PARAM_STRING_APPEND_TO(sub_param, KEY_CHANNELS, info.channels);
+  PARAM_STRING_APPEND_TO(sub_param, KEY_FRAMES, info.nb_samples);
+  PARAM_STRING_APPEND_TO(sub_param, KEY_SAMPLE_RATE, info.sample_rate);
+
+  auto audio_source_flow = create_flow(flow_name, flow_param, sub_param);
+  if (!audio_source_flow) {
+    printf("Create flow %s failed\n", flow_name.c_str());
+    exit(EXIT_FAILURE);
+  } else {
+    printf("%s flow ready!\n", flow_name.c_str());
+  }
+  return audio_source_flow;
+}
+
+std::string get_audio_enc_param(SampleInfo &info, CodecType codec_type,
+                                int bit_rate, float quality) {
+  std::string audio_enc_param;
+  MediaConfig audio_enc_config;
+  auto &ac = audio_enc_config.aud_cfg;
+  ac.sample_info = info;
+  ac.bit_rate = bit_rate;
+  ac.quality = quality;
+  audio_enc_config.type = Type::Audio;
+
+  audio_enc_config.aud_cfg.codec_type = codec_type;
+  audio_enc_param.append(
+      easymedia::to_param_string(audio_enc_config, CodecToString(codec_type)));
+  return audio_enc_param;
+}
+
+std::shared_ptr<easymedia::Flow>
+create_audio_enc_flow(SampleInfo &info, CodecType codec_type,
+                      std::string audio_enc_param) {
+  std::string flow_name;
+  std::string flow_param;
+
+  flow_name = "audio_enc";
+  flow_param = "";
+  if (codec_type == CODEC_TYPE_VORBIS)
+    PARAM_STRING_APPEND(flow_param, KEY_NAME, "libvorbisenc");
+  else
+    PARAM_STRING_APPEND(flow_param, KEY_NAME, "ffmpeg_aud");
+
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE,
+                      CodecToString(codec_type));
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE,
+                      SampleFmtToString(info.fmt));
+
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, audio_enc_param);
+  auto audio_enc_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!audio_enc_flow) {
+    LOG("Create flow %s failed\n", flow_name.c_str());
+  } else {
+    LOG("%s flow ready!\n", flow_name.c_str());
+  }
+  return audio_enc_flow;
+}
+
+CodecType parseCodec(std::string args) {
+  if (!args.compare("AAC"))
+    return CODEC_TYPE_AAC;
+  if (!args.compare("MP2"))
+    return CODEC_TYPE_MP2;
+  if (!args.compare("VORBIS"))
+    return CODEC_TYPE_VORBIS;
+  if (!args.compare("G711A"))
+    return CODEC_TYPE_G711A;
+  if (!args.compare("G711U"))
+    return CODEC_TYPE_G711U;
+  if (!args.compare("G726"))
+    return CODEC_TYPE_G726;
+  else
+    return CODEC_TYPE_NONE;
+}
+
+void usage(char *name) {
+  LOG("\nUsage: \t%s -a plug:\"default:CARD=rockchiprk809co\" -c AAC -v /dev/video0 -o /tmp/out.avi\n",name);
+  LOG("\tNOTICE: audio codec : -c [AAC MP2 G711A G711U G726]\n");
+  exit(EXIT_FAILURE);
+}
+
+static char optstr[] = "?a:v:o:c:";
 
 int main(int argc, char** argv)
 {
@@ -45,8 +160,16 @@ int main(int argc, char** argv)
   PixelFormat enc_in_fmt = PIX_FMT_YUYV422;
   ImageInfo info = {enc_in_fmt, in_w, in_h, w_align, h_align};
 
+  SampleFormat fmt = SAMPLE_FMT_S16;
+  int channels = 1;
+  int sample_rate = 8000;
+  int nb_samples = 1024;
+  CodecType codec = CODEC_TYPE_AAC;
+  int bitrate = 32000;
+  float quality = 1.0; // 0.0 - 1.0
+
   std::string vid_in_path = "/dev/video0";
-  std::string aud_in_path = "default:CARD=rockchiprk809co";
+  std::string aud_in_path = "plug:\"default:CARD=rockchiprk809co\"";
   std::string output_path;
   std::string input_format = "image:yuyv422";
   std::string flow_name;
@@ -76,11 +199,15 @@ int main(int argc, char** argv)
       output_path = optarg;
       LOG("output file path: %s\n", output_path.c_str());
       break;
+    case 'c':
+      codec = parseCodec(optarg);
+      if (codec == CODEC_TYPE_NONE)
+        usage(argv[0]);
+      break;
+      break;
     case '?':
     default:
-      LOG("usage example: \n");
-      LOG("\t%s -a default:CARD=rockchiprk809co -v /dev/video0 -o /tmp/out.mp4\n",
-          argv[0]);
+      usage(argv[0]);
       break;
     }
   }
@@ -90,6 +217,15 @@ int main(int argc, char** argv)
 
   if (vid_in_path.empty() || aud_in_path.empty()) {
     LOG("use default video device and audio device!\n");
+  }
+
+  // param fixed
+  if (codec == CODEC_TYPE_AAC) {
+    fmt = SAMPLE_FMT_FLTP;
+  } else if (codec == CODEC_TYPE_VORBIS) {
+    channels = 2;
+  } else if (codec == CODEC_TYPE_MP2) {
+    sample_rate = 16000;
   }
 
   flow_name = "source_stream";
@@ -109,26 +245,6 @@ int main(int argc, char** argv)
   auto video_source_flow = create_flow(flow_name, flow_param, sub_param);
 
   if (!video_source_flow) {
-    printf("Create flow %s failed\n", flow_name.c_str());
-    exit(EXIT_FAILURE);
-  } else {
-    printf("%s flow ready!\n", flow_name.c_str());
-  }
-
-  flow_name = "source_stream";
-  flow_param = "";
-  sub_param = "";
-  stream_name = "alsa_capture_stream";
-
-  PARAM_STRING_APPEND(flow_param, KEY_NAME, stream_name);
-  PARAM_STRING_APPEND(sub_param, KEY_DEVICE, aud_in_path);
-  PARAM_STRING_APPEND(sub_param, KEY_SAMPLE_FMT, SampleFmtToString(SAMPLE_FMT_S16));
-  PARAM_STRING_APPEND_TO(sub_param, KEY_CHANNELS, 2);
-  PARAM_STRING_APPEND_TO(sub_param, KEY_FRAMES, 1152);
-  PARAM_STRING_APPEND_TO(sub_param, KEY_SAMPLE_RATE, 44100);
-
-  auto audio_source_flow = create_flow(flow_name, flow_param, sub_param);
-  if (!audio_source_flow) {
     printf("Create flow %s failed\n", flow_name.c_str());
     exit(EXIT_FAILURE);
   } else {
@@ -172,28 +288,34 @@ int main(int argc, char** argv)
     LOG("%s flow ready!\n", flow_name.c_str());
   }
 
-  flow_name = "audio_enc";
-  flow_param = "";
-  PARAM_STRING_APPEND(flow_param, KEY_NAME, "ffmpeg_aud");
-  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, AUDIO_MP2);
-  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, AUDIO_PCM_S16);
-  MediaConfig audio_enc_config;
-  // s16 2ch stereo, 1152 nb_samples
-  SampleInfo aud_info = {SAMPLE_FMT_S16, 2, 44100, 1152};
-  auto &ac = audio_enc_config.aud_cfg;
-  ac.sample_info = aud_info;
-  ac.bit_rate = 64000; // 64kbps
-  audio_enc_config.type = Type::Audio;
+  SampleInfo sample_info = {fmt, channels, sample_rate, nb_samples};
+  audio_enc_param = get_audio_enc_param(sample_info, codec, bitrate, quality);
+  LOG("Audio pre enc param: %s\n", audio_enc_param.c_str());
 
-  audio_enc_config.aud_cfg.codec_type = CODEC_TYPE_MP2;
-  audio_enc_param.append(easymedia::to_param_string(audio_enc_config, AUDIO_MP2));
-  flow_param = easymedia::JoinFlowParam(flow_param, 1, audio_enc_param);
-  auto audio_enc_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
-      flow_name.c_str(), flow_param.c_str());
+  // 1. audio encoder
+  std::shared_ptr<easymedia::Flow> audio_enc_flow =
+      create_audio_enc_flow(sample_info, codec, audio_enc_param);
   if (!audio_enc_flow) {
-    LOG("Create flow %s failed\n", flow_name.c_str());
-  } else {
-    LOG("%s flow ready!\n", flow_name.c_str());
+    LOG("Create flow failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // 2. Tuning the nb_samples according to the encoder requirements.
+  int read_size = audio_enc_flow->GetInputSize();
+  if (read_size > 0) {
+    sample_info.nb_samples = read_size / GetSampleSize(sample_info);
+    LOG("codec %s : nm_samples fixed to %d\n", CodecToString(codec).c_str(),
+        sample_info.nb_samples);
+  }
+  audio_enc_param = get_audio_enc_param(sample_info, codec, bitrate, quality);
+  LOG("Audio post enc param: %s\n", audio_enc_param.c_str());
+
+  // 3. alsa capture flow
+  std::shared_ptr<easymedia::Flow> audio_source_flow =
+      create_alsa_flow(aud_in_path, sample_info);
+  if (!audio_source_flow) {
+    LOG("Create flow alsa_capture_flow failed\n");
+    exit(EXIT_FAILURE);
   }
 
   flow_param = "";
@@ -252,4 +374,3 @@ std::shared_ptr<easymedia::Flow> create_flow(const std::string &flow_name,
     fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
   return ret;
 }
-
