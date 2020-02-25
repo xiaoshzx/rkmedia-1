@@ -336,18 +336,20 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
   MppEncRcCfg rc_cfg;
 
   if (change & VideoEncoder::kFrameRateChange) {
-    int new_frame_rate = val->GetValue();
-    assert(new_frame_rate > 0 && new_frame_rate < 120);
+    uint8_t *values = (uint8_t *)val->GetPtr();
+    assert(values > 0 && val->GetSize() < 2);
+    uint8_t new_fps_num = values[0];
+    uint8_t new_fps_den = values[1];
     rc_cfg.change = MPP_ENC_RC_CFG_CHANGE_FPS_OUT;
     rc_cfg.fps_out_flex = 0;
-    rc_cfg.fps_out_num = new_frame_rate;
-    rc_cfg.fps_out_denorm = 1;
+    rc_cfg.fps_out_num = new_fps_num;
+    rc_cfg.fps_out_denorm = new_fps_den;
     if (mpp_enc.EncodeControl(MPP_ENC_SET_RC_CFG, &rc_cfg) != 0) {
       LOG("encode_control MPP_ENC_SET_RC_CFG(MPP_ENC_RC_CFG_CHANGE_FPS_OUT) "
           "error!\n");
       return false;
     }
-    vconfig.frame_rate = new_frame_rate;
+    vconfig.frame_rate = new_fps_num;
   } else if (change & VideoEncoder::kBitRateChange) {
     int new_bit_rate = val->GetValue();
     assert(new_bit_rate > 0 && new_bit_rate < 60 * 1000 * 1000);
