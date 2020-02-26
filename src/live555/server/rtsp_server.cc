@@ -25,6 +25,7 @@
 #include "h265_server_media_subsession.hh"
 #endif
 #include "aac_server_media_subsession.hh"
+#include "g711_server_media_subsession.hh"
 #include "live555_media_input.hh"
 
 #include "buffer.h"
@@ -286,6 +287,31 @@ RtspServerFlow::RtspServerFlow(const char *param) {
         subsession = AACServerMediaSubsession::createNew(
             *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
             profiles);
+        sm.process = SendAudioToServer;
+      } else if (type == AUDIO_G711A || type == AUDIO_G711U) {
+        int sample_rate = 0, channels = 0;
+        unsigned char bitsPerSample = 0;
+        value = params[KEY_SAMPLE_RATE];
+        if (!value.empty())
+          sample_rate = std::stoi(value);
+
+        value = params[KEY_CHANNELS];
+        if (!value.empty())
+          channels = std::stoi(value);
+
+        value = params[KEY_SAMPLE_FMT];
+        if (!value.empty())
+          bitsPerSample = std::stoi(value);
+        if (type == AUDIO_G711A) {
+          subsession = G711ServerMediaSubsession::createNew(
+              *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
+              WA_PCMA, bitsPerSample);
+
+        } else {
+          subsession = G711ServerMediaSubsession::createNew(
+              *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
+              WA_PCMU, bitsPerSample);
+        }
         sm.process = SendAudioToServer;
       } else if (string_start_withs(type, AUDIO_PREFIX)) {
         // pcm or vorbis

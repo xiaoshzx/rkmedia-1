@@ -24,7 +24,7 @@
 #include "stream.h"
 #include "utils.h"
 
-#define AAC_FROM_FILE 1
+#define AAC_FROM_FILE 0
 
 static bool quit = false;
 static void sigterm_handler(int sig) {
@@ -32,18 +32,22 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
-static void print_usage() {
+static void print_usage(char *name) {
   printf("On PC:\n");
   printf("Streame 1: ffplay -rtsp_transport tcp -stimeout 2000000 "
          "rtsp://admin:123456@192.168.xxx.xxx/main_stream1\n");
   printf("Streame 2: ffplay -rtsp_transport tcp -stimeout 2000000 "
          "rtsp://admin:123456@192.168.xxx.xxx/main_stream2\n");
+  printf("usage example: \n");
+  printf("%s -v H264 -w 1280 -h 720 -a G711U.\n", name);
+  printf("#[-v] support list:\n\tH264\n\tH265\n");
+  printf("#[-a] support list:\n\tAAC\n\tG711U\n\tG711A\n");
 }
 
 std::shared_ptr<easymedia::Flow> create_live555_rtsp_server_flow(
     std::string channel_name, std::string media_type,
     unsigned fSamplingFrequency = 0, unsigned fNumChannels = 0,
-    unsigned profile = 0) {
+    unsigned profile = 0, unsigned char bitsPerSample = 0) {
   std::shared_ptr<easymedia::Flow> rtsp_flow;
 
   std::string flow_name;
@@ -57,6 +61,7 @@ std::shared_ptr<easymedia::Flow> create_live555_rtsp_server_flow(
   PARAM_STRING_APPEND_TO(flow_param, KEY_SAMPLE_RATE, fSamplingFrequency);
   PARAM_STRING_APPEND_TO(flow_param, KEY_CHANNELS, fNumChannels);
   PARAM_STRING_APPEND_TO(flow_param, KEY_PROFILE, profile);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_SAMPLE_FMT, bitsPerSample);
 
   printf("\nRtspFlow:\n%s\n", flow_param.c_str());
   rtsp_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
@@ -300,98 +305,318 @@ read_aac_frome_file(struct argument &arg, std::string input_path) {
 }
 
 #endif
-int main() {
-  print_usage();
-  // test main_stream1
-  // test 1280*720 h264
-  std::shared_ptr<easymedia::Flow> video_read_flow =
-      create_video_read_flow("/dev/video0", IMAGE_NV12, 1280, 720);
-  std::shared_ptr<easymedia::Flow> video_enc_flow =
-      create_video_enc_flow(IMAGE_NV12, VIDEO_H264, 1280, 720, 30);
-  std::shared_ptr<easymedia::Flow> rtsp_flow =
-      create_live555_rtsp_server_flow("main_stream1", VIDEO_H264);
-  if (video_enc_flow && video_read_flow && rtsp_flow) {
-    video_enc_flow->AddDownFlow(rtsp_flow, 0, 0);
-    video_read_flow->AddDownFlow(video_enc_flow, 0, 0);
+
+static CodecType parseCodec(std::string args) {
+  if (!args.compare("AAC"))
+    return CODEC_TYPE_AAC;
+  if (!args.compare("MP2"))
+    return CODEC_TYPE_MP2;
+  if (!args.compare("VORBIS"))
+    return CODEC_TYPE_VORBIS;
+  if (!args.compare("G711A"))
+    return CODEC_TYPE_G711A;
+  if (!args.compare("G711U"))
+    return CODEC_TYPE_G711U;
+  if (!args.compare("G726"))
+    return CODEC_TYPE_G726;
+  if (!args.compare("H264"))
+    return CODEC_TYPE_H264;
+  if (!args.compare("H265"))
+    return CODEC_TYPE_H265;
+  else
+    return CODEC_TYPE_NONE;
+}
+
+static std::string CodecToString(CodecType type) {
+  switch (type) {
+  case CODEC_TYPE_AAC:
+    return AUDIO_AAC;
+  case CODEC_TYPE_MP2:
+    return AUDIO_MP2;
+  case CODEC_TYPE_VORBIS:
+    return AUDIO_VORBIS;
+  case CODEC_TYPE_G711A:
+    return AUDIO_G711A;
+  case CODEC_TYPE_G711U:
+    return AUDIO_G711U;
+  case CODEC_TYPE_G726:
+    return AUDIO_G726;
+  case CODEC_TYPE_H264:
+    return VIDEO_H264;
+  case CODEC_TYPE_H265:
+    return VIDEO_H265;
+  default:
+    return "";
+  }
+}
+
+static std::shared_ptr<easymedia::Flow>
+create_flow(const std::string &flow_name, const std::string &flow_param,
+            const std::string &elem_param) {
+  auto &&param = easymedia::JoinFlowParam(flow_param, 1, elem_param);
+  auto ret = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), param.c_str());
+  if (!ret)
+    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+  return ret;
+}
+
+static std::shared_ptr<easymedia::Flow>
+create_audio_enc_flow(SampleInfo &info, CodecType codec_type,
+                      std::string audio_enc_param) {
+  std::string flow_name;
+  std::string flow_param;
+
+  flow_name = "audio_enc";
+  flow_param = "";
+  if (codec_type == CODEC_TYPE_VORBIS)
+    PARAM_STRING_APPEND(flow_param, KEY_NAME, "libvorbisenc");
+  else
+    PARAM_STRING_APPEND(flow_param, KEY_NAME, "ffmpeg_aud");
+
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE,
+                      CodecToString(codec_type));
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE,
+                      SampleFmtToString(info.fmt));
+
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, audio_enc_param);
+  auto audio_enc_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!audio_enc_flow) {
+    LOG("Create flow %s failed\n", flow_name.c_str());
+  } else {
+    LOG("%s flow ready!\n", flow_name.c_str());
+  }
+  return audio_enc_flow;
+}
+
+static std::shared_ptr<easymedia::Flow>
+create_alsa_flow(std::string aud_in_path, SampleInfo &info) {
+  std::string flow_name;
+  std::string flow_param;
+  std::string sub_param;
+  std::string stream_name;
+
+  flow_name = "source_stream";
+  flow_param = "";
+  sub_param = "";
+  stream_name = "alsa_capture_stream";
+
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, stream_name);
+  PARAM_STRING_APPEND(sub_param, KEY_DEVICE, aud_in_path);
+  PARAM_STRING_APPEND(sub_param, KEY_SAMPLE_FMT, SampleFmtToString(info.fmt));
+  PARAM_STRING_APPEND_TO(sub_param, KEY_CHANNELS, info.channels);
+  PARAM_STRING_APPEND_TO(sub_param, KEY_FRAMES, info.nb_samples);
+  PARAM_STRING_APPEND_TO(sub_param, KEY_SAMPLE_RATE, info.sample_rate);
+
+  auto audio_source_flow = create_flow(flow_name, flow_param, sub_param);
+  if (!audio_source_flow) {
+    printf("Create flow %s failed\n", flow_name.c_str());
+    exit(EXIT_FAILURE);
+  } else {
+    printf("%s flow ready!\n", flow_name.c_str());
+  }
+  return audio_source_flow;
+}
+
+static std::string get_audio_enc_param(SampleInfo &info, CodecType codec_type,
+                                       int bit_rate, float quality) {
+  std::string audio_enc_param;
+  MediaConfig audio_enc_config;
+  auto &ac = audio_enc_config.aud_cfg;
+  ac.sample_info = info;
+  ac.bit_rate = bit_rate;
+  ac.quality = quality;
+  audio_enc_config.type = Type::Audio;
+
+  audio_enc_config.aud_cfg.codec_type = codec_type;
+  audio_enc_param.append(
+      easymedia::to_param_string(audio_enc_config, CodecToString(codec_type)));
+  return audio_enc_param;
+}
+
+static char optstr[] = "?v:h:w:a:";
+int main(int argc, char **argv) {
+
+  CodecType videoType = CODEC_TYPE_NONE;
+  CodecType audioType = CODEC_TYPE_NONE;
+  int video_height = 0;
+  int video_width = 0;
+
+  std::string input_format = IMAGE_NV12;
+  std::string video0_path = "/dev/video0";
+  std::string video1_path = "/dev/video1";
+  std::string aud_in_path = "plug:\"default:CARD=rockchiprk809co\"";
+  std::string stream_name0 = "main_stream1";
+  std::string stream_name1 = "main_stream2";
+  int video_fps = 30;
+
+  SampleFormat fmt = SAMPLE_FMT_S16;
+  int channels = 1;
+  int sample_rate = 8000;
+  int nb_samples = 1024;
+  int profile = 1;
+  unsigned char bitsPerSample = 16;
+
+  int bitrate = 32000;
+  float quality = 1.0; // 0.0 - 1.0
+
+  opterr = 1;
+  int c;
+  while ((c = getopt(argc, argv, optstr)) != -1) {
+    switch (c) {
+    case 'v':
+      videoType = parseCodec(optarg);
+      if (videoType == CODEC_TYPE_NONE)
+        LOG("videoType error.\n");
+      break;
+    case 'h':
+      video_height = atoi(optarg);
+      break;
+    case 'w':
+      video_width = atoi(optarg);
+      break;
+    case 'a':
+      audioType = parseCodec(optarg);
+      if (audioType == CODEC_TYPE_NONE)
+        LOG("audioType error.\n");
+      break;
+    case '?':
+    default:
+      print_usage(argv[0]);
+      exit(0);
+    }
   }
 
-  // test main_steram2
-  // test 640*480 h264
-  std::shared_ptr<easymedia::Flow> video_read_flow_1 =
-      create_video_read_flow("/dev/video1", IMAGE_NV12, 640, 480);
-  std::shared_ptr<easymedia::Flow> video_enc_flow_1 =
-      create_video_enc_flow(IMAGE_NV12, VIDEO_H264, 640, 480, 30);
-  std::shared_ptr<easymedia::Flow> rtsp_flow_1 =
-      create_live555_rtsp_server_flow("main_stream2", VIDEO_H264);
-  if (video_enc_flow_1 && rtsp_flow_1 && video_read_flow_1) {
-    video_enc_flow_1->AddDownFlow(rtsp_flow_1, 0, 0);
-    video_read_flow_1->AddDownFlow(video_enc_flow_1, 0, 0);
+  // stream 1
+  std::shared_ptr<easymedia::Flow> video_read_flow;
+  std::shared_ptr<easymedia::Flow> video_enc_flow;
+  std::shared_ptr<easymedia::Flow> video_rtsp_flow;
+
+  std::shared_ptr<easymedia::Flow> video_read_flow_1;
+  std::shared_ptr<easymedia::Flow> video_enc_flow_1;
+  std::shared_ptr<easymedia::Flow> video_rtsp_flow_1;
+
+  // video
+  if (videoType != CODEC_TYPE_NONE) {
+    // stream1
+    video_read_flow = create_video_read_flow(video0_path, input_format,
+                                             video_width, video_height);
+    video_enc_flow =
+        create_video_enc_flow(input_format, CodecToString(videoType),
+                              video_width, video_height, video_fps);
+    video_rtsp_flow = create_live555_rtsp_server_flow(
+        stream_name0, CodecToString((videoType)));
+    if (video_enc_flow && video_read_flow && video_rtsp_flow) {
+      video_enc_flow->AddDownFlow(video_rtsp_flow, 0, 0);
+      video_read_flow->AddDownFlow(video_enc_flow, 0, 0);
+    }
+
+    // stream2
+    video_read_flow_1 = create_video_read_flow(video1_path, input_format,
+                                               video_width, video_height);
+    video_enc_flow_1 =
+        create_video_enc_flow(input_format, CodecToString(videoType),
+                              video_width, video_height, video_fps);
+    video_rtsp_flow_1 = create_live555_rtsp_server_flow(
+        stream_name1, CodecToString((videoType)));
+    if (video_enc_flow_1 && video_read_flow_1 && video_rtsp_flow_1) {
+      video_enc_flow_1->AddDownFlow(video_rtsp_flow_1, 0, 0);
+      video_read_flow_1->AddDownFlow(video_enc_flow_1, 0, 0);
+    }
   }
-  // aac frome file
+
+  std::shared_ptr<easymedia::Flow> audio_enc_flow;
+  std::shared_ptr<easymedia::Flow> audio_source_flow;
+  std::shared_ptr<easymedia::Flow> rtsp_flow_audio;
+  std::shared_ptr<easymedia::Flow> rtsp_flow_audio_1;
+
+  // audio
+  if (audioType != CODEC_TYPE_NONE) {
+
+    if (audioType == CODEC_TYPE_AAC) {
+      fmt = SAMPLE_FMT_FLTP;
+    } else if (audioType == CODEC_TYPE_G711A || audioType == CODEC_TYPE_G711U) {
+      fmt = SAMPLE_FMT_S16;
+    }
+
+    SampleInfo sample_info = {fmt, channels, sample_rate, nb_samples};
+    std::string audio_enc_param =
+        get_audio_enc_param(sample_info, audioType, bitrate, quality);
+
+    // 1. audio encoder
+    audio_enc_flow =
+        create_audio_enc_flow(sample_info, audioType, audio_enc_param);
+    if (!audio_enc_flow) {
+      LOG("Create flow failed\n");
+      exit(EXIT_FAILURE);
+    }
+    // 2. Tuning the nb_samples according to the encoder requirements.
+    int read_size = audio_enc_flow->GetInputSize();
+    if (read_size > 0) {
+      sample_info.nb_samples = read_size / GetSampleSize(sample_info);
+      LOG("codec %s : nm_samples fixed to %d\n",
+          CodecToString(audioType).c_str(), sample_info.nb_samples);
+    }
+    audio_enc_param =
+        get_audio_enc_param(sample_info, audioType, bitrate, quality);
+    LOG("Audio post enc param: %s\n", audio_enc_param.c_str());
+
+    // 3. alsa capture flow
+    audio_source_flow = create_alsa_flow(aud_in_path, sample_info);
+    if (!audio_source_flow) {
+      LOG("Create flow alsa_capture_flow failed\n");
+      exit(EXIT_FAILURE);
+    }
+
+    // 4. create rtsp flow
+    rtsp_flow_audio = create_live555_rtsp_server_flow(
+        stream_name0, CodecToString(audioType), sample_info.sample_rate,
+        sample_info.channels, profile, bitsPerSample);
+    rtsp_flow_audio_1 = create_live555_rtsp_server_flow(
+        stream_name1, CodecToString(audioType), sample_info.sample_rate,
+        sample_info.channels, profile, bitsPerSample);
+
+    if (!rtsp_flow_audio && !rtsp_flow_audio_1) {
+      LOG("Create flow rtsp_flow_audio failed\n");
+      exit(EXIT_FAILURE);
+    }
+    audio_source_flow->AddDownFlow(audio_enc_flow, 0, 0);
+    audio_enc_flow->AddDownFlow(rtsp_flow_audio, 0, 0);
+    audio_enc_flow->AddDownFlow(rtsp_flow_audio_1, 0, 0);
+  }
 
   signal(SIGINT, sigterm_handler);
-// test aac in main_stream1 and main_stream2
-#if AAC_FROM_FILE
-  // aac frome file
-  struct argument arg;
-  std::vector<std::shared_ptr<easymedia::MediaBuffer>> buffer_list =
-      read_aac_frome_file(arg, "./test.aac");
-
-  // 2. create rtsp flow
-  std::shared_ptr<easymedia::Flow> rtsp_flow_aac =
-      create_live555_rtsp_server_flow("main_stream1", AUDIO_AAC,
-                                      arg.fSamplingFrequency, arg.fNumChannels,
-                                      arg.profile);
-  std::shared_ptr<easymedia::Flow> rtsp_flow_aac_1 =
-      create_live555_rtsp_server_flow("main_stream2", AUDIO_AAC,
-                                      arg.fSamplingFrequency, arg.fNumChannels,
-                                      arg.profile);
-
-  // 3. send data to live555
-
-  int buffer_idx = 0;
-  while (!quit) {
-    auto &buf = buffer_list[buffer_idx];
-    if (!buf) {
-      buffer_idx = 0;
-      continue;
-    }
-    buf->SetUSTimeStamp(easymedia::gettimeofday());
-    rtsp_flow_aac->SendInput(buf, 0);
-    rtsp_flow_aac_1->SendInput(buf, 0);
-    buffer_idx++;
-    if (buffer_idx >= arg.count_buf)
-      buffer_idx = 0;
-    easymedia::msleep(arg.fuSecsPerFrame / 1000);
-  }
-
-#endif
   while (!quit)
     easymedia::msleep(100);
 
-  // release test1
-  if (video_read_flow) {
-    if (video_enc_flow) {
-      video_read_flow->RemoveDownFlow(video_enc_flow);
-      if (rtsp_flow) {
-        video_enc_flow->RemoveDownFlow(rtsp_flow);
-        rtsp_flow.reset();
-      }
-      video_enc_flow.reset();
-    }
+  if (videoType != CODEC_TYPE_NONE) {
+    // stream 1
+    video_enc_flow->RemoveDownFlow(video_rtsp_flow);
+    video_read_flow->RemoveDownFlow(video_enc_flow);
+
     video_read_flow.reset();
-  }
-  // release test2
-  if (video_read_flow_1) {
-    if (video_enc_flow_1) {
-      video_read_flow_1->RemoveDownFlow(video_enc_flow_1);
-      if (rtsp_flow_1) {
-        video_enc_flow_1->RemoveDownFlow(rtsp_flow_1);
-        rtsp_flow_1.reset();
-      }
-      video_enc_flow_1.reset();
-    }
+    video_enc_flow.reset();
+    video_rtsp_flow.reset();
+    // stream 2
+    video_enc_flow_1->RemoveDownFlow(video_rtsp_flow_1);
+    video_read_flow_1->RemoveDownFlow(video_enc_flow_1);
+
     video_read_flow_1.reset();
+    video_enc_flow_1.reset();
+    video_rtsp_flow_1.reset();
+  }
+
+  if (audioType != CODEC_TYPE_NONE) {
+
+    audio_enc_flow->RemoveDownFlow(rtsp_flow_audio);
+    audio_enc_flow->RemoveDownFlow(rtsp_flow_audio_1);
+    audio_source_flow->RemoveDownFlow(audio_enc_flow);
+
+    audio_enc_flow.reset();
+    audio_enc_flow.reset();
+    rtsp_flow_audio.reset();
+    rtsp_flow_audio_1.reset();
   }
   return 0;
 }
