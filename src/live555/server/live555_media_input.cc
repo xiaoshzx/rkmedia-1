@@ -323,8 +323,8 @@ bool VideoFramedSource::readFromList(bool flush _UNUSED) {
       goto err;
   }
   if (buffer) {
-    // fPresentationTime = buffer->GetTimeVal();
-    gettimeofday(&fPresentationTime, NULL);
+    fPresentationTime = buffer->GetTimeVal();
+// gettimeofday(&fPresentationTime, NULL);
 #ifdef DEBUG_SEND
     fprintf(stderr, "video frame time: %ld, %ld.\n", fPresentationTime.tv_sec,
             fPresentationTime.tv_usec);
