@@ -538,6 +538,9 @@ int main(int argc, char **argv) {
       fmt = SAMPLE_FMT_FLTP;
     } else if (audioType == CODEC_TYPE_G711A || audioType == CODEC_TYPE_G711U) {
       fmt = SAMPLE_FMT_S16;
+    } else if (audioType == CODEC_TYPE_MP2) {
+      channels = 2;
+      sample_rate = 16000;
     }
 
     SampleInfo sample_info = {fmt, channels, sample_rate, nb_samples};

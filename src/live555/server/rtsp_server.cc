@@ -27,6 +27,7 @@
 #include "aac_server_media_subsession.hh"
 #include "g711_server_media_subsession.hh"
 #include "live555_media_input.hh"
+#include "mp2_server_media_subsession.hh"
 
 #include "buffer.h"
 #include "media_config.h"
@@ -312,6 +313,10 @@ RtspServerFlow::RtspServerFlow(const char *param) {
               *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
               WA_PCMU, bitsPerSample);
         }
+        sm.process = SendAudioToServer;
+      } else if (type == AUDIO_MP2) {
+        subsession = MP2ServerMediaSubsession::createNew(
+            *(rtspConnection->getEnv()), *server_input);
         sm.process = SendAudioToServer;
       } else if (string_start_withs(type, AUDIO_PREFIX)) {
         // pcm or vorbis
