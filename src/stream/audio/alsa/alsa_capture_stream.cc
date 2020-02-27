@@ -8,9 +8,9 @@
 #include <errno.h>
 
 #include "alsa_utils.h"
+#include "buffer.h"
 #include "media_type.h"
 #include "utils.h"
-#include "buffer.h"
 
 namespace easymedia {
 
@@ -141,7 +141,7 @@ size_t AlsaCaptureStream::Readn(void *ptr, size_t size, size_t nmemb) {
     nb_samples -= status;
     gotten += status;
     for (int channel = 0; channel < channels; channel++)
-      bufs[channel] +=  sample_size * status;
+      bufs[channel] += sample_size * status;
   }
 
   return gotten * frame_size / size;
@@ -150,7 +150,7 @@ size_t AlsaCaptureStream::Readn(void *ptr, size_t size, size_t nmemb) {
 std::shared_ptr<MediaBuffer> AlsaCaptureStream::Read() {
   int buffer_size = frame_size * sample_info.nb_samples;
   int read_cnt = -1;
-  struct timespec crt_tm = {0, 0};
+  // struct timespec crt_tm = {0, 0};
 
   auto sample_buffer = std::make_shared<easymedia::SampleBuffer>(
       MediaBuffer::Alloc2(buffer_size), sample_info);
@@ -160,11 +160,13 @@ std::shared_ptr<MediaBuffer> AlsaCaptureStream::Read() {
     return nullptr;
   }
 
-  clock_gettime(CLOCK_MONOTONIC, &crt_tm);
+  // clock_gettime(CLOCK_MONOTONIC, &crt_tm);
   read_cnt = Read(sample_buffer->GetPtr(), frame_size, sample_info.nb_samples);
   sample_buffer->SetValidSize(read_cnt * frame_size);
   sample_buffer->SetSamples(read_cnt);
-  sample_buffer->SetUSTimeStamp(crt_tm.tv_sec*1000000LL + crt_tm.tv_nsec/1000);
+  // sample_buffer->SetUSTimeStamp(crt_tm.tv_sec*1000000LL +
+  // crt_tm.tv_nsec/1000);
+  sample_buffer->SetUSTimeStamp(gettimeofday());
 
   return sample_buffer;
 }
