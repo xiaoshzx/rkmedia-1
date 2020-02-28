@@ -139,6 +139,7 @@ split_h264_separate(const uint8_t *buffer, size_t length, int64_t timestamp) {
     sub_buffer->SetValidSize(size);
     sub_buffer->SetUserFlag(flag);
     sub_buffer->SetUSTimeStamp(timestamp);
+    sub_buffer->SetType(Type::Video);
     l.push_back(sub_buffer);
 
     nal_start = nal_end;
@@ -172,9 +173,9 @@ split_h265_separate(const uint8_t *buffer, size_t length, int64_t timestamp) {
     case 19:
       flag = MediaBuffer::kIntra;
       break;
-//    case 1:
-//      flag = MediaBuffer::kPredicted;
-//      break;
+    //    case 1:
+    //      flag = MediaBuffer::kPredicted;
+    //      break;
     default:
       flag = 0;
     }
@@ -194,6 +195,5 @@ split_h265_separate(const uint8_t *buffer, size_t length, int64_t timestamp) {
   }
   return std::move(l);
 }
-
 
 } // namespace easymedia

@@ -59,10 +59,9 @@ protected: // redefined virtual functions:
   virtual bool readFromList(bool flush = false);
 };
 
-Live555MediaInput::Live555MediaInput(UsageEnvironment &env,
-                                     std::string media_type)
+Live555MediaInput::Live555MediaInput(UsageEnvironment &env)
     : Medium(env), connecting(false), video_source(nullptr),
-      audio_source(nullptr), mediaType(media_type) {}
+      audio_source(nullptr) {}
 
 Live555MediaInput::~Live555MediaInput() { connecting = false; }
 
@@ -77,9 +76,8 @@ void Live555MediaInput::Stop(UsageEnvironment &env _UNUSED) {
   LOG_FILE_FUNC_LINE();
 }
 
-Live555MediaInput *Live555MediaInput::createNew(UsageEnvironment &env,
-                                                std::string media_type) {
-  Live555MediaInput *mi = new Live555MediaInput(env, media_type);
+Live555MediaInput *Live555MediaInput::createNew(UsageEnvironment &env) {
+  Live555MediaInput *mi = new Live555MediaInput(env);
   if (mi && !mi->initialize(env)) {
     delete mi;
     return nullptr;
@@ -179,25 +177,8 @@ Boolean Live555MediaInput::initVideo(UsageEnvironment &env _UNUSED) {
 void Live555MediaInput::PushNewVideo(std::shared_ptr<MediaBuffer> &buffer) {
   if (!buffer)
     return;
-  if ((buffer->GetUserFlag() & MediaBuffer::kExtraIntra)) {
-    std::list<std::shared_ptr<easymedia::MediaBuffer>> spspps;
-    if (mediaType == VIDEO_H264) {
-      spspps = split_h264_separate((const uint8_t *)buffer->GetPtr(),
-                                   buffer->GetValidSize(),
-                                   easymedia::gettimeofday());
-    } else if (mediaType == VIDEO_H265) {
-      spspps = split_h265_separate((const uint8_t *)buffer->GetPtr(),
-                                   buffer->GetValidSize(),
-                                   easymedia::gettimeofday());
-    }
-
-    for (auto &buf : spspps) {
-      vs->Push(buf);
-    }
-
-  } else if (connecting) {
+  if (connecting || (buffer->GetUserFlag() & MediaBuffer::kExtraIntra))
     vs->Push(buffer);
-  }
 }
 
 void Live555MediaInput::PushNewAudio(std::shared_ptr<MediaBuffer> &buffer) {

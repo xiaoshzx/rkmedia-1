@@ -30,14 +30,14 @@
 #include "mp2_server_media_subsession.hh"
 
 #include "buffer.h"
+#include "codec.h"
 #include "media_config.h"
 #include "media_reflector.h"
 #include "media_type.h"
 
 namespace easymedia {
 
-static bool SendVideoToServer(Flow *f, MediaBufferVector &input_vector);
-static bool SendAudioToServer(Flow *f, MediaBufferVector &input_vector);
+static bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector);
 
 class RtspConnection {
 public:
@@ -61,6 +61,7 @@ public:
   }
   void addSubsession(ServerMediaSubsession *subsession,
                      std::string channel_name);
+  void deleteSession(std::string channel_name);
   UsageEnvironment *getEnv() { return env; };
 
   ~RtspConnection();
@@ -167,6 +168,15 @@ void RtspConnection::addSubsession(ServerMediaSubsession *subsession,
   kMutex.unlock();
 }
 
+void RtspConnection::deleteSession(std::string channel_name) {
+  kMutex.lock();
+  if (rtspServer != nullptr) {
+    rtspServer->deleteServerMediaSession(channel_name.c_str());
+    LOG("RtspConnection delete %s.\n", channel_name.c_str());
+  }
+  kMutex.unlock();
+}
+
 RtspConnection::~RtspConnection() {
   out_loop_cond = 1;
   if (session_thread) {
@@ -201,31 +211,51 @@ private:
   Live555MediaInput *server_input;
   std::shared_ptr<RtspConnection> rtspConnection;
 
-  friend bool SendVideoToServer(Flow *f, MediaBufferVector &input_vector);
-  friend bool SendAudioToServer(Flow *f, MediaBufferVector &input_vector);
+  std::string channel_name;
+  std::string video_type;
+  friend bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector);
 };
 
-bool SendVideoToServer(Flow *f, MediaBufferVector &input_vector) {
+bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector) {
   RtspServerFlow *rtsp_flow = (RtspServerFlow *)f;
-  auto &buffer = input_vector[0];
-  if (buffer && buffer->IsHwBuffer()) {
-    // hardware buffer is limited, copy it
-    auto new_buffer = MediaBuffer::Clone(*buffer.get());
-    buffer = new_buffer;
-  }
-  rtsp_flow->server_input->PushNewVideo(buffer);
-  return true;
-}
 
-bool SendAudioToServer(Flow *f, MediaBufferVector &input_vector) {
-  RtspServerFlow *rtsp_flow = (RtspServerFlow *)f;
-  rtsp_flow->server_input->PushNewAudio(input_vector[0]);
+  for (auto &buffer : input_vector) {
+    if (!buffer)
+      continue;
+    if (buffer && buffer->IsHwBuffer()) {
+      // hardware buffer is limited, copy it
+      auto new_buffer = MediaBuffer::Clone(*buffer.get());
+      new_buffer->SetType(buffer->GetType());
+      buffer = new_buffer;
+    }
+
+    if ((buffer->GetUserFlag() & MediaBuffer::kExtraIntra)) {
+      std::list<std::shared_ptr<easymedia::MediaBuffer>> spspps;
+      if (rtsp_flow->video_type == VIDEO_H264) {
+        spspps = split_h264_separate((const uint8_t *)buffer->GetPtr(),
+                                     buffer->GetValidSize(),
+                                     easymedia::gettimeofday());
+      } else if (rtsp_flow->video_type == VIDEO_H265) {
+        spspps = split_h265_separate((const uint8_t *)buffer->GetPtr(),
+                                     buffer->GetValidSize(),
+                                     easymedia::gettimeofday());
+      }
+      for (auto &buf : spspps) {
+        rtsp_flow->server_input->PushNewVideo(buf);
+      }
+    } else if (buffer->GetType() == Type::Audio)
+      rtsp_flow->server_input->PushNewAudio(buffer);
+    else if (buffer->GetType() == Type::Video)
+      rtsp_flow->server_input->PushNewVideo(buffer);
+    else
+      LOG("#ERROR: Unknown buffer type(%d)\n", (int)buffer->GetType());
+  }
+
   return true;
 }
 
 RtspServerFlow::RtspServerFlow(const char *param) {
   std::list<std::string> input_data_types;
-  std::string channel_name;
   std::map<std::string, std::string> params;
   if (!parse_media_param_map(param, params)) {
     SetError(-EINVAL);
@@ -245,32 +275,30 @@ RtspServerFlow::RtspServerFlow(const char *param) {
   std::string &username = params[KEY_USERNAME];
   std::string &userpwd = params[KEY_USERPASSWORD];
   rtspConnection = RtspConnection::getInstance(ports, username, userpwd);
-
   if (rtspConnection) {
     int in_idx = 0;
     std::string markname;
+    SlotMap sm;
+
+    server_input = Live555MediaInput::createNew(*(rtspConnection->getEnv()));
+    if (!server_input)
+      goto err;
 
     // rtspServer->addServerMediaSession(sms);
     for (auto &type : input_data_types) {
-      SlotMap sm;
       ServerMediaSubsession *subsession = nullptr;
-      server_input =
-          Live555MediaInput::createNew(*(rtspConnection->getEnv()), type);
-      if (!server_input)
-        goto err;
-
       if (type == VIDEO_H264) {
 #ifdef LIVE555_SERVER_H264
         subsession = H264ServerMediaSubsession::createNew(
             *(rtspConnection->getEnv()), *server_input);
+        video_type = VIDEO_H264;
 #endif
-        sm.process = SendVideoToServer;
       } else if (type == VIDEO_H265) {
 #ifdef LIVE555_SERVER_H265
         subsession = H265ServerMediaSubsession::createNew(
             *(rtspConnection->getEnv()), *server_input);
+        video_type = VIDEO_H265;
 #endif
-        sm.process = SendVideoToServer;
       } else if (type == AUDIO_AAC) {
         int sample_rate = 0, channels = 0, profiles = 0;
         value = params[KEY_SAMPLE_RATE];
@@ -288,7 +316,6 @@ RtspServerFlow::RtspServerFlow(const char *param) {
         subsession = AACServerMediaSubsession::createNew(
             *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
             profiles);
-        sm.process = SendAudioToServer;
       } else if (type == AUDIO_G711A || type == AUDIO_G711U) {
         int sample_rate = 0, channels = 0;
         unsigned char bitsPerSample = 0;
@@ -313,11 +340,10 @@ RtspServerFlow::RtspServerFlow(const char *param) {
               *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
               WA_PCMU, bitsPerSample);
         }
-        sm.process = SendAudioToServer;
       } else if (type == AUDIO_MP2) {
         subsession = MP2ServerMediaSubsession::createNew(
             *(rtspConnection->getEnv()), *server_input);
-        sm.process = SendAudioToServer;
+
       } else if (string_start_withs(type, AUDIO_PREFIX)) {
         // pcm or vorbis
         LOG_TODO();
@@ -328,18 +354,20 @@ RtspServerFlow::RtspServerFlow(const char *param) {
       }
       if (!subsession)
         goto err;
-      sm.input_slots.push_back(in_idx); // video
-      sm.thread_model = Model::SYNC;
-      sm.mode_when_full = InputMode::BLOCKING;
-      sm.input_maxcachenum.push_back(0); // no limit
-      markname = "rtsp " + channel_name + std::to_string(in_idx);
-      if (!InstallSlotMap(sm, markname, 0)) {
-        LOG("Fail to InstallSlotMap, %s\n", markname.c_str());
-        goto err;
-      }
       // sms->addSubsession(subsession);
       rtspConnection->addSubsession(subsession, channel_name);
+      sm.input_slots.push_back(in_idx);
       in_idx++;
+    }
+    // sm.thread_model = Model::SYNC;
+    sm.process = SendMediaToServer;
+    sm.thread_model = Model::ASYNCCOMMON;
+    sm.mode_when_full = InputMode::BLOCKING;
+    sm.input_maxcachenum.push_back(0); // no limit
+    markname = "rtsp " + channel_name + std::to_string(in_idx);
+    if (!InstallSlotMap(sm, markname, 0)) {
+      LOG("Fail to InstallSlotMap, %s\n", markname.c_str());
+      goto err;
     }
   } else {
     goto err;
@@ -356,6 +384,9 @@ RtspServerFlow::~RtspServerFlow() {
   AutoPrintLine apl(__func__);
   StopAllThread();
   SetDisable();
+  if (rtspConnection) {
+    rtspConnection->deleteSession(channel_name);
+  }
   if (server_input) {
     delete server_input;
     server_input = nullptr;

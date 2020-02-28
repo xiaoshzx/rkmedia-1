@@ -38,8 +38,11 @@ static void print_usage(char *name) {
          "rtsp://admin:123456@192.168.xxx.xxx/main_stream1\n");
   printf("Streame 2: ffplay -rtsp_transport tcp -stimeout 2000000 "
          "rtsp://admin:123456@192.168.xxx.xxx/main_stream2\n");
+  printf("if you have input -t 20000,  will create to stress test\n");
+  printf("Streame 3: ffplay -rtsp_transport tcp -stimeout 2000000 "
+         "rtsp://admin:123456@192.168.xxx.xxx/main_stream_t\n");
   printf("usage example: \n");
-  printf("%s -v H264 -w 1280 -h 720 -a G711U.\n", name);
+  printf("%s -v H264 -w 1280 -h 720 -a G711U [-t 20000].\n", name);
   printf("#[-v] support list:\n\tH264\n\tH265\n");
   printf("#[-a] support list:\n\tAAC\n\tG711U\n\tG711A\n");
 }
@@ -435,7 +438,7 @@ static std::string get_audio_enc_param(SampleInfo &info, CodecType codec_type,
   return audio_enc_param;
 }
 
-static char optstr[] = "?v:h:w:a:";
+static char optstr[] = "?v:h:w:a:t:";
 int main(int argc, char **argv) {
 
   CodecType videoType = CODEC_TYPE_NONE;
@@ -449,6 +452,7 @@ int main(int argc, char **argv) {
   std::string aud_in_path = "plug:\"default:CARD=rockchiprk809co\"";
   std::string stream_name0 = "main_stream1";
   std::string stream_name1 = "main_stream2";
+  std::string stream_name_t = "main_stream_t";
   int video_fps = 30;
 
   SampleFormat fmt = SAMPLE_FMT_S16;
@@ -461,6 +465,7 @@ int main(int argc, char **argv) {
   int bitrate = 32000;
   float quality = 1.0; // 0.0 - 1.0
 
+  int stress_sleep_time = 0;
   opterr = 1;
   int c;
   while ((c = getopt(argc, argv, optstr)) != -1) {
@@ -481,6 +486,9 @@ int main(int argc, char **argv) {
       if (audioType == CODEC_TYPE_NONE)
         LOG("audioType error.\n");
       break;
+    case 't':
+      stress_sleep_time = atoi(optarg);
+      break;
     case '?':
     default:
       print_usage(argv[0]);
@@ -491,11 +499,15 @@ int main(int argc, char **argv) {
   // stream 1
   std::shared_ptr<easymedia::Flow> video_read_flow;
   std::shared_ptr<easymedia::Flow> video_enc_flow;
-  std::shared_ptr<easymedia::Flow> video_rtsp_flow;
 
   std::shared_ptr<easymedia::Flow> video_read_flow_1;
   std::shared_ptr<easymedia::Flow> video_enc_flow_1;
-  std::shared_ptr<easymedia::Flow> video_rtsp_flow_1;
+
+  std::shared_ptr<easymedia::Flow> audio_enc_flow;
+  std::shared_ptr<easymedia::Flow> audio_source_flow;
+
+  std::shared_ptr<easymedia::Flow> rtsp_stream1_flow;
+  std::shared_ptr<easymedia::Flow> rtsp_stream2_flow;
 
   // video
   if (videoType != CODEC_TYPE_NONE) {
@@ -505,12 +517,7 @@ int main(int argc, char **argv) {
     video_enc_flow =
         create_video_enc_flow(input_format, CodecToString(videoType),
                               video_width, video_height, video_fps);
-    video_rtsp_flow = create_live555_rtsp_server_flow(
-        stream_name0, CodecToString((videoType)));
-    if (video_enc_flow && video_read_flow && video_rtsp_flow) {
-      video_enc_flow->AddDownFlow(video_rtsp_flow, 0, 0);
-      video_read_flow->AddDownFlow(video_enc_flow, 0, 0);
-    }
+    video_read_flow->AddDownFlow(video_enc_flow, 0, 0);
 
     // stream2
     video_read_flow_1 = create_video_read_flow(video1_path, input_format,
@@ -518,18 +525,8 @@ int main(int argc, char **argv) {
     video_enc_flow_1 =
         create_video_enc_flow(input_format, CodecToString(videoType),
                               video_width, video_height, video_fps);
-    video_rtsp_flow_1 = create_live555_rtsp_server_flow(
-        stream_name1, CodecToString((videoType)));
-    if (video_enc_flow_1 && video_read_flow_1 && video_rtsp_flow_1) {
-      video_enc_flow_1->AddDownFlow(video_rtsp_flow_1, 0, 0);
-      video_read_flow_1->AddDownFlow(video_enc_flow_1, 0, 0);
-    }
+    video_read_flow_1->AddDownFlow(video_enc_flow_1, 0, 0);
   }
-
-  std::shared_ptr<easymedia::Flow> audio_enc_flow;
-  std::shared_ptr<easymedia::Flow> audio_source_flow;
-  std::shared_ptr<easymedia::Flow> rtsp_flow_audio;
-  std::shared_ptr<easymedia::Flow> rtsp_flow_audio_1;
 
   // audio
   if (audioType != CODEC_TYPE_NONE) {
@@ -542,7 +539,6 @@ int main(int argc, char **argv) {
       channels = 2;
       sample_rate = 16000;
     }
-
     SampleInfo sample_info = {fmt, channels, sample_rate, nb_samples};
     std::string audio_enc_param =
         get_audio_enc_param(sample_info, audioType, bitrate, quality);
@@ -571,55 +567,122 @@ int main(int argc, char **argv) {
       LOG("Create flow alsa_capture_flow failed\n");
       exit(EXIT_FAILURE);
     }
-
-    // 4. create rtsp flow
-    rtsp_flow_audio = create_live555_rtsp_server_flow(
-        stream_name0, CodecToString(audioType), sample_info.sample_rate,
-        sample_info.channels, profile, bitsPerSample);
-    rtsp_flow_audio_1 = create_live555_rtsp_server_flow(
-        stream_name1, CodecToString(audioType), sample_info.sample_rate,
-        sample_info.channels, profile, bitsPerSample);
-
-    if (!rtsp_flow_audio && !rtsp_flow_audio_1) {
-      LOG("Create flow rtsp_flow_audio failed\n");
-      exit(EXIT_FAILURE);
-    }
     audio_source_flow->AddDownFlow(audio_enc_flow, 0, 0);
-    audio_enc_flow->AddDownFlow(rtsp_flow_audio, 0, 0);
-    audio_enc_flow->AddDownFlow(rtsp_flow_audio_1, 0, 0);
   }
 
+  // 4. create rtsp flow
+  rtsp_stream1_flow = create_live555_rtsp_server_flow(
+      stream_name0, CodecToString(audioType) + "," + CodecToString(videoType),
+      sample_rate, channels, profile, bitsPerSample);
+  if (!rtsp_stream1_flow) {
+    LOG("Create rtsp_stream1_flow failed\n");
+    exit(EXIT_FAILURE);
+  }
+  if (audio_enc_flow) {
+    audio_enc_flow->AddDownFlow(rtsp_stream1_flow, 0, 0);
+  }
+  if (video_enc_flow) {
+    video_enc_flow->AddDownFlow(rtsp_stream1_flow, 0, 1);
+  }
+
+  rtsp_stream2_flow = create_live555_rtsp_server_flow(
+      stream_name1, CodecToString(videoType) + "," + CodecToString(audioType),
+      sample_rate, channels, profile, bitsPerSample);
+  if (!rtsp_stream2_flow) {
+    LOG("Create rtsp_stream2_flow failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if (audio_enc_flow) {
+    audio_enc_flow->AddDownFlow(rtsp_stream2_flow, 0, 1);
+  }
+
+  if (video_enc_flow_1) {
+    video_enc_flow_1->AddDownFlow(rtsp_stream2_flow, 0, 0);
+  }
   signal(SIGINT, sigterm_handler);
+
+  // stress test
+  if (stress_sleep_time > 0) {
+    while (!quit) {
+      std::shared_ptr<easymedia::Flow> rtsp_stream_t_flow;
+      std::shared_ptr<easymedia::Flow> video_enc_t_flow;
+
+      video_enc_t_flow =
+          create_video_enc_flow(input_format, CodecToString(videoType),
+                                video_width, video_height, video_fps);
+      if (!video_enc_t_flow) {
+        LOG("Create rtsp_stream_t_flow failed\n");
+        exit(EXIT_FAILURE);
+      }
+
+      rtsp_stream_t_flow = create_live555_rtsp_server_flow(
+          stream_name_t,
+          CodecToString(videoType) + "," + CodecToString(audioType),
+          sample_rate, channels, profile, bitsPerSample);
+      if (!rtsp_stream_t_flow) {
+        LOG("Create rtsp_stream_t_flow failed\n");
+        exit(EXIT_FAILURE);
+      }
+
+      if (video_read_flow_1) {
+        video_read_flow_1->AddDownFlow(video_enc_t_flow, 0, 0);
+      }
+      if (audio_enc_flow) {
+        audio_enc_flow->AddDownFlow(rtsp_stream_t_flow, 0, 1);
+      }
+
+      if (video_enc_t_flow) {
+        video_enc_t_flow->AddDownFlow(rtsp_stream_t_flow, 0, 0);
+      }
+      easymedia::msleep(stress_sleep_time);
+
+      // release
+      if (audio_enc_flow) {
+        audio_enc_flow->RemoveDownFlow(rtsp_stream_t_flow);
+      }
+
+      if (video_enc_flow_1) {
+        video_enc_flow_1->RemoveDownFlow(rtsp_stream_t_flow);
+      }
+      if (video_read_flow_1) {
+        video_read_flow_1->RemoveDownFlow(video_enc_t_flow);
+      }
+      rtsp_stream_t_flow.reset();
+      video_enc_t_flow.reset();
+    }
+  }
   while (!quit)
     easymedia::msleep(100);
 
   if (videoType != CODEC_TYPE_NONE) {
     // stream 1
-    video_enc_flow->RemoveDownFlow(video_rtsp_flow);
+    video_enc_flow->RemoveDownFlow(rtsp_stream1_flow);
     video_read_flow->RemoveDownFlow(video_enc_flow);
 
     video_read_flow.reset();
     video_enc_flow.reset();
-    video_rtsp_flow.reset();
+
     // stream 2
-    video_enc_flow_1->RemoveDownFlow(video_rtsp_flow_1);
+    video_enc_flow_1->RemoveDownFlow(rtsp_stream2_flow);
     video_read_flow_1->RemoveDownFlow(video_enc_flow_1);
 
     video_read_flow_1.reset();
     video_enc_flow_1.reset();
-    video_rtsp_flow_1.reset();
   }
 
   if (audioType != CODEC_TYPE_NONE) {
 
-    audio_enc_flow->RemoveDownFlow(rtsp_flow_audio);
-    audio_enc_flow->RemoveDownFlow(rtsp_flow_audio_1);
+    audio_enc_flow->RemoveDownFlow(rtsp_stream1_flow);
+    audio_enc_flow->RemoveDownFlow(rtsp_stream2_flow);
     audio_source_flow->RemoveDownFlow(audio_enc_flow);
 
     audio_enc_flow.reset();
     audio_enc_flow.reset();
-    rtsp_flow_audio.reset();
-    rtsp_flow_audio_1.reset();
   }
+  if (rtsp_stream1_flow)
+    rtsp_stream1_flow.reset();
+  if (rtsp_stream1_flow)
+    rtsp_stream2_flow.reset();
   return 0;
 }
