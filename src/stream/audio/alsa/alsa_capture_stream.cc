@@ -8,6 +8,7 @@
 #include <errno.h>
 
 #include "alsa_utils.h"
+#include "alsa_volume.h"
 #include "buffer.h"
 #include "media_type.h"
 #include "utils.h"
@@ -31,6 +32,7 @@ public:
   }
   virtual int Open() final;
   virtual int Close() final;
+  virtual int IoCtrl(unsigned long int request, ...) final;
 
 private:
   size_t Readi(void *ptr, size_t size, size_t nmemb);
@@ -234,6 +236,30 @@ int AlsaCaptureStream::Close() {
     return 0;
   }
   return -1;
+}
+
+int AlsaCaptureStream::IoCtrl(unsigned long int request, ...) {
+  va_list vl;
+  va_start(vl, request);
+  void *arg = va_arg(vl, void *);
+  va_end(vl);
+  if (!arg)
+    return -1;
+  int ret = 0;
+  switch (request) {
+  case S_ALSA_VOLUME:
+    ret = SetCaptureVolume(device, *((int *)arg));
+    break;
+  case G_ALSA_VOLUME:
+    int volume;
+    ret = GetCaptureVolume(device, volume);
+    *((int *)arg) = volume;
+    break;
+  default:
+    ret = -1;
+    break;
+  }
+  return ret;
 }
 
 DEFINE_STREAM_FACTORY(AlsaCaptureStream, Stream)

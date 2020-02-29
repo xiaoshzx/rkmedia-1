@@ -9,6 +9,7 @@
 
 #include "buffer.h"
 #include "alsa_utils.h"
+#include "alsa_volume.h"
 #include "media_type.h"
 #include "utils.h"
 
@@ -34,6 +35,7 @@ public:
   virtual bool Write(std::shared_ptr<MediaBuffer>);
   virtual int Open() final;
   virtual int Close() final;
+  virtual int IoCtrl(unsigned long int request, ...) final;
 
 private:
   SampleInfo sample_info;
@@ -49,6 +51,8 @@ AlsaPlayBackStream::AlsaPlayBackStream(const char *param)
   std::map<std::string, std::string> params;
   int ret = ParseAlsaParams(param, params, device, sample_info);
   UNUSED(ret);
+  if (device.empty())
+    device = "default";
   if (SampleInfoIsValid(sample_info))
     SetWriteable(true);
   else
@@ -300,6 +304,30 @@ int AlsaPlayBackStream::Close() {
     return 0;
   }
   return -1;
+}
+
+int AlsaPlayBackStream::IoCtrl(unsigned long int request, ...) {
+  va_list vl;
+  va_start(vl, request);
+  void *arg = va_arg(vl, void *);
+  va_end(vl);
+  if (!arg)
+    return -1;
+  int ret = 0;
+  switch (request) {
+  case S_ALSA_VOLUME:
+    ret = SetPlaybackVolume(device, *((int *)arg));
+    break;
+  case G_ALSA_VOLUME:
+    int volume;
+    ret = GetPlaybackVolume(device, volume);
+    *((int *)arg) = volume;
+    break;
+  default:
+    ret = -1;
+    break;
+  }
+  return ret;
 }
 
 DEFINE_STREAM_FACTORY(AlsaPlayBackStream, Stream)
