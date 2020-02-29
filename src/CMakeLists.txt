@@ -17,6 +17,13 @@ if(RKMPP)
   add_subdirectory(rkmpp)
 endif()
 
+option(OSD_CAHES "compile: osd caches" ON)
+if(OSD_CAHES)
+  include_directories(rkmpp/osd_caches)
+  include_directories(${RKMPP_HEADER_DIR}/../freetype2)
+  set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} freetype)
+endif()
+
 option(OGG "compile: ogg" OFF)
 if(OGG)
   add_subdirectory(ogg)

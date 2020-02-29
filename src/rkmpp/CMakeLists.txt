@@ -8,13 +8,20 @@
 
 pkg_check_modules(ROCKCHIP_MPP REQUIRED rockchip_mpp)
 
+pkg_check_modules(FREETYPE REQUIRED freetype2)
+
 set(EASY_MEDIA_RKMPP_SOURCE_FILES rkmpp/mpp_inc.cc)
 
 option(RKMPP_ENCODER "compile: rkmpp encode wrapper" OFF)
 if(RKMPP_ENCODER)
   set(EASY_MEDIA_RKMPP_SOURCE_FILES ${EASY_MEDIA_RKMPP_SOURCE_FILES}
                                     rkmpp/mpp_encoder.cc
-                                    rkmpp/mpp_final_encoder.cc)
+                                    rkmpp/mpp_final_encoder.cc
+                                    rkmpp/osd_caches/osd_producer.cc
+                                    rkmpp/osd_caches/osd_cache.cc
+                                    rkmpp/osd_caches/font_factory.cc
+                                    rkmpp/osd_caches/color_table.cc
+                                    rkmpp/osd_caches/bmp_reader.cc)
 endif()
 
 option(RKMPP_DECODER "compile: rkmpp decode wrapper" OFF)
