@@ -74,6 +74,7 @@ public:
   static const uint32_t kBitRateChange = (1 << 2);
   static const uint32_t kForceIdrFrame = (1 << 3);
   static const uint32_t kOSDDataChange = (1 << 4);
+  static const uint32_t kOSDPltChange = (1 << 5);
   //enable fps/bps statistics.
   static const uint32_t kEnableStatistics = (1 << 31);
 

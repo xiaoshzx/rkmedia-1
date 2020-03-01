@@ -7,8 +7,10 @@
 
 #include "encoder.h"
 #include "mpp_inc.h"
+#include "osd_caches/osd_producer.h"
 
 #define  RK_MPP_VERSION_NEW 1
+#define  MPP_SUPPORT_HW_OSD 1
 
 namespace easymedia {
 
@@ -17,7 +19,7 @@ namespace easymedia {
 class MPPEncoder : public VideoEncoder {
 public:
   MPPEncoder();
-  virtual ~MPPEncoder() = default;
+  virtual ~MPPEncoder();
 
   virtual bool Init() override;
 
@@ -37,6 +39,10 @@ public:
   void set_statistics_switch(bool value);
   int get_statistics_bps();
   int get_statistics_fps();
+
+  int OsdPaletteSet(uint32_t *ptl_data);
+  int OsdRegionSet(OsdRegionData *region_data);
+  int OsdRegionGet(OsdRegionData *region_data);
 
 protected:
   MppCodingType coding_type;
@@ -71,6 +77,28 @@ private:
   size_t frame_cnt_1s;
   int64_t last_ts;
   int64_t cur_ts;
+
+  MppEncOSDData enc_osd_data;
+  OsdRegionData region_data[OSD_REGIONS_CNT];
+  ReadWriteLockMutex region_mutex;
+
+  // osd_data[2] for ping pong.
+  MppEncOSDData osd_data[2];
+  ReadWriteLockMutex osd_mutex[2];
+  // 0x00: none is valid;
+  // 0x01: osd_data[0] is valid;
+  // 0x02: osd_data[1] is valid;
+  uint8_t osd_mask;
+  // 0x00: none need refresh;
+  // 0x01: osd_data[0] need refresh;
+  // 0x02: osd_data[1] need refresh;
+  // 0x03: osd_data[0] and osd_data[1] need refresh;
+  uint8_t osd_refresh_mask;
+  std::thread *osd_thread;
+  bool osd_thread_loop;
+
+  void OsdAsyncUpdateRegions();
+  void OsdSyncUpdateRegions();
 
   friend class MPPMJPEGConfig;
   friend class MPPCommonConfig;

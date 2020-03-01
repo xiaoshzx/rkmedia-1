@@ -221,6 +221,37 @@ _API int video_encoder_set_fps(
   return 0;
 }
 
+// input palette should be yuva formate.
+int video_encoder_set_osd_plt(
+  std::shared_ptr<Flow> &enc_flow, uint32_t *yuv_plt) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  uint32_t *plt = (uint32_t *)malloc(256 * sizeof(uint32_t));
+  memcpy(plt, yuv_plt, 256 * sizeof(uint32_t));
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetPtr(plt, 256 * sizeof(uint32_t));
+  enc_flow->Control(VideoEncoder::kOSDPltChange, pbuff);
+
+  return 0;
+}
+
+int video_encoder_set_osd_region(
+  std::shared_ptr<Flow> &enc_flow, OsdRegionData *region_data) {
+  if (!enc_flow || !region_data)
+    return -EINVAL;
+
+  void *rdata = (void *)malloc(sizeof(OsdRegionData));
+  memcpy(rdata, (void *)region_data, sizeof(OsdRegionData));
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetPtr(rdata, sizeof(OsdRegionData));
+  enc_flow->Control(VideoEncoder::kOSDDataChange, pbuff);
+
+  return 0;
+}
+
 int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable) {
   if (!enc_flow)

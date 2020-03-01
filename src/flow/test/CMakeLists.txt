@@ -76,6 +76,13 @@ if(VIDEO_ENCODER_FLOW_TEST)
   target_include_directories(video_encoder_bps_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
   target_compile_features(video_encoder_bps_test PRIVATE cxx_std_11)
   install(TARGETS video_encoder_bps_test RUNTIME DESTINATION "bin")
+
+  set(VIDEO_ENCODER_OSD_TEST_SRC_FILES video_encoder_osd_test.cc)
+  add_executable(video_encoder_osd_test ${VIDEO_ENCODER_OSD_TEST_SRC_FILES})
+  target_link_libraries(video_encoder_osd_test easymedia)
+  target_include_directories(video_encoder_osd_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_compile_features(video_encoder_osd_test PRIVATE cxx_std_11)
+  install(TARGETS video_encoder_osd_test RUNTIME DESTINATION "bin")
 endif()
 
 option(RGA_FILTER_FLOW_TEST "compile: rga filter flow test" ON)
