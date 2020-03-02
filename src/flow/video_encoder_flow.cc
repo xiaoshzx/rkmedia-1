@@ -162,7 +162,11 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
       extra_buf->SetUserFlag(MediaBuffer::kExtraIntra);
       SetOutput(extra_buf, 0);
     } else {
-      extra_buffer_list = split_h264_separate((const uint8_t *)extra_data,
+      if (output_dt == VIDEO_H264)
+        extra_buffer_list = split_h264_separate((const uint8_t *)extra_data,
+                                              extra_data_size, gettimeofday());
+      else
+        extra_buffer_list = split_h265_separate((const uint8_t *)extra_data,
                                               extra_data_size, gettimeofday());
       for (auto &extra_buffer : extra_buffer_list) {
         assert(extra_buffer->GetUserFlag() & MediaBuffer::kExtraIntra);
