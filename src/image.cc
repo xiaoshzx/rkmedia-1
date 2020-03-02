@@ -121,7 +121,7 @@ std::string to_param_string(const ImageInfo &info, bool input) {
 }
 
 std::string TwoImageRectToString(const std::vector<ImageRect> &src_dst) {
-  char r[64];
+  char r[128] = {0};
   assert(src_dst[0].x < 10000 && src_dst[0].y < 10000);
   assert(src_dst[0].w < 10000 && src_dst[0].h < 10000);
   assert(src_dst[1].x < 10000 && src_dst[1].y < 10000);

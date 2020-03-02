@@ -337,7 +337,10 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
 
   if (change & VideoEncoder::kFrameRateChange) {
     uint8_t *values = (uint8_t *)val->GetPtr();
-    assert(values > 0 && val->GetSize() < 2);
+    if (val->GetSize() < 2) {
+      LOG("ERROR: MPP Encoder: fps should be array[2Byte]={num, den}\n");
+      return false;
+    }
     uint8_t new_fps_num = values[0];
     uint8_t new_fps_den = values[1];
     rc_cfg.change = MPP_ENC_RC_CFG_CHANGE_FPS_OUT;
