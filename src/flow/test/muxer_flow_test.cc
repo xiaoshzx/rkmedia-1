@@ -21,6 +21,7 @@
 #include "easymedia/flow.h"
 #include "easymedia/stream.h"
 #include "easymedia/media_config.h"
+#include "easymedia/control.h"
 
 std::string CodecToString(CodecType type) {
   switch (type) {
@@ -143,7 +144,7 @@ CodecType parseCodec(std::string args) {
 }
 
 void usage(char *name) {
-  LOG("\nUsage: \t%s -a plug:\"default:CARD=rockchiprk809co\" -c AAC -v /dev/video0 -o /tmp/out.avi\n",name);
+  LOG("\nUsage: \t%s -a default -c AAC -v /dev/video0 -o /tmp/out.mp4\n",name);
   LOG("\tNOTICE: audio codec : -c [AAC MP2 G711A G711U G726]\n");
   exit(EXIT_FAILURE);
 }
@@ -169,7 +170,7 @@ int main(int argc, char** argv)
   float quality = 1.0; // 0.0 - 1.0
 
   std::string vid_in_path = "/dev/video0";
-  std::string aud_in_path = "plug:\"default:CARD=rockchiprk809co\"";
+  std::string aud_in_path = "default";
   std::string output_path;
   std::string input_format = "image:yuyv422";
   std::string flow_name;
@@ -317,6 +318,12 @@ int main(int argc, char** argv)
     LOG("Create flow alsa_capture_flow failed\n");
     exit(EXIT_FAILURE);
   }
+  // 4. set alsa capture volume to max
+  int volume;
+  audio_source_flow->Control(easymedia::G_ALSA_VOLUME, &volume);
+  LOG("Get capture volume %d\n", volume);
+  volume = 100;
+  audio_source_flow->Control(easymedia::S_ALSA_VOLUME, &volume);
 
   flow_param = "";
   flow_name = "muxer_flow";

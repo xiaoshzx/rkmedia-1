@@ -35,6 +35,9 @@ enum {
   S_CONNECTOR_PROPERTY,
   // any type
   S_STREAM_OFF,
+  // int
+  S_ALSA_VOLUME,
+  G_ALSA_VOLUME,
 };
 
 } // namespace easymedia
