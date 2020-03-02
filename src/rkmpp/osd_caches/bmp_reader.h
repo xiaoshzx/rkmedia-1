@@ -1,3 +1,7 @@
+// Copyright 2019 Fuzhou Rockchip Electronics Co., Ltd. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 #ifndef _RK_BMP_READER_H_
 #define _RK_BMP_READER_H_
 

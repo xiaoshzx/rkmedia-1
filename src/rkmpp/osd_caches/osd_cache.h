@@ -33,6 +33,7 @@ public:
   OSDCache();
   ~OSDCache() {}
   int initCommonYuvMap(std::string path, uint32_t size, uint32_t color);
+  int deInitCommonYuvMap();
   std::shared_ptr<FontCache> GetCommonFontCache(wchar_t wch);
   FontCache_P GetCaches() { return caches_; }
 

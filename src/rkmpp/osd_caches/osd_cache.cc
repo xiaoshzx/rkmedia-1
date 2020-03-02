@@ -1,3 +1,6 @@
+// Copyright 2019 Fuzhou Rockchip Electronics Co., Ltd. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "osd_cache.h"
 
@@ -42,6 +45,17 @@ int OSDCache::initCommonYuvMap(std::string path, uint32_t size,
     caches_.emplace_back(font_case->wch, font_case);
   }
   // ft_factory.reset();
+  return 0;
+}
+
+int OSDCache::deInitCommonYuvMap() {
+  for (auto iter : caches_) {
+    auto font_case = iter.second;
+    if (font_case->yuvamap_buffer) {
+      free(font_case->yuvamap_buffer);
+      font_case->yuvamap_buffer = NULL;
+    }
+  }
   return 0;
 }
 

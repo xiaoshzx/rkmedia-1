@@ -21,8 +21,7 @@ public:
   CreateFontCaches(std::string font_path, uint32_t font_size, uint32_t color);
   std::shared_ptr<OSDCache> FindOSDCaches(std::string font_path,
                                           uint32_t font_size, uint32_t color);
-
-  int DestoryOSDCache();
+  int DestoryFontCaches();
 
   int FillDate(osd_data_s *data);
   int FillImage(osd_data_s *data);

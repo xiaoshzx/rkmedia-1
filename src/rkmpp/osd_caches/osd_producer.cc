@@ -1,9 +1,12 @@
+// Copyright 2019 Fuzhou Rockchip Electronics Co., Ltd. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "osd_producer.h"
 
 OSDProducer::OSDProducer() {}
 
-OSDProducer::~OSDProducer() {}
+OSDProducer::~OSDProducer() { DestoryFontCaches(); }
 
 std::shared_ptr<OSDCache> OSDProducer::CreateFontCaches(std::string font_path,
                                                         uint32_t font_size,
@@ -17,6 +20,14 @@ std::shared_ptr<OSDCache> OSDProducer::CreateFontCaches(std::string font_path,
     return nullptr;
   osd_caches_.emplace_back(osd_cache);
   return osd_caches_[osd_caches_.size() - 1];
+}
+
+int OSDProducer::DestoryFontCaches() {
+  for (auto iter : osd_caches_) {
+    iter->deInitCommonYuvMap();
+  }
+  osd_caches_.clear();
+  return 0;
 }
 
 std::shared_ptr<OSDCache> OSDProducer::FindOSDCaches(std::string font_path,
