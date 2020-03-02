@@ -50,7 +50,7 @@ static void print_usage(char *name) {
 std::shared_ptr<easymedia::Flow> create_live555_rtsp_server_flow(
     std::string channel_name, std::string media_type,
     unsigned fSamplingFrequency = 0, unsigned fNumChannels = 0,
-    unsigned profile = 0, unsigned char bitsPerSample = 0) {
+    unsigned profile = 0, unsigned bitrate = 0) {
   std::shared_ptr<easymedia::Flow> rtsp_flow;
 
   std::string flow_name;
@@ -64,7 +64,7 @@ std::shared_ptr<easymedia::Flow> create_live555_rtsp_server_flow(
   PARAM_STRING_APPEND_TO(flow_param, KEY_SAMPLE_RATE, fSamplingFrequency);
   PARAM_STRING_APPEND_TO(flow_param, KEY_CHANNELS, fNumChannels);
   PARAM_STRING_APPEND_TO(flow_param, KEY_PROFILE, profile);
-  PARAM_STRING_APPEND_TO(flow_param, KEY_SAMPLE_FMT, bitsPerSample);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_SAMPLE_FMT, bitrate);
 
   printf("\nRtspFlow:\n%s\n", flow_param.c_str());
   rtsp_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
@@ -460,7 +460,7 @@ int main(int argc, char **argv) {
   int sample_rate = 8000;
   int nb_samples = 1024;
   int profile = 1;
-  unsigned char bitsPerSample = 16;
+  // unsigned char bitsPerSample = 16;
 
   int bitrate = 32000;
   float quality = 1.0; // 0.0 - 1.0
@@ -538,6 +538,10 @@ int main(int argc, char **argv) {
     } else if (audioType == CODEC_TYPE_MP2) {
       channels = 2;
       sample_rate = 16000;
+    } else if (audioType == CODEC_TYPE_G726) {
+      fmt = SAMPLE_FMT_S16;
+      sample_rate = 8000;
+      // bitsPerSample = 2;
     }
     SampleInfo sample_info = {fmt, channels, sample_rate, nb_samples};
     std::string audio_enc_param =
@@ -573,7 +577,7 @@ int main(int argc, char **argv) {
   // 4. create rtsp flow
   rtsp_stream1_flow = create_live555_rtsp_server_flow(
       stream_name0, CodecToString(audioType) + "," + CodecToString(videoType),
-      sample_rate, channels, profile, bitsPerSample);
+      sample_rate, channels, profile, bitrate);
   if (!rtsp_stream1_flow) {
     LOG("Create rtsp_stream1_flow failed\n");
     exit(EXIT_FAILURE);
@@ -587,7 +591,7 @@ int main(int argc, char **argv) {
 
   rtsp_stream2_flow = create_live555_rtsp_server_flow(
       stream_name1, CodecToString(videoType) + "," + CodecToString(audioType),
-      sample_rate, channels, profile, bitsPerSample);
+      sample_rate, channels, profile, bitrate);
   if (!rtsp_stream2_flow) {
     LOG("Create rtsp_stream2_flow failed\n");
     exit(EXIT_FAILURE);
@@ -619,7 +623,7 @@ int main(int argc, char **argv) {
       rtsp_stream_t_flow = create_live555_rtsp_server_flow(
           stream_name_t,
           CodecToString(videoType) + "," + CodecToString(audioType),
-          sample_rate, channels, profile, bitsPerSample);
+          sample_rate, channels, profile, bitrate);
       if (!rtsp_stream_t_flow) {
         LOG("Create rtsp_stream_t_flow failed\n");
         exit(EXIT_FAILURE);

@@ -25,9 +25,9 @@
 #include "h265_server_media_subsession.hh"
 #endif
 #include "aac_server_media_subsession.hh"
-#include "g711_server_media_subsession.hh"
 #include "live555_media_input.hh"
 #include "mp2_server_media_subsession.hh"
+#include "simple_server_media_subsession.hh"
 
 #include "buffer.h"
 #include "codec.h"
@@ -316,9 +316,10 @@ RtspServerFlow::RtspServerFlow(const char *param) {
         subsession = AACServerMediaSubsession::createNew(
             *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
             profiles);
-      } else if (type == AUDIO_G711A || type == AUDIO_G711U) {
+      } else if (type == AUDIO_G711A || type == AUDIO_G711U ||
+                 type == AUDIO_G726) {
         int sample_rate = 0, channels = 0;
-        unsigned char bitsPerSample = 0;
+        unsigned bitrate = 0;
         value = params[KEY_SAMPLE_RATE];
         if (!value.empty())
           sample_rate = std::stoi(value);
@@ -329,17 +330,10 @@ RtspServerFlow::RtspServerFlow(const char *param) {
 
         value = params[KEY_SAMPLE_FMT];
         if (!value.empty())
-          bitsPerSample = std::stoi(value);
-        if (type == AUDIO_G711A) {
-          subsession = G711ServerMediaSubsession::createNew(
-              *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
-              WA_PCMA, bitsPerSample);
-
-        } else {
-          subsession = G711ServerMediaSubsession::createNew(
-              *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
-              WA_PCMU, bitsPerSample);
-        }
+          bitrate = std::stoi(value);
+        subsession = SIMPLEServerMediaSubsession::createNew(
+            *(rtspConnection->getEnv()), *server_input, sample_rate, channels,
+            type, bitrate);
       } else if (type == AUDIO_MP2) {
         subsession = MP2ServerMediaSubsession::createNew(
             *(rtspConnection->getEnv()), *server_input);
@@ -350,12 +344,13 @@ RtspServerFlow::RtspServerFlow(const char *param) {
         goto err;
       } else {
         LOG("TODO, unsupport type : %s\n", type.c_str());
-        goto err;
+        // goto err;
       }
-      if (!subsession)
-        goto err;
-      // sms->addSubsession(subsession);
-      rtspConnection->addSubsession(subsession, channel_name);
+      if (subsession) {
+        // goto err;
+        // sms->addSubsession(subsession);
+        rtspConnection->addSubsession(subsession, channel_name);
+      }
       sm.input_slots.push_back(in_idx);
       in_idx++;
     }

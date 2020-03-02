@@ -2,44 +2,42 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "g711_server_media_subsession.hh"
+#include "simple_server_media_subsession.hh"
 #include "SimpleRTPSink.hh"
 
+#include "media_type.h"
 #include "utils.h"
 
 namespace easymedia {
 
-G711ServerMediaSubsession *G711ServerMediaSubsession::createNew(
+SIMPLEServerMediaSubsession *SIMPLEServerMediaSubsession::createNew(
     UsageEnvironment &env, Live555MediaInput &wisInput,
-    unsigned samplingFrequency, unsigned numChannels, unsigned char audioFormat,
-    unsigned char bitsPerSample) {
-  return new G711ServerMediaSubsession(env, wisInput, samplingFrequency,
-                                       numChannels, audioFormat, bitsPerSample);
+    unsigned samplingFrequency, unsigned numChannels, std::string audioFormat,
+    unsigned bitrate) {
+  return new SIMPLEServerMediaSubsession(env, wisInput, samplingFrequency,
+                                         numChannels, audioFormat, bitrate);
 }
 
-G711ServerMediaSubsession::G711ServerMediaSubsession(
+SIMPLEServerMediaSubsession::SIMPLEServerMediaSubsession(
     UsageEnvironment &env, Live555MediaInput &mediaInput,
-    unsigned samplingFrequency, unsigned numChannels, unsigned char audioFormat,
-    unsigned char bitsPerSample)
+    unsigned samplingFrequency, unsigned numChannels, std::string audioFormat,
+    unsigned bitrate)
     : OnDemandServerMediaSubsession(env, True /*reuse the first source*/),
       fMediaInput(mediaInput), fSamplingFrequency(samplingFrequency),
-      fNumChannels(numChannels), fAudioFormat(audioFormat),
-      fBitsPerSample(bitsPerSample) {}
+      fNumChannels(numChannels), fAudioFormat(audioFormat), fbitrate(bitrate) {}
 
-G711ServerMediaSubsession::~G711ServerMediaSubsession() {
+SIMPLEServerMediaSubsession::~SIMPLEServerMediaSubsession() {
   LOG_FILE_FUNC_LINE();
 }
 
 FramedSource *
-G711ServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/,
-                                                 unsigned &estBitrate) {
-  unsigned bitsPerSecond = fSamplingFrequency * fBitsPerSample * fNumChannels;
-  estBitrate = (bitsPerSecond + 500) / 1000; // kbps
-  // estBitrate = 96; // kbps, estimate
+SIMPLEServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/,
+                                                   unsigned &estBitrate) {
+  estBitrate = (fbitrate + 500) / 1000; // kbps
   return fMediaInput.audioSource();
 }
 
-RTPSink *G711ServerMediaSubsession::createNewRTPSink(
+RTPSink *SIMPLEServerMediaSubsession::createNewRTPSink(
     Groupsock *rtpGroupsock, unsigned char rtpPayloadTypeIfDynamic,
     FramedSource *inputSource) {
   if (!inputSource) {
@@ -50,15 +48,27 @@ RTPSink *G711ServerMediaSubsession::createNewRTPSink(
   unsigned char payloadFormatCode =
       rtpPayloadTypeIfDynamic; // by default, unless a static RTP payload type
                                // can be used
-  if (fAudioFormat == WA_PCMU) {
+  if (fAudioFormat == AUDIO_G711U) {
     mimeType = "PCMU";
     if (fSamplingFrequency == 8000 && fNumChannels == 1) {
       payloadFormatCode = 0; // a static RTP payload type
     }
-  } else if (fAudioFormat == WA_PCMA) {
+  } else if (fAudioFormat == AUDIO_G711A) {
     mimeType = "PCMA";
     if (fSamplingFrequency == 8000 && fNumChannels == 1) {
       payloadFormatCode = 8; // a static RTP payload type
+    }
+  } else if (fAudioFormat == AUDIO_G726) {
+    if (fbitrate / 1000 == 16) {
+      mimeType = "G726-16";
+    } else if (fbitrate / 1000 == 24) {
+      mimeType = "G726-24";
+    } else if (fbitrate / 1000 == 32) {
+      mimeType = "G726-32";
+    } else if (fbitrate / 1000 == 40) {
+      mimeType = "G726-40";
+    } else {
+      return nullptr;
     }
   } else {
     return nullptr;
@@ -68,8 +78,8 @@ RTPSink *G711ServerMediaSubsession::createNewRTPSink(
                                   fNumChannels);
 }
 
-// std::mutex G711ServerMediaSubsession::kMutex;
-void G711ServerMediaSubsession::startStream(
+// std::mutex SIMPLEServerMediaSubsession::kMutex;
+void SIMPLEServerMediaSubsession::startStream(
     unsigned clientSessionId, void *streamToken, TaskFunc *rtcpRRHandler,
     void *rtcpRRHandlerClientData, unsigned short &rtpSeqNum,
     unsigned &rtpTimestamp,
@@ -86,8 +96,8 @@ void G711ServerMediaSubsession::startStream(
   kSessionIdList.push_back(clientSessionId);
   // kMutex.unlock();
 }
-void G711ServerMediaSubsession::deleteStream(unsigned clientSessionId,
-                                             void *&streamToken) {
+void SIMPLEServerMediaSubsession::deleteStream(unsigned clientSessionId,
+                                               void *&streamToken) {
   // kMutex.lock();
   LOG("%s - clientSessionId: 0x%08x\n", __func__, clientSessionId);
   kSessionIdList.remove(clientSessionId);

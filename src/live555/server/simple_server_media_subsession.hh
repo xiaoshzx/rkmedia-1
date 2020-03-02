@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef EASYMEDIA_G711_SERVER_MEDIA_SUBSESSION_HH_
-#define EASYMEDIA_G711_SERVER_MEDIA_SUBSESSION_HH_
+#ifndef EASYMEDIA_SIMPLE_SERVER_MEDIA_SUBSESSION_HH_
+#define EASYMEDIA_SIMPLE_SERVER_MEDIA_SUBSESSION_HH_
 
 #include <list>
 #include <mutex>
@@ -20,20 +20,19 @@ typedef enum {
 } WAV_AUDIO_FORMAT;
 
 namespace easymedia {
-class G711ServerMediaSubsession : public OnDemandServerMediaSubsession {
+class SIMPLEServerMediaSubsession : public OnDemandServerMediaSubsession {
 public:
-  static G711ServerMediaSubsession *
+  static SIMPLEServerMediaSubsession *
   createNew(UsageEnvironment &env, Live555MediaInput &wisInput,
             unsigned samplingFrequency, unsigned numChannels,
-            unsigned char audioFormat, unsigned char bitsPerSample);
+            std::string audioFormat, unsigned bitrate);
 
 protected: // we're a virtual base class
-  G711ServerMediaSubsession(UsageEnvironment &env,
-                            Live555MediaInput &mediaInput,
-                            unsigned samplingFrequency, unsigned numChannels,
-                            unsigned char audioFormat,
-                            unsigned char bitsPerSample);
-  virtual ~G711ServerMediaSubsession();
+  SIMPLEServerMediaSubsession(UsageEnvironment &env,
+                              Live555MediaInput &mediaInput,
+                              unsigned samplingFrequency, unsigned numChannels,
+                              std::string audioFormat, unsigned bitrate);
+  virtual ~SIMPLEServerMediaSubsession();
 
 protected:
   Live555MediaInput &fMediaInput;
@@ -53,10 +52,10 @@ private: // redefined virtual functions
                                     FramedSource *inputSource);
   unsigned fSamplingFrequency;
   unsigned fNumChannels;
-  unsigned char fAudioFormat;
-  unsigned char fBitsPerSample; //采样位数
+  std::string fAudioFormat;
+  unsigned fbitrate; //码率bits
   std::list<unsigned int> kSessionIdList;
 };
 } // namespace easymedia
 
-#endif // #ifndef EASYMEDIA_G711_SERVER_MEDIA_SUBSESSION_HH_
+#endif // #ifndef EASYMEDIA_SIMPLE_SERVER_MEDIA_SUBSESSION_HH_
