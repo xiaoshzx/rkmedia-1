@@ -102,6 +102,17 @@ int OSDProducer::FillDate(osd_data_s *data) {
   return 0;
 }
 
+int OSDProducer::GetImageInfo(osd_data_s *data) {
+  LOG_INFO("GetImageinfo\n");
+  AutoDuration ad;
+  std::unique_ptr<BMPReader> bmp_reader_;
+  bmp_reader_.reset(new BMPReader());
+  int ret = bmp_reader_->GetBmpInfo(data);
+  if (ret)
+    return ret;
+  return 0;
+}
+
 int OSDProducer::FillImage(osd_data_s *data) {
   LOG_INFO("FillImage\n");
   AutoDuration ad;

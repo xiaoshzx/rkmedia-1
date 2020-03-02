@@ -20,9 +20,9 @@ int OSDCache::initCommonYuvMap(std::string path, uint32_t size,
   if (ret)
     return -1;
   ft_factory->SetFontColor(color);
-  const char *str = COMMON_STRING;
+  const wchar_t *str = COMMON_STRING;
   int font_w, font_h;
-  for (size_t i = 0; i < strlen(str); i++) {
+  for (size_t i = 0; i < wcslen(str); i++) {
     auto font_case = std::make_shared<FontCache>();
     font_case->font_color = color;
     font_case->font_size = size;

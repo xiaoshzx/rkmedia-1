@@ -140,16 +140,16 @@ void BMPReader::Bmp32ToARGB8888() {
 
 void BMPReader::Bmp24ToYUVAMAP(osd_data_s *data) {
   LOG_INFO("Bmp24ToYUVAMAP\n");
-  int k;
-  int index = 0;
+  int k,offset;
   int width = bitInfoHead.biWidth;
   int height = bitInfoHead.biHeight;
   int pitch = WIDTHBYTES(width * bitInfoHead.biBitCount);
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
       k = (height - i - 1) * pitch + j * 3;
+	  offset = i * data->width + j;
       // printf("index %d k %d\n", index, k);
-      data->buffer[index++] =
+      data->buffer[offset] =
           find_color(rgb888_palette_table, PALETTE_TABLE_LEN, pColorData[k + 2],
                      pColorData[k + 1], pColorData[k]);
     }
@@ -158,20 +158,19 @@ void BMPReader::Bmp24ToYUVAMAP(osd_data_s *data) {
 
 void BMPReader::Bmp32ToYUVAMAP(osd_data_s *data) {
   LOG_INFO("Bmp32ToYUVAMAP\n");
-  int k;
-  int index = 0;
+  int k,offset;
   int width = bitInfoHead.biWidth;
   int height = bitInfoHead.biHeight;
   int pitch = WIDTHBYTES(width * bitInfoHead.biBitCount);
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
       k = (height - i - 1) * pitch + j * 4;
-      // printf("index %d k %d\n", index, k);
-      data->buffer[index] =
+      offset = i * data->width + j;
+      //printf("offset %d k %d\n", offset, k);
+      data->buffer[offset] =
           find_color(rgb888_palette_table, PALETTE_TABLE_LEN, pColorData[k + 2],
                      pColorData[k + 1], pColorData[k]);
       LOG_DEBUG("-%3d", data->buffer[index]);
-      index++;
     }
     LOG_DEBUG("\n");
   }
@@ -221,10 +220,14 @@ int BMPReader::LoadYuvaMapFromFile(osd_data_s *data) {
     return -1;
   ReadBmpData();
 
-  data->buffer = (uint8_t *)malloc(bitInfoHead.biWidth * bitInfoHead.biHeight);
-  if (data->buffer == NULL) {
-    printf("LoadYuvaMapFromFile buffer malloc fail!\n");
-    return -1;
+  if(data->buffer == NULL) {
+    printf("data buffer is NULL, will do malloc!\n");
+    data->buffer = (uint8_t *)malloc(bitInfoHead.biWidth * bitInfoHead.biHeight);
+    if (data->buffer == NULL) {
+      printf("LoadYuvaMapFromFile buffer malloc fail!\n");
+      return -1;
+    }
+    use_user_buffer = false;
   }
 
   if (bitInfoHead.biBitCount == 24) {
@@ -233,10 +236,34 @@ int BMPReader::LoadYuvaMapFromFile(osd_data_s *data) {
     Bmp32ToYUVAMAP(data);
   }
 
-  data->width = bitInfoHead.biWidth;
-  data->height = bitInfoHead.biHeight;
-  data->size = data->width * data->height;
+  if (!use_user_buffer) {
+    data->width = bitInfoHead.biWidth;
+    data->height = bitInfoHead.biHeight;
+    data->size = data->width * data->height;
+  }
 
   FreeBmpData2();
   return 0;
 }
+
+int BMPReader::GetBmpInfo(osd_data_s *data) {
+  LOG_INFO("FillBmpInfoToData\n");
+  pfile = fopen(data->image, "rb");
+  if (pfile == NULL) {
+    printf("Bmp file open fail!\n");
+    return -1;
+  }
+  if (!BmpCheck()) {
+    fclose(pfile);
+    pfile = NULL;
+    return -1;
+  }
+
+  data->width = bitInfoHead.biWidth;
+  data->height = bitInfoHead.biHeight;
+
+  fclose(pfile);
+  pfile = NULL;
+  return 0;
+}
+

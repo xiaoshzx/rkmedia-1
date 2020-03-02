@@ -10,7 +10,12 @@
 
 #include "font_factory.h"
 
-#define COMMON_STRING "0123456789:-/*."
+/*UTF-8 code*/
+#define COMMON_STRING L"0123456789:-/*."\
+                      L"\x5E74\x6708\x65E5"\
+                      L"\x661F\x671F"\
+                      L"\x4E00\x4E8C\x4E09\x56DB\x4E94\x516D"\
+                      L"MondayTuesWhrFiSt"
 
 class FontCache {
 public:

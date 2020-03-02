@@ -48,7 +48,7 @@ typedef struct tagRGBQUAD {
 
 class BMPReader {
 public:
-  BMPReader() {}
+  BMPReader() : use_user_buffer(true) {}
   ~BMPReader() {}
   bool BmpCheck();
   int ReadBmpData();
@@ -60,7 +60,7 @@ public:
   void Bmp32ToYUVAMAP(osd_data_s *data);
   int LoadBmpFromFile(osd_data_s *data);
   int LoadYuvaMapFromFile(osd_data_s *data);
-
+  int GetBmpInfo(osd_data_s *data);
 private:
   FILE *pfile;
   BITMAPFILEHEADER bitHead;
@@ -69,6 +69,7 @@ private:
   BYTE *pColorData;
   tagRGBQUAD *dataOfBmp;
   uint8_t *dataOfYuvaMap;
+  bool use_user_buffer;
 };
 
 #endif // _RK_BMP_READER_H_

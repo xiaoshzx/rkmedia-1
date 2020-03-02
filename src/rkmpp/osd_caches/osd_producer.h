@@ -23,6 +23,8 @@ public:
                                           uint32_t font_size, uint32_t color);
   int DestoryFontCaches();
 
+  int GetImageInfo(osd_data_s *data);
+
   int FillDate(osd_data_s *data);
   int FillImage(osd_data_s *data);
   int FillText(osd_data_s *data);
