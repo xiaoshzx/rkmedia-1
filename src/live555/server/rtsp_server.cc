@@ -42,16 +42,15 @@ static bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector);
 class RtspConnection {
 public:
   static std::shared_ptr<RtspConnection>
-  getInstance(int ports[], std::string username, std::string userpwd) {
+  getInstance(int port, std::string username, std::string userpwd) {
     kMutex.lock();
     if (m_rtspConnection == nullptr) {
       struct make_shared_enabler : public RtspConnection {
-        make_shared_enabler(int ports[], std::string username,
-                            std::string userpwd)
-            : RtspConnection(ports, username, userpwd){};
+        make_shared_enabler(int port, std::string username, std::string userpwd)
+            : RtspConnection(port, username, userpwd){};
       };
       m_rtspConnection =
-          std::make_shared<make_shared_enabler>(ports, username, userpwd);
+          std::make_shared<make_shared_enabler>(port, username, userpwd);
       if (!init_ok) {
         m_rtspConnection = nullptr;
       }
@@ -70,7 +69,7 @@ private:
   static volatile bool init_ok;
   static volatile char out_loop_cond;
 
-  RtspConnection(int ports[], std::string username, std::string userpwd);
+  RtspConnection(int port, std::string username, std::string userpwd);
 
   void service_session_run();
   static std::mutex kMutex;
@@ -88,11 +87,10 @@ std::shared_ptr<RtspConnection> RtspConnection::m_rtspConnection = nullptr;
 volatile bool RtspConnection::init_ok = false;
 volatile char RtspConnection::out_loop_cond = 1;
 
-RtspConnection::RtspConnection(int ports[], std::string username,
+RtspConnection::RtspConnection(int port, std::string username,
                                std::string userpwd)
     : scheduler(nullptr), env(nullptr), authDB(nullptr), rtspServer(nullptr),
       session_thread(nullptr) {
-  int idx = 0;
   if (!username.empty() && !userpwd.empty()) {
     authDB = new UserAuthenticationDatabase;
     if (!authDB) {
@@ -108,12 +106,9 @@ RtspConnection::RtspConnection(int ports[], std::string username,
   if (!env) {
     goto err;
   }
-  while (idx < 3 && !rtspServer) {
-    int port = ports[idx++];
-    if (port <= 0)
-      continue;
-    rtspServer = RTSPServer::createNew(*env, port, authDB, 1000);
-  }
+
+  rtspServer = RTSPServer::createNew(*env, port, authDB, 1000);
+
   if (!rtspServer) {
     goto err;
   }
@@ -265,16 +260,12 @@ RtspServerFlow::RtspServerFlow(const char *param) {
   CHECK_EMPTY_SETERRNO(value, params, KEY_INPUTDATATYPE, EINVAL)
   parse_media_param_list(value.c_str(), input_data_types, ',');
   CHECK_EMPTY_SETERRNO(channel_name, params, KEY_CHANNEL_NAME, EINVAL)
-  int ports[3] = {0, 554, 8554};
+
   value = params[KEY_PORT_NUM];
-  if (!value.empty()) {
-    int port = std::stoi(value);
-    if (port != 554 && port != 8554)
-      ports[0] = port;
-  }
+  int port = std::stoi(value);
   std::string &username = params[KEY_USERNAME];
   std::string &userpwd = params[KEY_USERPASSWORD];
-  rtspConnection = RtspConnection::getInstance(ports, username, userpwd);
+  rtspConnection = RtspConnection::getInstance(port, username, userpwd);
   if (rtspConnection) {
     int in_idx = 0;
     std::string markname;
