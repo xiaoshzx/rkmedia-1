@@ -137,7 +137,7 @@ static bool _convert_to_avcodecparam(AVFormatContext *c, const MediaConfig *mc,
     par->channel_layout = av_get_default_channel_layout(par->channels);
     par->sample_rate = ac.sample_info.sample_rate;
     // par->block_align
-    if (par->codec_id == AV_CODEC_ID_MP2)
+    if (par->codec_id == AV_CODEC_ID_MP2 || par->codec_id == AV_CODEC_ID_AAC)
       par->frame_size = ac.sample_info.nb_samples;
     *time_base = (AVRational){1, par->sample_rate};
   } break;
