@@ -38,10 +38,15 @@ public:
   virtual int IoCtrl(unsigned long int request, ...) final;
 
 private:
+  size_t Writei(const void *ptr, size_t size, size_t nmemb);
+  size_t Writen(const void *ptr, size_t size, size_t nmemb);
+
+private:
   SampleInfo sample_info;
   std::string device;
   snd_pcm_t *alsa_handle;
   size_t frame_size;
+  int interleaved;
 };
 
 AlsaPlayBackStream::AlsaPlayBackStream(const char *param)
@@ -57,6 +62,7 @@ AlsaPlayBackStream::AlsaPlayBackStream(const char *param)
     SetWriteable(true);
   else
     LOG("missing some necessary param\n");
+  interleaved = SampleFormatToInterleaved(sample_info.fmt);
 }
 
 AlsaPlayBackStream::~AlsaPlayBackStream() {
@@ -65,6 +71,13 @@ AlsaPlayBackStream::~AlsaPlayBackStream() {
 }
 
 size_t AlsaPlayBackStream::Write(const void *ptr, size_t size, size_t nmemb) {
+    if (interleaved)
+    return Writei(ptr, size, nmemb);
+  else
+    return Writen(ptr, size, nmemb);
+}
+
+size_t AlsaPlayBackStream::Writei(const void *ptr, size_t size, size_t nmemb) {
   size_t buffer_len = size * nmemb;
   snd_pcm_sframes_t frames =
       (size == frame_size ? nmemb : buffer_len / frame_size);
@@ -77,6 +90,7 @@ size_t AlsaPlayBackStream::Write(const void *ptr, size_t size, size_t nmemb) {
          * assume snd_pcm_wait() above? */
         std::this_thread::sleep_for(std::chrono::microseconds(100));
         errno = EAGAIN;
+        LOG("ALSA write failed : %s\n", snd_strerror(status));
         return 0;
       }
       status = snd_pcm_recover(alsa_handle, status, 0);
@@ -96,11 +110,52 @@ out:
   return (buffer_len - frames * frame_size) / size;
 }
 
+size_t AlsaPlayBackStream::Writen(const void *ptr, size_t size, size_t nmemb) {
+  uint8_t *bufs[32];
+  int channels = sample_info.channels;
+  size_t sample_size = frame_size / channels;
+  size_t buffer_len = size * nmemb;
+  snd_pcm_sframes_t frames =
+      (size == frame_size ? nmemb : buffer_len / frame_size);
+
+  for (int channel = 0; channel < channels; channel++)
+    bufs[channel] = (uint8_t *)ptr + frames * sample_size * channel;
+
+  while (frames > 0) {
+    // SND_PCM_ACCESS_RW_NONINTERLEAVED
+    int status = snd_pcm_writen(alsa_handle, (void **)bufs, frames);
+    if (status < 0) {
+      if (status == -EAGAIN) {
+        /* Apparently snd_pcm_recover() doesn't handle this case - does it
+         * assume snd_pcm_wait() above? */
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+        errno = EAGAIN;
+        return 0;
+      }
+      status = snd_pcm_recover(alsa_handle, status, 0);
+      if (status < 0) {
+        /* Hmm, not much we can do - abort */
+        LOG("ALSA write failed (unrecoverable): %s\n", snd_strerror(status));
+        errno = EIO;
+        goto out;
+      }
+      errno = EIO;
+      goto out;
+    }
+    frames -= status;
+    for (int channel = 0; channel < channels; channel++)
+      bufs[channel] += sample_size * status;
+  }
+
+out:
+  return (buffer_len - frames * frame_size) / size;
+}
+
 bool AlsaPlayBackStream::Write(std::shared_ptr<MediaBuffer> mb)
 {
   if (mb->IsValid()) {
     auto in = std::static_pointer_cast<SampleBuffer>(mb);
-    Write(in->GetPtr(), in->GetSamples(), in->GetSampleSize());
+    Write(in->GetPtr(), in->GetSampleSize(), in->GetSamples());
     return 0;
   }
   return -1;

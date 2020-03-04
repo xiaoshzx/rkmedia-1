@@ -42,6 +42,7 @@ size_t GetSampleSize(const SampleInfo &sample_info) {
   case SAMPLE_FMT_S16:
     return sample_size << 1;
   case SAMPLE_FMT_S32:
+  case SAMPLE_FMT_FLT:
   case SAMPLE_FMT_FLTP:
     return sample_size << 2;
   default:
