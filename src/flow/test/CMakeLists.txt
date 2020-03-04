@@ -89,3 +89,13 @@ if(RGA_FILTER_FLOW_TEST)
   install(TARGETS rga_filter_flow_test RUNTIME DESTINATION "bin")
 endif()
 
+option(AUDIO_LOOP_TEST "compile: audio loop test" ON)
+
+if(AUDIO_LOOP_TEST)
+set(AUDIO_LOOP_TEST_SRC_FILES audio_loop_test.cc)
+add_executable(audio_loop_test ${AUDIO_LOOP_TEST_SRC_FILES})
+target_link_libraries(audio_loop_test easymedia)
+target_include_directories(audio_loop_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_features(audio_loop_test PRIVATE cxx_std_11)
+install(TARGETS audio_loop_test RUNTIME DESTINATION "bin")
+endif()
