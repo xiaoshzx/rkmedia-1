@@ -17,6 +17,7 @@ namespace easymedia {
 
 class AlsaPlayBackStream : public Stream {
 public:
+  static const int kStartDelays = 2; // number delays of periods
   static const int kPresetFrames = 1024;
   static const int kPresetSampleRate = 48000; // the same to asound.conf
   static const int kPresetMinBufferSize = 8192;
@@ -299,6 +300,8 @@ int AlsaPlayBackStream::Open() {
                          2 << (MATH_LOG2(sample_info.sample_rate *
                                          kPresetFrames / kPresetSampleRate) -
                                1));
+  /* fix underrun, set period size not less than transport chunk size */
+  frames = std::max<int>(sample_info.nb_samples, frames);
   frame_size = GetSampleSize(sample_info);
   if (frame_size == 0)
     goto err;
@@ -319,7 +322,7 @@ int AlsaPlayBackStream::Open() {
         (int)period_size, snd_strerror(status));
     goto err;
   }
-  status = snd_pcm_sw_params_set_start_threshold(pcm_handle, swparams, 0);
+  status = snd_pcm_sw_params_set_start_threshold(pcm_handle, swparams, period_size * kStartDelays);
   if (status < 0) {
     LOG("Unable to set start threshold mode for playback: %s\n",
         snd_strerror(status));
