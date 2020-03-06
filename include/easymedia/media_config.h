@@ -60,6 +60,22 @@ typedef struct {
   Type type;
 } MediaConfig;
 
+#define OSD_REGIONS_CNT 8
+
+typedef struct  {
+  char path[128]; //bmp file path.
+  char str[128]; //The string to be superimposed.
+  uint32_t width;
+  uint32_t height;
+  uint32_t offset_x;
+  uint32_t offset_y;
+  uint32_t str_corlor;
+  uint32_t inverse;
+  uint32_t is_ts; // is timestamp?
+  uint32_t region_id; // max = 8.
+  uint32_t enable;
+} OsdRegionData;
+
 #include <map>
 
 namespace easymedia {
@@ -78,6 +94,12 @@ _API int video_encoder_set_maxbps(
 
 _API int video_encoder_set_fps(
   std::shared_ptr<Flow> &enc_flow, uint8_t num, uint8_t den);
+
+_API int video_encoder_set_osd_plt(
+  std::shared_ptr<Flow> &enc_flow, uint32_t *yuv_plt);
+
+_API int video_encoder_set_osd_region(
+  std::shared_ptr<Flow> &enc_flow, OsdRegionData *region_data);
 
 _API int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable);

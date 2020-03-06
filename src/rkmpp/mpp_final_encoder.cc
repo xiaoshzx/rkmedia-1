@@ -8,6 +8,7 @@
 
 #include "media_type.h"
 #include "mpp_encoder.h"
+#include "osd_caches/color_table.h"
 
 namespace easymedia {
 
@@ -315,9 +316,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
 
 #if MPP_SUPPORT_HW_OSD
   MppEncOSDPlt palette;
-  memcpy((uint8_t *)palette.buf, (uint8_t *)yuv444_palette_table,
-         PALETTE_TABLE_LEN * 4);
-
+  memcpy(palette.buf, yuv444_palette_table, 256 * sizeof(int));
   ret = mpp_enc.EncodeControl(MPP_ENC_SET_OSD_PLT_CFG, &palette);
   if (ret) {
     LOG("encode_control set osd plt cfg failed\n");
@@ -396,10 +395,27 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
   }
 #if MPP_SUPPORT_HW_OSD
   else if (change & VideoEncoder::kOSDDataChange) {
-    // type: MppEncOSDData*
-    void *param = val->GetPtr();
-    if (mpp_enc.EncodeControl(MPP_ENC_SET_OSD_DATA_CFG, param) != 0) {
-      LOG("encode_control MPP_ENC_SET_OSD_DATA_CFG error!\n");
+    // type: OsdRegionData*
+    LOGD("MPP Encoder: config osd regions\n");
+    if (val->GetSize() < sizeof(OsdRegionData)) {
+      LOG("ERROR: MPP Encoder: palette buff should be OsdRegionData type\n");
+      return false;
+    }
+    OsdRegionData *param = (OsdRegionData *)val->GetPtr();
+    if (mpp_enc.OsdRegionSet(param)) {
+      LOG("ERROR: MPP Encoder: set osd regions error!\n");
+      return false;
+    }
+  } else if (change & VideoEncoder::kOSDPltChange) {
+    // type: 265 * U32 array.
+    LOGD("MPP Encoder: config osd palette\n");
+    if (val->GetSize() < (sizeof(int) * 4)) {
+      LOG("ERROR: MPP Encoder: palette buff should be U32 * 256\n");
+      return false;
+    }
+    uint32_t *param = (uint32_t *)val->GetPtr();
+    if (mpp_enc.OsdPaletteSet(param)) {
+      LOG("ERROR: MPP Encoder: set Palette error!\n");
       return false;
     }
   }
