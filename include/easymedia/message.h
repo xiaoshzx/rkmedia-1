@@ -90,7 +90,7 @@ public:
 private:
   EventHook process_;
   bool event_thread_loop_;
-  std::thread *event_thread_;
+  std::unique_ptr<std::thread> event_thread_;
   MessagePtrQueue event_msgs_;
   ConditionLockMutex event_cond_mtx_;
   ReadWriteLockMutex event_queue_mtx_;

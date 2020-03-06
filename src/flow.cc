@@ -666,10 +666,7 @@ bool Flow::ParseWrapFlowParams(const char *param,
 
 void Flow::RegisterEventHandler(std::shared_ptr<Flow> flow, EventHook proc)
 {
-  if (event_handler_ != nullptr)
-   UnRegisterEventHandler();
-
-  event_handler_ = new EventHandler();
+  event_handler_.reset(new EventHandler());
   if (event_handler_) {
     event_handler_->RegisterEventHook(flow, proc);
   }
@@ -678,8 +675,7 @@ void Flow::RegisterEventHandler(std::shared_ptr<Flow> flow, EventHook proc)
 void Flow::UnRegisterEventHandler() {
   if (event_handler_) {
     event_handler_->UnRegisterEventHook();
-    delete event_handler_;
-    event_handler_ = nullptr;
+    event_handler_.reset(nullptr);
   }
 }
 

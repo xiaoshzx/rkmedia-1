@@ -20,7 +20,7 @@ void EventHandler::RegisterEventHook(std::shared_ptr<easymedia::Flow> flow,
 {
   process_ = proc;
   event_thread_loop_ = true;
-  event_thread_ = new std::thread(process_, flow, std::ref(event_thread_loop_));
+  event_thread_.reset(new std::thread(process_, flow, std::ref(event_thread_loop_)));
 }
 
 void EventHandler::UnRegisterEventHook()
@@ -31,8 +31,7 @@ void EventHandler::UnRegisterEventHook()
     event_cond_mtx_.notify();
     event_cond_mtx_.unlock();
     event_thread_->join();
-    delete event_thread_;
-    event_thread_ = nullptr;
+    event_thread_.reset(nullptr);
   }
 }
 

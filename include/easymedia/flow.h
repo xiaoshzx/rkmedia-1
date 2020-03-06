@@ -216,7 +216,7 @@ private:
   ConditionLockMutex cond_mtx;
 
   // event handler
-  EventHandler * event_handler_;
+  std::unique_ptr<EventHandler> event_handler_;
 
   friend class FlowCoroutine;
 
