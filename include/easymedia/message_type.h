@@ -12,9 +12,26 @@
 typedef enum {
   MSG_FLOW_EVENT_INFO_UNKNOW = MSG_INFO_MASK,
   MSG_FLOW_EVENT_INFO_EOS,
+  MSG_FLOW_EVENT_INFO_MOVEDETECTION,
   MSG_FLOW_EVENT_WARN_UNKNOW = MSG_WARN_MASK,
   MSG_FLOW_EVENT_ERROR_UNKNOW = MSG_ERROR_MASK,
 } MessageId;
+
+typedef struct {
+  unsigned short x;
+  unsigned short y;
+  unsigned short w;
+  unsigned short h;
+} MoveDetecInfo;
+
+typedef struct {
+  unsigned short info_cnt;
+  unsigned short ori_width;
+  unsigned short ori_height;
+  unsigned short ds_width;
+  unsigned short ds_height;
+  MoveDetecInfo *data;
+} MoveDetectEvent;
 
 typedef enum {
   MESSAGE_TYPE_FIFO = 0,
