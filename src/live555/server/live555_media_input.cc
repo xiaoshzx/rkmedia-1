@@ -298,12 +298,12 @@ bool VideoFramedSource::readFromList(bool flush _UNUSED) {
   }
 
   buffer = fInput.vs->Pop();
-  if (!got_iframe) {
-    got_iframe = buffer->GetUserFlag() & MediaBuffer::kIntra;
-    if (!got_iframe && !(buffer->GetUserFlag() & MediaBuffer::kExtraIntra))
-      goto err;
-  }
   if (buffer) {
+    if (!got_iframe) {
+      got_iframe = buffer->GetUserFlag() & MediaBuffer::kIntra;
+      if (!got_iframe && !(buffer->GetUserFlag() & MediaBuffer::kExtraIntra))
+        goto err;
+    }
     fPresentationTime = buffer->GetTimeVal();
 // gettimeofday(&fPresentationTime, NULL);
 #ifdef DEBUG_SEND
@@ -369,8 +369,8 @@ bool AudioFramedSource::readFromList(bool flush _UNUSED) {
   }
 
   buffer = fInput.as->Pop();
-  p = (uint8_t *)buffer->GetPtr();
   if (buffer) {
+    p = (uint8_t *)buffer->GetPtr();
     fPresentationTime = buffer->GetTimeVal();
 #ifdef DEBUG_SEND
     fprintf(stderr, "audio frame time: %ld, %ld.\n", fPresentationTime.tv_sec,
