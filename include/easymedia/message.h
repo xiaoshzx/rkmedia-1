@@ -31,10 +31,10 @@ public:
     }
   }
   int SetParams(void *params, int size) {
-    params_ = malloc(size);
-    if(params_ == nullptr)
-      return -1;
-    memcpy(params_, params, size);
+    if(params_)
+      free(params_);
+    params_ = params;
+    params_size_ = size;
     return 0;
   }
   int GetId() { return id_; }

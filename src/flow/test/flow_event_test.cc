@@ -193,8 +193,9 @@ void TestReadFlow::ReadThreadRun() {
       static int msg_param = 0;
       msg_param++;
       EventParamPtr param = std::make_shared<EventParam>(msg_id, msg_param);
-      char params[6] = "hello";
-      param->SetParams(params, 6);
+      char *params = (char *)malloc(24);
+      sprintf(params, "%s", "hello rv1109");
+      param->SetParams(params, 24);
       NotifyToEventHandler(param, MESSAGE_TYPE_LIFO);
     }
 #endif
