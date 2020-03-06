@@ -71,6 +71,9 @@ _API std::string to_param_string(const ImageInfo &ii, bool input = true);
 _API std::string TwoImageRectToString(const std::vector<ImageRect> &src_dst);
 std::vector<ImageRect> StringToTwoImageRect(const std::string &str_rect);
 
+_API std::string ImageRectToString(const ImageRect &src_dst);
+std::vector<ImageRect> StringToImageRect(const std::string &str_rect);
+
 } // namespace easymedia
 
 #endif // #ifndef EASYMEDIA_IMAGE_H_

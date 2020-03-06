@@ -153,4 +153,50 @@ std::vector<ImageRect> StringToTwoImageRect(const std::string &str_rect) {
   return std::move(ret);
 }
 
+std::string ImageRectToString(const ImageRect &src_dst) {
+  char r[64] = {0};
+  assert(src_dst.x >= 0 && src_dst.y >= 0);
+  assert(src_dst.x < 10000 && src_dst.y < 10000);
+  assert(src_dst.w < 10000 && src_dst.h < 10000);
+  snprintf(r, sizeof(r), "(%d,%d,%d,%d)", src_dst.x,
+           src_dst.y, src_dst.w, src_dst.h);
+  return r;
+}
+
+std::vector<ImageRect> StringToImageRect(const std::string &str_rect) {
+  std::vector<ImageRect> ret;
+  const char *start = nullptr;
+  const char *delimiter = nullptr;
+
+  if (str_rect.empty())
+    return std::move(ret);
+
+  start = str_rect.c_str();
+  while (start) {
+    delimiter = start;
+    // (x,y,w,h) format check.
+    for (int i = 0; i < 4; i++) {
+      if (i == 3)
+        delimiter = strstr(delimiter, ")");
+      else
+        delimiter = strstr(delimiter, ",");
+      if (!delimiter)
+        return std::move(ret);
+      delimiter += 1;
+    }
+
+    ImageRect rect = {0, 0, 0, 0};
+    int r = sscanf(start, "(%d,%d,%d,%d)", &rect.x, &rect.y, &rect.w, &rect.h);
+    if (r != 4) {
+      LOG("Fail to sscanf(ret=%d) : %m\n", r);
+      return std::move(ret);
+    }
+
+    ret.push_back(std::move(rect));
+    start = strstr(delimiter, "(");
+  }
+
+  return std::move(ret);
+}
+
 } // namespace easymedia
