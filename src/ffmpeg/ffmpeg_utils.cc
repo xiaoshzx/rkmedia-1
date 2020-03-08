@@ -70,6 +70,7 @@ enum AVSampleFormat SampleFmtToAVSamFmt(SampleFormat sfmt) {
       {SAMPLE_FMT_U8, AV_SAMPLE_FMT_U8},
       {SAMPLE_FMT_S16, AV_SAMPLE_FMT_S16},
       {SAMPLE_FMT_S32, AV_SAMPLE_FMT_S32},
+      {SAMPLE_FMT_FLT, AV_SAMPLE_FMT_FLT},
       {SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_FLTP},
   };
   FIND_ENTRY_TARGET(sfmt, sample_fmt_av_sfmt_map, fmt, av_sfmt)

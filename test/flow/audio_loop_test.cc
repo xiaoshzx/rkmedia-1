@@ -80,11 +80,39 @@ std::shared_ptr<easymedia::Flow> create_alsa_flow(std::string aud_in_path,
   return audio_source_flow;
 }
 
+std::shared_ptr<easymedia::Flow> create_resample_flow(SampleInfo &info) {
+  std::string flow_name;
+  std::string flow_param;
+  std::string sub_param;
+
+  flow_name = "filter";
+  flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "ffmpeg_resample");
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE,
+                      SampleFmtToString(info.fmt));
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE,
+                      SampleFmtToString(info.fmt));
+  sub_param = "";
+  PARAM_STRING_APPEND(sub_param, KEY_SAMPLE_FMT, SampleFmtToString(info.fmt));
+  PARAM_STRING_APPEND_TO(sub_param, KEY_CHANNELS, info.channels);
+  PARAM_STRING_APPEND_TO(sub_param, KEY_SAMPLE_RATE, info.sample_rate);
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, sub_param);
+  auto flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!flow) {
+    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+    exit(EXIT_FAILURE);
+  }
+  return flow;
+}
+
 void usage(char *name) {
-  LOG("\nUsage: \t%s -a default -o default -f S16 -r 48000 -c 1\n",name);
-  LOG("\tNOTICE: format: -f [U8 S16 S32 FLT FLTP]\n");
-  LOG("\tNOTICE: channels: [1 2]\n");
-  LOG("\tNOTICE: samplerate: [8000 16000 24000 32000 441000 48000]\n");
+  LOG("\nUsage: \t%s -a default -o default -f S16 -r 16000 -c 2 -F FLTP -R 48000 -C 1\n",name);
+  LOG("\tNOTICE: format: -f -F [U8 S16 S32 FLT FLTP]\n");
+  LOG("\tNOTICE: channels: -c -C [1 2]\n");
+  LOG("\tNOTICE: samplerate: -r -R [8000 16000 24000 32000 441000 48000]\n");
+  LOG("\tNOTICE: capture params: -f -c -r\n");
+  LOG("\tNOTICE: resample params: -F -C -R\n");
   exit(EXIT_FAILURE);
 }
 
@@ -103,7 +131,7 @@ SampleFormat parseFormat(std::string args) {
     return SAMPLE_FMT_NONE;
 }
 
-static char optstr[] = "?a:o:f:r:c:";
+static char optstr[] = "?a:o:f:r:c:F:R:C:";
 
 int main(int argc, char** argv)
 {
@@ -111,8 +139,11 @@ int main(int argc, char** argv)
   int channels = 1;
   int sample_rate = 8000;
   int nb_samples;
+  SampleFormat res_fmt = SAMPLE_FMT_S16;;
+  int res_channels = 1;
+  int res_sample_rate = 8000;
+  int res_nb_samples;
   int c;
-
   std::string aud_in_path = "default";
   std::string output_path = "default";
   std::string flow_name;
@@ -153,6 +184,25 @@ int main(int argc, char** argv)
       if (channels < 1 || channels > 2)
         usage(argv[0]);
       break;
+    case 'F':
+      res_fmt = parseFormat(optarg);
+      if (res_fmt == SAMPLE_FMT_NONE)
+        usage(argv[0]);
+      break;
+    case 'R':
+      res_sample_rate = atoi(optarg);
+      if (res_sample_rate != 8000 && res_sample_rate != 16000 && res_sample_rate != 24000 &&
+          res_sample_rate != 32000 && res_sample_rate != 44100 &&
+          res_sample_rate != 48000) {
+        LOG("sorry, sample_rate %d not supported\n", res_sample_rate);
+        usage(argv[0]);
+      }
+      break;
+    case 'C':
+      res_channels = atoi(optarg);
+      if (res_channels < 1 || res_channels > 2)
+        usage(argv[0]);
+      break;
     case '?':
     default:
       usage(argv[0]);
@@ -160,8 +210,10 @@ int main(int argc, char** argv)
     }
   }
 
-  nb_samples = sample_rate * 20 / 1000;//20ms
+  nb_samples = sample_rate * 25 / 1000;//25ms
+  res_nb_samples = res_sample_rate * 25 / 1000;//25ms
   SampleInfo sample_info = {fmt, channels, sample_rate, nb_samples};
+  SampleInfo res_sample_info = {res_fmt, res_channels, res_sample_rate, res_nb_samples};
 
   // 1. alsa capture flow
   std::shared_ptr<easymedia::Flow> audio_source_flow =
@@ -170,19 +222,38 @@ int main(int argc, char** argv)
     LOG("Create flow alsa_capture_flow failed\n");
     exit(EXIT_FAILURE);
   }
-  int volume = 90;
+  int volume = 70;
   audio_source_flow->Control(easymedia::S_ALSA_VOLUME, &volume);
-  // 2. alsa playback flow
+
+  // 2. alsa resample
+  std::shared_ptr<easymedia::Flow> audio_resample_flow =
+      create_resample_flow(res_sample_info);
+  if (!audio_resample_flow) {
+    LOG("Create flow audio_resample_flow failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // 3. alsa resample back
+  std::shared_ptr<easymedia::Flow> audio_resample_back_flow =
+      create_resample_flow(sample_info);
+  if (!audio_resample_back_flow) {
+    LOG("Create flow audio_resample_flow failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // 4. alsa playback flow
   std::shared_ptr<easymedia::Flow> audio_sink_flow =
       create_alsa_flow(output_path, sample_info, false);
   if (!audio_sink_flow) {
     LOG("Create flow alsa_capture_flow failed\n");
     exit(EXIT_FAILURE);
   }
-  volume = 80;
+  volume = 60;
   audio_sink_flow->Control(easymedia::S_ALSA_VOLUME, &volume);
 
-  audio_source_flow->AddDownFlow(audio_sink_flow, 0, 0);
+  audio_resample_back_flow->AddDownFlow(audio_sink_flow, 0, 0);
+  audio_resample_flow->AddDownFlow(audio_resample_back_flow, 0, 0);
+  audio_source_flow->AddDownFlow(audio_resample_flow, 0, 0);
 
   signal(SIGINT, sigterm_handler);
 
@@ -190,7 +261,11 @@ int main(int argc, char** argv)
     easymedia::msleep(100);
   }
 
-  audio_source_flow->RemoveDownFlow(audio_sink_flow);
+  audio_resample_back_flow->RemoveDownFlow(audio_sink_flow);
+  audio_resample_flow->RemoveDownFlow(audio_resample_back_flow);
+  audio_source_flow->RemoveDownFlow(audio_resample_flow);
+  audio_resample_back_flow.reset();
+  audio_resample_flow.reset();
   audio_source_flow.reset();
   audio_sink_flow.reset();
 
