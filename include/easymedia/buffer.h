@@ -87,6 +87,18 @@ public:
       userdata.reset();
     }
   }
+  int64_t GetAtomicClock() const { return atomic_clock; }
+  struct timeval GetAtomicTimeVal() const {
+    struct timeval ret;
+    ret.tv_sec = atomic_clock / 1000000LL;
+    ret.tv_usec = atomic_clock % 1000000LL;
+    return ret;
+  }
+  void SetAtomicClock(int64_t us) { atomic_clock = us; }
+  void SetAtomicTimeVal(const struct timeval &val) {
+    atomic_clock = val.tv_sec * 1000000LL + val.tv_usec;
+  }
+
   void SetUserData(std::shared_ptr<void> user_data) { userdata = user_data; }
   std::shared_ptr<void> GetUserData() { return userdata; }
 
@@ -127,6 +139,7 @@ private:
   Type type;
   uint32_t user_flag;
   int64_t ustimestamp;
+  int64_t atomic_clock;
   bool eof;
 
   std::shared_ptr<void> userdata;
