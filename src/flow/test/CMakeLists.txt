@@ -117,3 +117,14 @@ target_include_directories(move_detection_flow_test PRIVATE ${CMAKE_SOURCE_DIR}/
 target_compile_features(move_detection_flow_test PRIVATE cxx_std_11)
 install(TARGETS move_detection_flow_test RUNTIME DESTINATION "bin")
 endif()
+
+option(SMART_ENCODER_TEST "compile: video smart encoder test" ON)
+
+if(SMART_ENCODER_TEST)
+  set(SMART_ENCODER_TEST_SRC_FILES video_smart_encoder_test.cc)
+  add_executable(video_smart_encoder_test ${SMART_ENCODER_TEST_SRC_FILES})
+  target_link_libraries(video_smart_encoder_test easymedia)
+  target_include_directories(video_smart_encoder_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_compile_features(video_smart_encoder_test PRIVATE cxx_std_11)
+  install(TARGETS video_smart_encoder_test RUNTIME DESTINATION "bin")
+endif()

@@ -89,6 +89,7 @@ bool MPPEncoder::Init() {
 }
 
 int MPPEncoder::PrepareMppFrame(const std::shared_ptr<MediaBuffer> &input,
+                                std::shared_ptr<MediaBuffer> &mdinfo,
                                 MppFrame &frame) {
   MppBuffer pic_buf = nullptr;
   if (input->GetType() != Type::Image) {
@@ -115,8 +116,16 @@ int MPPEncoder::PrepareMppFrame(const std::shared_ptr<MediaBuffer> &input,
     mpp_frame_set_hor_stride(frame, hw_buffer->GetVirWidth());
   mpp_frame_set_ver_stride(frame, hw_buffer->GetVirHeight());
 
+  MppMeta meta = mpp_frame_get_meta(frame);
+  auto &related_vec = input->GetRelatedSPtrs();
+  if (!related_vec.empty()) {
+     mdinfo = std::static_pointer_cast<MediaBuffer>(related_vec[0]);
+    LOGD("MPP Encoder: set mdinfo(%p, %zuBytes) to frame\n",
+      mdinfo->GetPtr(), mdinfo->GetValidSize());
+    mpp_meta_set_ptr(meta, KEY_MV_LIST, mdinfo->GetPtr());
+  }
+
   while (osd_mask) {
-    MppMeta meta = mpp_frame_get_meta(frame);
     uint8_t data_id = (osd_mask & 0x02) ? 1 : 0;
     LOGD("MPP Encoder: set osd[%d] to frame, osd_mask:0x%x\n",
       data_id, osd_mask);
@@ -243,6 +252,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
   RK_U32 packet_flag = 0;
   RK_U32 out_eof = 0;
   RK_S64 pts = 0;
+  std::shared_ptr<MediaBuffer> mdinfo;
 
   Type out_type;
 
@@ -264,7 +274,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
     goto ENCODE_OUT;
   }
 
-  ret = PrepareMppFrame(input, frame);
+  ret = PrepareMppFrame(input, mdinfo, frame);
   if (ret) {
     LOG("PrepareMppFrame failed\n");
     goto ENCODE_OUT;

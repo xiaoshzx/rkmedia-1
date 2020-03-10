@@ -10,6 +10,8 @@
 #include "buffer.h"
 #include "media_type.h"
 
+#include "move_detection_flow.h"
+
 namespace easymedia {
 
 static bool encode(Flow *f, MediaBufferVector &input_vector);
@@ -29,7 +31,7 @@ private:
   bool extra_output;
   bool extra_merge;
   std::list<std::shared_ptr<MediaBuffer>> extra_buffer_list;
-
+  MoveDetectionFlow *md_flow;
   friend bool encode(Flow *f, MediaBufferVector &input_vector);
 };
 
@@ -38,6 +40,7 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
   std::shared_ptr<VideoEncoder> enc = vf->enc;
   std::shared_ptr<MediaBuffer> &src = input_vector[0];
   std::shared_ptr<MediaBuffer> dst, extra_dst;
+  std::shared_ptr<MediaBuffer> md_info;
   dst = std::make_shared<MediaBuffer>(); // TODO: buffer pool
   if (!dst) {
     LOG_NO_MEMORY();
@@ -50,6 +53,39 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
       return false;
     }
   }
+
+  if (vf->md_flow) {
+    LOGD("[VEnc Flow]: LookForMdResult start!\n");
+    int time_cost = 0;
+    int last_time = 0;
+    while(time_cost < 21) {
+      if (time_cost >= 18)
+        last_time = 1;
+      md_info = vf->md_flow->LookForMdResult(
+        src->GetAtomicClock(), last_time);
+      if (md_info)
+        break;
+
+      time_cost += 3;
+      msleep(3); //3ms
+    }
+    if (md_info && md_info->GetValidSize()) {
+#ifndef NDEBUG
+      LOGD("[VEnc Flow]: get md info(cnt=%d): %p, %zuBytes\n",
+         md_info->GetValidSize() / sizeof(INFO_LIST),
+         md_info.get(), md_info->GetValidSize());
+      INFO_LIST *info = (INFO_LIST *)md_info->GetPtr();
+      LOGD("[VEnc Flow]: mdinfo: flag:%d, upleft:<%d, %d>, downright:<%d, %d>\n",
+        info->flag, info->up_left[0], info->up_left[1],
+        info->down_right[0], info->down_right[1]);
+#endif
+      src->SetRelatedSPtr(md_info);
+    } else
+      LOG("ERROR: VEnc Flow: fate error get null md result\n");
+
+    LOGD("[VEnc Flow]: LookForMdResult end!\n\n");
+  }
+
   if (0 != enc->Process(src, dst, extra_dst)) {
     LOG("encoder failed\n");
     return false;
@@ -68,7 +104,7 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
 }
 
 VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
-    extra_merge(false) {
+    extra_merge(false), md_flow(nullptr) {
   std::list<std::string> separate_list;
   std::map<std::string, std::string> params;
   if (!ParseWrapFlowParams(param, params, separate_list)) {
@@ -187,7 +223,16 @@ int VideoEncoderFlow::Control(unsigned long int request, ...) {
   auto value = va_arg(ap, std::shared_ptr<ParameterBuffer>);
   va_end(ap);
   assert(value);
-  enc->RequestChange(request, value);
+  if (request == VideoEncoder::kMoveDetectionFlow) {
+    if (value->GetSize() != sizeof(void **)) {
+      LOG("ERROR: VEnc Flow: move detect config falied!\n");
+      return -1;
+    }
+    md_flow = *((MoveDetectionFlow **)value->GetPtr());
+    LOGD("[VEnc Flow]: md_flow:%p, flow name:%s\n",
+      md_flow, md_flow->GetFlowName());
+  } else
+    enc->RequestChange(request, value);
   return 0;
 }
 
