@@ -319,7 +319,7 @@ std::shared_ptr<MediaBuffer> V4L2CaptureStream::Read() {
     LOG("%s, ioctl(VIDIOC_DQBUF): %m\n", dev);
     return nullptr;
   }
-  // struct timeval buf_ts = buf.timestamp;
+  struct timeval buf_ts = buf.timestamp;
   MediaBuffer &mb = buffer_vec[buf.index];
   std::shared_ptr<MediaBuffer> ret_buf;
   if (buf.bytesused > 0) {
@@ -335,7 +335,7 @@ std::shared_ptr<MediaBuffer> V4L2CaptureStream::Read() {
     if (buf.memory == V4L2_MEMORY_DMABUF) {
       assert(ret_buf->GetFD() == buf.m.fd);
     }
-    // ret_buf->SetTimeVal(buf_ts);
+    ret_buf->SetAtomicTimeVal(buf_ts);
     ret_buf->SetUSTimeStamp(gettimeofday());
     ret_buf->SetValidSize(buf.bytesused);
   } else {
