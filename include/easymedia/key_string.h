@@ -65,6 +65,15 @@
 #define KEY_MPP_SPLIT_MODE "split_mode"
 #define KEY_OUTPUT_TIMEOUT "output_timeout"
 
+// move detection
+#define KEY_MD_SINGLE_REF "md_single_ref"
+#define KEY_MD_ORI_WIDTH "md_orignal_width"
+#define KEY_MD_ORI_HEIGHT "md_orignal_height"
+#define KEY_MD_DS_WIDTH "md_down_scale_width"
+#define KEY_MD_DS_HEIGHT "md_down_scale_height"
+#define KEY_MD_ROI_CNT "md_roi_cnt"
+#define KEY_MD_ROI_RECT "md_roi_rect"
+
 // audio info
 #define KEY_SAMPLE_FMT "sample_format"
 #define KEY_CHANNELS "channel_num"
