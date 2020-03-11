@@ -118,7 +118,7 @@ create_video_enc_flow(std::string pixel_format, std::string video_enc_type,
     vid_cfg.rc_quality = KEY_BEST;
     vid_cfg.rc_mode = KEY_CBR;
   } else if (video_enc_type == IMAGE_JPEG)
-    img_cfg.qp_init = 10;
+    img_cfg.qp_init = 3;
 
   enc_param = "";
   enc_param.append(easymedia::to_param_string(enc_config, video_enc_type));
@@ -326,6 +326,8 @@ static CodecType parseCodec(std::string args) {
     return CODEC_TYPE_H264;
   if (!args.compare("H265"))
     return CODEC_TYPE_H265;
+  if (!args.compare("MJPEG"))
+    return CODEC_TYPE_JPEG;
   else
     return CODEC_TYPE_NONE;
 }
@@ -348,6 +350,8 @@ static std::string CodecToString(CodecType type) {
     return VIDEO_H264;
   case CODEC_TYPE_H265:
     return VIDEO_H265;
+  case CODEC_TYPE_JPEG:
+    return IMAGE_JPEG;
   default:
     return "";
   }

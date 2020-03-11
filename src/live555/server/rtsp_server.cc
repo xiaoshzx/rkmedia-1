@@ -26,6 +26,7 @@
 #endif
 #include "aac_server_media_subsession.hh"
 #include "live555_media_input.hh"
+#include "mjpeg_server_media_subsession.hh"
 #include "mp2_server_media_subsession.hh"
 #include "simple_server_media_subsession.hh"
 
@@ -290,6 +291,9 @@ RtspServerFlow::RtspServerFlow(const char *param) {
             *(rtspConnection->getEnv()), *server_input);
         video_type = VIDEO_H265;
 #endif
+      } else if (type == IMAGE_JPEG) {
+        subsession = MJPEGServerMediaSubsession::createNew(
+            *(rtspConnection->getEnv()), *server_input);
       } else if (type == AUDIO_AAC) {
         int sample_rate = 0, channels = 0, profiles = 0;
         value = params[KEY_SAMPLE_RATE];
