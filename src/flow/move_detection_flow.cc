@@ -25,7 +25,6 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
   std::shared_ptr<MediaBuffer> dst;
   static INFO_LIST info_list[4096];
   int result_size = 0;
-  int result_cnt = 0;
   int info_cnt = 0;
 #ifndef NDEBUG
   static struct timeval tv0;
@@ -86,11 +85,13 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
   for (int i = 0; i < 4096; i++) {
     if (!info_list[i].flag)
       break;
-    result_cnt++;
     result_size += sizeof(INFO_LIST);
   }
 
   if (result_size) {
+    // We need to create result_cnt + 1 INFO_LIST, and the last one sets
+    // the flag to 0 to tell the librocchip_mpp.so that this is the end marker.
+    result_size += sizeof(INFO_LIST);
     dst =  MediaBuffer::Alloc(result_size, MediaBuffer::MemType::MEM_HARD_WARE);
     if (!dst) {
       LOG_NO_MEMORY();
