@@ -63,7 +63,10 @@ Live555MediaInput::Live555MediaInput(UsageEnvironment &env)
     : Medium(env), connecting(false), video_source(nullptr),
       audio_source(nullptr) {}
 
-Live555MediaInput::~Live555MediaInput() { connecting = false; }
+Live555MediaInput::~Live555MediaInput() {
+  LOG_FILE_FUNC_LINE();
+  connecting = false;
+}
 
 void Live555MediaInput::Start(UsageEnvironment &env _UNUSED) {
   connecting = true;

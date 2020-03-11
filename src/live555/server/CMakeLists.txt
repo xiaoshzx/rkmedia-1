@@ -27,6 +27,7 @@ set(EASY_MEDIA_LIVE555_SERVER_SOURCE_FILES
     live555/server/simple_server_media_subsession.cc
     live555/server/mp2_server_media_subsession.cc
     live555/server/mjpeg_server_media_subsession.cc
+    live555/server/live555_server.cc
     live555/server/mjpeg_video_source.cc)
 
 set(EASY_MEDIA_LIVE555_SOURCE_FILES
