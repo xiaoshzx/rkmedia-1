@@ -101,6 +101,9 @@ _API int video_encoder_set_osd_plt(
 _API int video_encoder_set_osd_region(
   std::shared_ptr<Flow> &enc_flow, OsdRegionData *region_data);
 
+_API int video_encoder_set_move_detection(std::shared_ptr<Flow> &enc_flow,
+  std::shared_ptr<Flow> &md_flow);
+
 _API int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable);
 } // namespace easymedia

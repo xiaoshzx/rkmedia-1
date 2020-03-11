@@ -252,6 +252,19 @@ int video_encoder_set_osd_region(
   return 0;
 }
 
+int video_encoder_set_move_detection(std::shared_ptr<Flow> &enc_flow,
+  std::shared_ptr<Flow> &md_flow) {
+  int ret = 0;
+  void **rdata = (void **)malloc(sizeof(void *));
+  *rdata = md_flow.get();
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetPtr(rdata, sizeof(sizeof(void *)));
+  ret = enc_flow->Control(easymedia::VideoEncoder::kMoveDetectionFlow, pbuff);
+
+  return ret;
+}
+
 int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable) {
   if (!enc_flow)

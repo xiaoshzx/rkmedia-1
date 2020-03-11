@@ -57,6 +57,7 @@ protected:
   int EncodeControl(int cmd, void *param);
 
   virtual int PrepareMppFrame(const std::shared_ptr<MediaBuffer> &input,
+                              std::shared_ptr<MediaBuffer> &mdinfo,
                               MppFrame &frame);
   virtual int PrepareMppPacket(std::shared_ptr<MediaBuffer> &output,
                                MppPacket &packet);
