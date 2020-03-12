@@ -40,7 +40,6 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
   std::shared_ptr<VideoEncoder> enc = vf->enc;
   std::shared_ptr<MediaBuffer> &src = input_vector[0];
   std::shared_ptr<MediaBuffer> dst, extra_dst;
-  std::shared_ptr<MediaBuffer> md_info;
   dst = std::make_shared<MediaBuffer>(); // TODO: buffer pool
   if (!dst) {
     LOG_NO_MEMORY();
@@ -54,6 +53,8 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
     }
   }
 
+#ifdef RK_MOVE_DETECTION
+  std::shared_ptr<MediaBuffer> md_info;
   if (vf->md_flow) {
     LOGD("[VEnc Flow]: LookForMdResult start!\n");
     int time_cost = 0;
@@ -85,6 +86,7 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
 
     LOGD("[VEnc Flow]: LookForMdResult end!\n\n");
   }
+#endif //RK_MOVE_DETECTION
 
   if (0 != enc->Process(src, dst, extra_dst)) {
     LOG("encoder failed\n");
