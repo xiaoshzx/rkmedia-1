@@ -35,8 +35,3 @@ set(EASY_MEDIA_STREAM_SOURCE_FILES
     PARENT_SCOPE)
 set(EASY_MEDIA_STREAM_LIBS ${EASY_MEDIA_STREAM_LIBS}
                            ${EASY_MEDIA_STREAM_V4L2_LIBS} PARENT_SCOPE)
-
-option(CAMERA_TEST "compile: camera wrapper test" ON)
-if(CAMERA_TEST)
-  add_subdirectory(test)
-endif()

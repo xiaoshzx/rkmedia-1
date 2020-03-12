@@ -31,8 +31,3 @@ endif()
 
 set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
                             ${EASY_MEDIA_RKMPP_SOURCE_FILES} PARENT_SCOPE)
-
-option(RKMPP_TEST "compile: rkmpp wrapper test" ON)
-if(RKMPP_TEST)
-  add_subdirectory(test)
-endif()

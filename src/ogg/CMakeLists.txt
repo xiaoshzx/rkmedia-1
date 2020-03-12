@@ -45,8 +45,3 @@ set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
 set(EASY_MEDIA_OGG_LIBS ${EASY_MEDIA_OGG_LIBS} ogg vorbis)
 set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS}
                               ${EASY_MEDIA_OGG_LIBS} PARENT_SCOPE)
-
-option(OGG_TEST "compile: ogg test" ON)
-if(OGG_TEST)
-  add_subdirectory(test)
-endif()

@@ -11,6 +11,7 @@ aux_source_directory(. EASY_MEDIA_SOURCE_FILES)
 # ----------------------------------------------------------------------------
 
 option(RKMPP "compile: rkmpp wrapper" OFF)
+option(RKMPP_ENCODER_OSD "compile: rkmpp encoder osd wrapper" OFF)
 if(RKMPP)
   pkg_check_modules(ROCKCHIP_MPP REQUIRED rockchip_mpp)
   include_directories(rkmpp)
@@ -37,7 +38,9 @@ if(OGG)
   add_subdirectory(ogg)
 endif()
 
+if(FFMPEG)
 add_subdirectory(ffmpeg)
+endif()
 
 option(LIVE555 "compile: live555" OFF)
 if(LIVE555)

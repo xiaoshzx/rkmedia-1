@@ -40,17 +40,6 @@ include(CheckCXXCompilerFlag)
 # ----------------------------------------------------------------------------
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMakeTargets")
-# ----------------------------------------------------------------------------
-# enable test in this project
-# ----------------------------------------------------------------------------
-if(NOT DEFINED BUILD_TESTING)
-  option(BUILD_TESTING "Build easymedia with testing." OFF)
-  mark_as_advanced(BUILD_TESTING)
-endif()
-include(CTest)
-if(BUILD_TESTING)
-  enable_testing()
-endif()
 
 # ----------------------------------------------------------------------------
 # Compiler detection
@@ -83,9 +72,13 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
                   OUTPUT_VARIABLE GCC_VERSION)
 endif()
 
-if($(CMAKE_BUILD_TYPE) MATCHES "Release")
+if(${CMAKE_BUILD_TYPE} MATCHES "Release")
   set(CMAKE_C_VISIBILITY_PRESET hidden)
   set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+elseif(${CMAKE_BUILD_TYPE} MATCHES "Debug")
+  include(CTest)
+  enable_testing()
+  set(BUILD_TESTING 1)
 endif()
 
 # set c++11

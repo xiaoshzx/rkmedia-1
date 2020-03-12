@@ -3,19 +3,23 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
-find_package(GTest REQUIRED)
 
-add_executable(FlowTest FlowTest.cc)
-target_link_libraries(FlowTest
-    PRIVATE
-    GTest::GTest
-    GTest::Main
-    easymedia
-)
-target_include_directories(FlowTest
-    PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-target_compile_features(FlowTest PRIVATE cxx_std_11)
+add_subdirectory(stream)
+add_subdirectory(flow)
 
-add_test(AllTestsInEasyMedia FlowTest)
+if(FFMPEG)
+add_subdirectory(ffmpeg)
+endif()
+
+if(LIVE555)
+add_subdirectory(live555)
+endif()
+
+if(OGG)
+add_subdirectory(ogg)
+endif()
+
+if(RKMPP)
+add_subdirectory(rkmpp)
+endif()
+

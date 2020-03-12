@@ -24,8 +24,3 @@ endif()
 
 set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
                             ${EASY_MEDIA_FLOW_SOURCE_FILES} PARENT_SCOPE)
-
-option(FLOW_TEST "compile: flow wrapper test" ON)
-if(FLOW_TEST)
-  add_subdirectory(test)
-endif()

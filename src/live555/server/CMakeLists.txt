@@ -37,7 +37,3 @@ set(EASY_MEDIA_LIVE555_LIBS
     ${EASY_MEDIA_LIVE555_LIBS}
     ${LIVEMEDIA_LIBRARIES}
     PARENT_SCOPE)
-option(RTSP_SERVER_TEST "compile: rtsp server test" ON)
-if(RTSP_SERVER_TEST)
-  add_subdirectory(test)
-endif()
