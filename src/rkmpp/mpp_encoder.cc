@@ -19,15 +19,21 @@ namespace easymedia {
 MPPEncoder::MPPEncoder()
     : coding_type(MPP_VIDEO_CodingAutoDetect),
       output_mb_flags(0), encoder_sta_en(false),
-      stream_size_1s(0), frame_cnt_1s(0), last_ts(0), cur_ts(0),
-      osd_mask(0), osd_refresh_mask(0), osd_thread(NULL),
+      stream_size_1s(0), frame_cnt_1s(0), last_ts(0), cur_ts(0)
+#ifdef MPP_SUPPORT_HW_OSD
+      ,osd_mask(0), osd_refresh_mask(0), osd_thread(NULL),
       osd_thread_loop(NULL) {
+
   //reset osd data.
   memset(osd_data, 0, sizeof(osd_data));
   memset(&enc_osd_data, 0, sizeof(enc_osd_data));
+#else
+{
+#endif
 }
 
 MPPEncoder::~MPPEncoder() {
+#ifdef MPP_SUPPORT_HW_OSD
   if (osd_thread) {
     LOGD("MPP Encoder: destructor stop osd thread...\n");
     osd_thread_loop = false;
@@ -47,6 +53,7 @@ MPPEncoder::~MPPEncoder() {
     mpp_buffer_put(enc_osd_data.buf);
     enc_osd_data.buf = NULL;
   }
+#endif
 }
 
 void MPPEncoder::SetMppCodeingType(MppCodingType type) {
@@ -125,6 +132,7 @@ int MPPEncoder::PrepareMppFrame(const std::shared_ptr<MediaBuffer> &input,
     mpp_meta_set_ptr(meta, KEY_MV_LIST, mdinfo->GetPtr());
   }
 
+#ifdef MPP_SUPPORT_HW_OSD
   while (osd_mask) {
     uint8_t data_id = (osd_mask & 0x02) ? 1 : 0;
     LOGD("MPP Encoder: set osd[%d] to frame, osd_mask:0x%x\n",
@@ -169,6 +177,7 @@ int MPPEncoder::PrepareMppFrame(const std::shared_ptr<MediaBuffer> &input,
     mpp_meta_set_ptr(meta, KEY_OSD_DATA, (void*)&enc_osd_data);
     break;
   }
+#endif // MPP_SUPPORT_HW_OSD
 
   MPP_RET ret = init_mpp_buffer_with_content(pic_buf, input);
   if (ret) {
@@ -508,6 +517,8 @@ int MPPEncoder::get_statistics_fps() {
     LOG("[WARN] MPP ENCODER statistics should enable first!\n");
   return encoded_fps;
 }
+
+#ifdef MPP_SUPPORT_HW_OSD
 
 #define OSD_PTL_SIZE 1024 //Bytes.
 
@@ -991,5 +1002,7 @@ int MPPEncoder::OsdRegionGet(OsdRegionData *rdata) {
   LOG("ToDo...%p\n", rdata);
   return 0;
 }
+
+#endif // MPP_SUPPORT_HW_OSD
 
 } // namespace easymedia

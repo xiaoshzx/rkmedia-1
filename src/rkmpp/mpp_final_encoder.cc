@@ -8,7 +8,10 @@
 
 #include "media_type.h"
 #include "mpp_encoder.h"
+
+#ifdef MPP_SUPPORT_HW_OSD
 #include "osd_caches/color_table.h"
+#endif
 
 namespace easymedia {
 
@@ -314,7 +317,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
     packet = NULL;
   }
 
-#if MPP_SUPPORT_HW_OSD
+#ifdef MPP_SUPPORT_HW_OSD
   MppEncOSDPlt palette;
   memcpy(palette.buf, yuv444_palette_table, 256 * sizeof(int));
   ret = mpp_enc.EncodeControl(MPP_ENC_SET_OSD_PLT_CFG, &palette);
@@ -393,7 +396,7 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
     vconfig.qp_max = values[2];
     vconfig.qp_step = values[3];
   }
-#if MPP_SUPPORT_HW_OSD
+#ifdef MPP_SUPPORT_HW_OSD
   else if (change & VideoEncoder::kOSDDataChange) {
     // type: OsdRegionData*
     LOGD("MPP Encoder: config osd regions\n");
