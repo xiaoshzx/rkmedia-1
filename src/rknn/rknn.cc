@@ -25,7 +25,7 @@ public:
   virtual ~RKNNFilter() = default;
   static const char *GetFilterName() { return "rknn"; }
   virtual int Process(std::shared_ptr<MediaBuffer> input,
-                      std::shared_ptr<MediaBuffer> output) override;
+                      std::shared_ptr<MediaBuffer> &output) override;
 
 private:
   rknn_context ctx;
@@ -221,7 +221,7 @@ static int __free_rknnoutputs(void *arg) {
 }
 
 int RKNNFilter::Process(std::shared_ptr<MediaBuffer> input,
-                        std::shared_ptr<MediaBuffer> output) {
+                        std::shared_ptr<MediaBuffer> &output) {
   if (!input || input->GetType() != Type::Image || !input->IsValid())
     return -EINVAL;
   if (!output)

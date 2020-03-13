@@ -21,7 +21,7 @@ public:
   virtual ~RgaFilter() = default;
   static const char *GetFilterName() { return "rkrga"; }
   virtual int Process(std::shared_ptr<MediaBuffer> input,
-                      std::shared_ptr<MediaBuffer> output) override;
+                      std::shared_ptr<MediaBuffer> &output) override;
 
   static RockchipRga gRkRga;
 
@@ -52,7 +52,7 @@ RgaFilter::RgaFilter(const char *param) : rotate(0) {
 }
 
 int RgaFilter::Process(std::shared_ptr<MediaBuffer> input,
-                       std::shared_ptr<MediaBuffer> output) {
+                       std::shared_ptr<MediaBuffer> &output) {
   if (vec_rect.size() < 2)
     return -EINVAL;
   if (!input || input->GetType() != Type::Image)
