@@ -16,7 +16,7 @@ DEFINE_PART_FINAL_EXPOSE_PRODUCT(Filter, Filter)
 Filter::~Filter() {}
 
 int Filter::Process(std::shared_ptr<MediaBuffer> input _UNUSED,
-                    std::shared_ptr<MediaBuffer> output _UNUSED) {
+                    std::shared_ptr<MediaBuffer> &output _UNUSED) {
   errno = ENOSYS;
   return -1;
 }
