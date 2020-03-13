@@ -12,16 +12,24 @@ aux_source_directory(. EASY_MEDIA_SOURCE_FILES)
 
 option(RKMPP "compile: rkmpp wrapper" OFF)
 if(RKMPP)
+  pkg_check_modules(ROCKCHIP_MPP REQUIRED rockchip_mpp)
   include_directories(rkmpp)
-  include_directories(${RKMPP_HEADER_DIR})
-  add_subdirectory(rkmpp)
-endif()
+  include_directories(${ROCKCHIP_MPP_INCLUDE_DIRS}/rockchip/)
+  set(EASY_MEDIA_DEPENDENT_LIBS
+    ${EASY_MEDIA_DEPENDENT_LIBS} ${ROCKCHIP_MPP_LIBRARIES})
 
-option(OSD_CAHES "compile: osd caches" ON)
-if(OSD_CAHES)
-  include_directories(rkmpp/osd_caches)
-  include_directories(${RKMPP_HEADER_DIR}/../freetype2)
-  set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} freetype)
+  if (RKMPP_ENCODER)
+    if (RKMPP_ENCODER_OSD)
+      add_definitions(-DMPP_SUPPORT_HW_OSD)
+      pkg_check_modules(FREETYPE REQUIRED freetype2)
+      include_directories(${FREETYPE_INCLUDE_DIRS}/rockchip/)
+      include_directories(rkmpp/osd_caches)
+      set(EASY_MEDIA_DEPENDENT_LIBS
+        ${EASY_MEDIA_DEPENDENT_LIBS} ${FREETYPE_LIBRARIES})
+    endif()
+  endif()
+
+  add_subdirectory(rkmpp)
 endif()
 
 option(OGG "compile: ogg" OFF)

@@ -7,10 +7,11 @@
 
 #include "encoder.h"
 #include "mpp_inc.h"
+#ifdef MPP_SUPPORT_HW_OSD
 #include "osd_caches/osd_producer.h"
+#endif
 
 #define  RK_MPP_VERSION_NEW 1
-#define  MPP_SUPPORT_HW_OSD 1
 
 namespace easymedia {
 
@@ -40,9 +41,11 @@ public:
   int get_statistics_bps();
   int get_statistics_fps();
 
+#ifdef MPP_SUPPORT_HW_OSD
   int OsdPaletteSet(uint32_t *ptl_data);
   int OsdRegionSet(OsdRegionData *region_data);
   int OsdRegionGet(OsdRegionData *region_data);
+#endif
 
 protected:
   MppCodingType coding_type;
@@ -79,6 +82,7 @@ private:
   int64_t last_ts;
   int64_t cur_ts;
 
+#ifdef MPP_SUPPORT_HW_OSD
   MppEncOSDData enc_osd_data;
   OsdRegionData region_data[OSD_REGIONS_CNT];
   ReadWriteLockMutex region_mutex;
@@ -100,6 +104,7 @@ private:
 
   void OsdAsyncUpdateRegions();
   void OsdSyncUpdateRegions();
+#endif // MPP_SUPPORT_HW_OSD
 
   friend class MPPMJPEGConfig;
   friend class MPPCommonConfig;
