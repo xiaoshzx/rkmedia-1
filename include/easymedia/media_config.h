@@ -104,6 +104,8 @@ _API std::string to_param_string(const MediaConfig &mc,
 _API int video_encoder_set_maxbps(
   std::shared_ptr<Flow> &enc_flow, unsigned int bpsmax);
 
+_API int video_encoder_force_idr(std::shared_ptr<Flow> &enc_flow);
+
 _API int video_encoder_set_fps(
   std::shared_ptr<Flow> &enc_flow, uint8_t num, uint8_t den);
 

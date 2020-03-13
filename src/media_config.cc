@@ -200,7 +200,17 @@ int video_encoder_set_maxbps(
   return 0;
 }
 
-_API int video_encoder_set_fps(
+int video_encoder_force_idr(std::shared_ptr<Flow> &enc_flow) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  enc_flow->Control(VideoEncoder::kForceIdrFrame, pbuff);
+
+  return 0;
+}
+
+int video_encoder_set_fps(
   std::shared_ptr<Flow> &enc_flow, uint8_t num, uint8_t den) {
   if (!enc_flow)
     return -EINVAL;
