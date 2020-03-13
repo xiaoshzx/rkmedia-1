@@ -21,11 +21,17 @@ if(ENCODER)
                                      ffmpeg/ffmpeg_vid_encoder.cc)
 endif()
 
+if(FILTER)
+  set(EASY_MEDIA_FFMPEG_SOURCE_FILES ${EASY_MEDIA_FFMPEG_SOURCE_FILES}
+                                     ffmpeg/ffmpeg_resample.cc)
+endif()
+
 set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
                             ${EASY_MEDIA_FFMPEG_SOURCE_FILES} PARENT_SCOPE)
 set(EASY_MEDIA_DEPENDENT_LIBS
     ${EASY_MEDIA_DEPENDENT_LIBS}
     avformat
     avcodec
+    swresample
     avutil
     PARENT_SCOPE)
