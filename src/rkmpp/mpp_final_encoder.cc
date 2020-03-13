@@ -370,6 +370,7 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
     }
     vconfig.bit_rate = new_bit_rate;
   } else if (change & VideoEncoder::kForceIdrFrame) {
+    LOGD("MPP Encoder: force idr frame...\n");
     if (mpp_enc.EncodeControl(MPP_ENC_SET_IDR_FRAME, nullptr) != 0) {
       LOG("encode_control MPP_ENC_SET_IDR_FRAME error!\n");
       return false;
