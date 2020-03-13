@@ -10,7 +10,9 @@
 #include "buffer.h"
 #include "media_type.h"
 
+#ifdef RK_MOVE_DETECTION
 #include "move_detection_flow.h"
+#endif
 
 namespace easymedia {
 
@@ -31,7 +33,9 @@ private:
   bool extra_output;
   bool extra_merge;
   std::list<std::shared_ptr<MediaBuffer>> extra_buffer_list;
+#ifdef RK_MOVE_DETECTION
   MoveDetectionFlow *md_flow;
+#endif //RK_MOVE_DETECTION
   friend bool encode(Flow *f, MediaBufferVector &input_vector);
 };
 
@@ -106,7 +110,11 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
 }
 
 VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
-    extra_merge(false), md_flow(nullptr) {
+    extra_merge(false)
+#ifdef  RK_MOVE_DETECTION
+, md_flow(nullptr)
+#endif
+{
   std::list<std::string> separate_list;
   std::map<std::string, std::string> params;
   if (!ParseWrapFlowParams(param, params, separate_list)) {
@@ -225,6 +233,8 @@ int VideoEncoderFlow::Control(unsigned long int request, ...) {
   auto value = va_arg(ap, std::shared_ptr<ParameterBuffer>);
   va_end(ap);
   assert(value);
+
+#ifdef RK_MOVE_DETECTION
   if (request == VideoEncoder::kMoveDetectionFlow) {
     if (value->GetSize() != sizeof(void **)) {
       LOG("ERROR: VEnc Flow: move detect config falied!\n");
@@ -234,6 +244,7 @@ int VideoEncoderFlow::Control(unsigned long int request, ...) {
     LOGD("[VEnc Flow]: md_flow:%p, flow name:%s\n",
       md_flow, md_flow->GetFlowName());
   } else
+#endif //RK_MOVE_DETECTION
     enc->RequestChange(request, value);
   return 0;
 }
