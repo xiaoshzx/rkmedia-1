@@ -15,16 +15,15 @@ set(EASY_MEDIA_FLOW_SOURCE_FILES
     flow/link_flow.cc
     flow/source_stream_flow.cc
     flow/muxer_flow.cc
-    flow/move_detection_flow.cc
     flow/output_stream_flow.cc)
+
+if(MOVE_DETECTION)
+set(EASY_MEDIA_FLOW_SOURCE_FILES ${EASY_MEDIA_FLOW_SOURCE_FILES}
+                                 flow/move_detection_flow.cc)
+endif()
 
 set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
                             ${EASY_MEDIA_FLOW_SOURCE_FILES} PARENT_SCOPE)
-
-set(EASY_MEDIA_DEPENDENT_LIBS
-    ${EASY_MEDIA_DEPENDENT_LIBS}
-    md_share
-    PARENT_SCOPE)
 
 option(FLOW_TEST "compile: flow wrapper test" ON)
 if(FLOW_TEST)
