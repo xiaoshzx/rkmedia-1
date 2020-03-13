@@ -265,6 +265,24 @@ int video_encoder_set_move_detection(std::shared_ptr<Flow> &enc_flow,
   return ret;
 }
 
+int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
+  EncROIRegion *regions, int region_cnt) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  int rsize = 0;
+  void *rdata = NULL;
+  if (regions && region_cnt) {
+    rsize = sizeof(EncROIRegion) * region_cnt;
+    rdata = (void *)malloc(rsize);
+    memcpy(rdata, (void *)regions, rsize);
+  }
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetPtr(rdata, rsize);
+  enc_flow->Control(VideoEncoder::kROICfgChange, pbuff);
+  return 0;
+}
+
 int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable) {
   if (!enc_flow)

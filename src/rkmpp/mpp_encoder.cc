@@ -30,6 +30,7 @@ MPPEncoder::MPPEncoder()
 #else
 {
 #endif
+  memset(&roi_cfg, 0, sizeof(roi_cfg));
 }
 
 MPPEncoder::~MPPEncoder() {
@@ -54,6 +55,11 @@ MPPEncoder::~MPPEncoder() {
     enc_osd_data.buf = NULL;
   }
 #endif
+  if (roi_cfg.regions) {
+    LOGD("MPP Encoder: free enc roi region buff\n");
+    free(roi_cfg.regions);
+    roi_cfg.regions = NULL;
+  }
 }
 
 void MPPEncoder::SetMppCodeingType(MppCodingType type) {
@@ -130,6 +136,12 @@ int MPPEncoder::PrepareMppFrame(const std::shared_ptr<MediaBuffer> &input,
     LOGD("MPP Encoder: set mdinfo(%p, %zuBytes) to frame\n",
       mdinfo->GetPtr(), mdinfo->GetValidSize());
     mpp_meta_set_ptr(meta, KEY_MV_LIST, mdinfo->GetPtr());
+  }
+
+  if (roi_cfg.number && roi_cfg.regions) {
+    LOGD("MPP Encoder: set roi cfg(cnt:%d,%p) to frame\n",
+      roi_cfg.number, roi_cfg.regions);
+    mpp_meta_set_ptr(meta, KEY_ROI_DATA, &roi_cfg);
   }
 
 #ifdef MPP_SUPPORT_HW_OSD
@@ -1002,7 +1014,56 @@ int MPPEncoder::OsdRegionGet(OsdRegionData *rdata) {
   LOG("ToDo...%p\n", rdata);
   return 0;
 }
-
 #endif // MPP_SUPPORT_HW_OSD
+
+int MPPEncoder::RoiUpdateRegions(EncROIRegion *regions, int region_cnt) {
+  if (!regions || region_cnt == 0) {
+    roi_cfg.number = 0;
+    if (roi_cfg.regions) {
+      free(roi_cfg.regions);
+      roi_cfg.regions = NULL;
+    }
+    LOGD("MPP Encoder: disable roi function.");
+    return 0;
+  }
+
+  int msize = region_cnt * sizeof(MppEncROIRegion);
+  MppEncROIRegion *region = (MppEncROIRegion *)malloc(msize);
+  if (!region) {
+    LOG_NO_MEMORY();
+    return -ENOMEM;
+  }
+
+  for (int i = 0; i < region_cnt; i++) {
+    if ((regions[i].x % 16) || (regions[i].y % 16) ||
+      (regions[i].w % 16) || (regions[i].h % 16)) {
+      LOG("WARN: MPP Encoder: region parameter should be an integer multiple of 16\n");
+      LOG("WARN: MPP Encoder: reset region[%d] frome <%d,%d,%d,%d> to <%d,%d,%d,%d>\n",
+        i, regions[i].x, regions[i].y, regions[i].w, regions[i].h,
+        UPALIGNTO16(regions[i].x), UPALIGNTO16(regions[i].y),
+        UPALIGNTO16(regions[i].w), UPALIGNTO16(regions[i].h));
+      regions[i].x = UPALIGNTO16(regions[i].x);
+      regions[i].y = UPALIGNTO16(regions[i].y);
+      regions[i].w = UPALIGNTO16(regions[i].w);
+      regions[i].h = UPALIGNTO16(regions[i].h);
+    }
+    LOGD("MPP Encoder: region[%d]:<%d,%d,%d,%d>\n",
+      i, regions[i].x, regions[i].y, regions[i].w, regions[i].h);
+    region[i].x = regions[i].x;
+    region[i].y = regions[i].y;
+    region[i].w = regions[i].w;
+    region[i].h = regions[i].h;
+    region[i].intra = regions[i].intra;
+    region[i].quality = regions[i].quality;
+    region[i].abs_qp_en = regions[i].abs_qp_en;
+    region[i].qp_area_idx = regions[i].qp_area_idx;
+    region[i].area_map_en = regions[i].area_map_en;
+  }
+  roi_cfg.number = region_cnt;
+  if (roi_cfg.regions)
+    free(roi_cfg.regions);
+  roi_cfg.regions = region;
+  return 0;
+}
 
 } // namespace easymedia

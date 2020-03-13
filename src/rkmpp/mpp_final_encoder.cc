@@ -395,6 +395,14 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
     vconfig.qp_min = values[1];
     vconfig.qp_max = values[2];
     vconfig.qp_step = values[3];
+  } else if (change & VideoEncoder::kROICfgChange) {
+    EncROIRegion *regions = (EncROIRegion *)val->GetPtr();
+    if (val->GetSize() && (val->GetSize() < sizeof(EncROIRegion))) {
+      LOG("ERROR: MPP Encoder: ParameterBuffer size is invalid!\n");
+      return false;
+    }
+    int region_cnt = val->GetSize() / sizeof(EncROIRegion);
+    mpp_enc.RoiUpdateRegions(regions, region_cnt);
   }
 #ifdef MPP_SUPPORT_HW_OSD
   else if (change & VideoEncoder::kOSDDataChange) {

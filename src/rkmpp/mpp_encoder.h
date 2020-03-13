@@ -47,6 +47,9 @@ public:
   int OsdRegionGet(OsdRegionData *region_data);
 #endif
 
+  // for updating roi regions config.
+  int RoiUpdateRegions(EncROIRegion *regions, int region_cnt);
+
 protected:
   MppCodingType coding_type;
   uint32_t output_mb_flags;
@@ -105,6 +108,9 @@ private:
   void OsdAsyncUpdateRegions();
   void OsdSyncUpdateRegions();
 #endif // MPP_SUPPORT_HW_OSD
+
+  // for roi regions config.
+  MppEncROICfg roi_cfg;
 
   friend class MPPMJPEGConfig;
   friend class MPPCommonConfig;

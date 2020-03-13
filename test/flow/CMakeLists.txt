@@ -108,6 +108,16 @@ if(RKMPP_ENCODER)
   install(TARGETS video_encoder_bps_test RUNTIME DESTINATION "bin")
 
 #--------------------------
+# video_encoder_roi_test
+#--------------------------
+  set(VIDEO_ENCODER_ROI_TEST_SRC_FILES video_encoder_roi_test.cc)
+  add_executable(video_encoder_roi_test ${VIDEO_ENCODER_ROI_TEST_SRC_FILES})
+  target_link_libraries(video_encoder_roi_test easymedia)
+  target_include_directories(video_encoder_roi_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_compile_features(video_encoder_roi_test PRIVATE cxx_std_11)
+  install(TARGETS video_encoder_roi_test RUNTIME DESTINATION "bin")
+
+#--------------------------
 # video_encoder_osd_test
 #--------------------------
 if(RKMPP_ENCODER_OSD)
