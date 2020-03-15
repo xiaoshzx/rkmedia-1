@@ -98,8 +98,8 @@ FilterFlow::FilterFlow(const char *param)
       }
     }
   } else {
-    LOG_TODO();
-    SetError(-EINVAL);
+    // support async mode (one input, multi output)
+    support_async = true;
     return;
   }
 }

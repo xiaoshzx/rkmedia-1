@@ -23,7 +23,8 @@ endif()
 
 if(FILTER)
   set(EASY_MEDIA_FFMPEG_SOURCE_FILES ${EASY_MEDIA_FFMPEG_SOURCE_FILES}
-                                     ffmpeg/ffmpeg_resample.cc)
+                                     ffmpeg/ffmpeg_resample.cc
+                                     ffmpeg/ffmpeg_audio_fifo.cc)
 endif()
 
 set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
