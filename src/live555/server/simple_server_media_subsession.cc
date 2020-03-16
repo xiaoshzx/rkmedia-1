@@ -31,8 +31,13 @@ SIMPLEServerMediaSubsession::~SIMPLEServerMediaSubsession() {
 }
 
 FramedSource *
-SIMPLEServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/,
+SIMPLEServerMediaSubsession::createNewStreamSource(unsigned clientSessionId,
                                                    unsigned &estBitrate) {
+  LOG_FILE_FUNC_LINE();
+  if (!fSDPLines && clientSessionId != 0) {
+    LOG("%s:%s:%d --- you must get sdp first.\n", __FILE__, __func__, __LINE__);
+    return NULL;
+  }
   estBitrate = (fbitrate + 500) / 1000; // kbps
   return fMediaInput.audioSource();
 }

@@ -46,8 +46,13 @@ AACServerMediaSubsession::AACServerMediaSubsession(
 AACServerMediaSubsession::~AACServerMediaSubsession() { LOG_FILE_FUNC_LINE(); }
 
 FramedSource *
-AACServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/,
+AACServerMediaSubsession::createNewStreamSource(unsigned clientSessionId,
                                                 unsigned &estBitrate) {
+  LOG_FILE_FUNC_LINE();
+  if (!fSDPLines && clientSessionId != 0) {
+    LOG("%s:%s:%d --- you must get sdp first.\n", __FILE__, __func__, __LINE__);
+    return NULL;
+  }
   estBitrate = 96; // kbps, estimate
   return fMediaInput.audioSource();
 }

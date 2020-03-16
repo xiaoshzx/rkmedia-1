@@ -121,6 +121,7 @@ H264ServerMediaSubsession::getAuxSDPLine(RTPSink *rtpSink,
 char const *H264ServerMediaSubsession::sdpLines() {
   // if (!fSDPLines)
   //  sdpState = INITIAL;
+  LOG_FILE_FUNC_LINE();
   char const *ret = OnDemandServerMediaSubsession::sdpLines();
   if (sdpState == GET_SDP_LINES_TIMEOUT) {
     if (fSDPLines) {
@@ -132,9 +133,13 @@ char const *H264ServerMediaSubsession::sdpLines() {
   return ret;
 }
 
-FramedSource *
-H264ServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/,
-                                                 unsigned &estBitrate) {
+FramedSource *H264ServerMediaSubsession::createNewStreamSource(
+    unsigned clientSessionId /*clientSessionId*/, unsigned &estBitrate) {
+  LOG("%s - clientSessionId: 0x%08x\n", __func__, clientSessionId);
+  if (clientSessionId != 0 && sdpState != GOT_SDP_LINES) {
+    LOG("you must get sdp first.\n");
+    return NULL;
+  }
   estBitrate = fEstimatedKbps;
   if (sdpState == GETTING_SDP_LINES || sdpState == GET_SDP_LINES_TIMEOUT) {
     LOG("sdpline is not ready, can not create new stream source\n");

@@ -180,19 +180,21 @@ Boolean Live555MediaInput::initVideo(UsageEnvironment &env _UNUSED) {
 void Live555MediaInput::PushNewVideo(std::shared_ptr<MediaBuffer> &buffer) {
   if (!buffer)
     return;
-  if (connecting || (buffer->GetUserFlag() & MediaBuffer::kExtraIntra))
+  if ((connecting && video_source != nullptr) ||
+      (buffer->GetUserFlag() & MediaBuffer::kExtraIntra))
     vs->Push(buffer);
 }
 
 void Live555MediaInput::PushNewAudio(std::shared_ptr<MediaBuffer> &buffer) {
   if (!buffer)
     return;
-  if (connecting)
+  if (connecting && audio_source != nullptr)
     as->Push(buffer);
 }
 
 Live555MediaInput::Source::Source() : reduction(nullptr) {
   wakeFds[0] = wakeFds[1] = -1;
+  LOG("Source :: %p.\n", this);
 }
 
 Live555MediaInput::Source::~Source() {
@@ -204,7 +206,8 @@ Live555MediaInput::Source::~Source() {
     ::close(wakeFds[1]);
     wakeFds[1] = -1;
   }
-  LOG("remain %d buffers, will auto release\n", (int)cached_buffers.size());
+  LOG("~Source::%p remain %d buffers, will auto release\n", this,
+      (int)cached_buffers.size());
 }
 
 bool Live555MediaInput::Source::Init(ListReductionPtr func) {
@@ -353,7 +356,10 @@ AudioFramedSource::AudioFramedSource(UsageEnvironment &env,
   fReadFd = input.as->GetReadFd();
 }
 
-AudioFramedSource::~AudioFramedSource() { fInput.audio_source = NULL; }
+AudioFramedSource::~AudioFramedSource() {
+  LOG_FILE_FUNC_LINE();
+  fInput.audio_source = NULL;
+}
 
 bool AudioFramedSource::readFromList(bool flush _UNUSED) {
 #ifdef DEBUG_SEND
