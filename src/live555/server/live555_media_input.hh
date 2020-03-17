@@ -5,6 +5,7 @@
 #ifndef EASYMEDIA_LIVE555_MEDIA_INPUT_HH_
 #define EASYMEDIA_LIVE555_MEDIA_INPUT_HH_
 
+#include <functional>
 #include <list>
 #include <memory>
 #include <type_traits>
@@ -12,7 +13,6 @@
 #include <liveMedia/MediaSink.hh>
 
 #include "lock.h"
-
 namespace easymedia {
 
 class MediaBuffer;
@@ -20,6 +20,10 @@ class VideoFramedSource;
 class AudioFramedSource;
 using ListReductionPtr = std::add_pointer<void(
     std::list<std::shared_ptr<MediaBuffer>> &mb_list)>::type;
+
+// using StartStreamCallback = std::add_pointer<void(void)>::type;
+typedef std::function<void()> StartStreamCallback;
+
 class Live555MediaInput : public Medium {
 public:
   static Live555MediaInput *createNew(UsageEnvironment &env);
@@ -30,6 +34,11 @@ public:
 
   void PushNewVideo(std::shared_ptr<MediaBuffer> &buffer);
   void PushNewAudio(std::shared_ptr<MediaBuffer> &buffer);
+
+  void SetStartVideoStreamCallback(const StartStreamCallback &cb);
+  StartStreamCallback GetStartVideoStreamCallback();
+  void SetStartAudioStreamCallback(const StartStreamCallback &cb);
+  StartStreamCallback GetStartAudioStreamCallback();
 
 protected:
   virtual ~Live555MediaInput();
@@ -62,6 +71,11 @@ private:
   VideoFramedSource *video_source;
   AudioFramedSource *audio_source;
 
+  StartStreamCallback video_callback;
+  StartStreamCallback audio_callback;
+
+  ConditionLockMutex video_callback_mtx;
+  ConditionLockMutex audio_callback_mtx;
   friend class VideoFramedSource;
   friend class AudioFramedSource;
 };

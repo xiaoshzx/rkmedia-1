@@ -40,6 +40,9 @@ void H264ServerMediaSubsession::startStream(
       rtpSeqNum, rtpTimestamp, serverRequestAlternativeByteHandler,
       serverRequestAlternativeByteHandlerClientData);
   // kMutex.lock();
+  if (fMediaInput.GetStartVideoStreamCallback() != NULL) {
+    fMediaInput.GetStartVideoStreamCallback()();
+  }
   if (kSessionIdList.empty())
     fMediaInput.Start(envir());
   LOG("%s - clientSessionId: 0x%08x\n", __func__, clientSessionId);

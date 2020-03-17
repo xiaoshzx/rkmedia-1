@@ -35,6 +35,9 @@ void MJPEGServerMediaSubsession::startStream(
       serverRequestAlternativeByteHandlerClientData);
   if (kSessionIdList.empty())
     fMediaInput.Start(envir());
+  if (fMediaInput.GetStartVideoStreamCallback() != NULL) {
+    fMediaInput.GetStartVideoStreamCallback()();
+  }
   LOG("%s - clientSessionId: 0x%08x\n", __func__, clientSessionId);
   kSessionIdList.push_back(clientSessionId);
 }

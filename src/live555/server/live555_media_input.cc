@@ -61,7 +61,7 @@ protected: // redefined virtual functions:
 
 Live555MediaInput::Live555MediaInput(UsageEnvironment &env)
     : Medium(env), connecting(false), video_source(nullptr),
-      audio_source(nullptr) {}
+      audio_source(nullptr), video_callback(nullptr), audio_callback(nullptr) {}
 
 Live555MediaInput::~Live555MediaInput() {
   LOG_FILE_FUNC_LINE();
@@ -190,6 +190,25 @@ void Live555MediaInput::PushNewAudio(std::shared_ptr<MediaBuffer> &buffer) {
     return;
   if (connecting && audio_source != nullptr)
     as->Push(buffer);
+}
+
+void Live555MediaInput::SetStartVideoStreamCallback(
+    const StartStreamCallback &cb) {
+  AutoLockMutex _alm(video_callback_mtx);
+  video_callback = cb;
+}
+StartStreamCallback Live555MediaInput::GetStartVideoStreamCallback() {
+  AutoLockMutex _alm(video_callback_mtx);
+  return video_callback;
+}
+void Live555MediaInput::SetStartAudioStreamCallback(
+    const StartStreamCallback &cb) {
+  AutoLockMutex _alm(audio_callback_mtx);
+  audio_callback = cb;
+}
+StartStreamCallback Live555MediaInput::GetStartAudioStreamCallback() {
+  AutoLockMutex _alm(audio_callback_mtx);
+  return audio_callback;
 }
 
 Live555MediaInput::Source::Source() : reduction(nullptr) {

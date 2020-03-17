@@ -47,6 +47,19 @@ static void print_usage(char *name) {
   printf("#[-a] support list:\n\tAAC\n\tG711U\n\tG711A\n");
 }
 
+std::shared_ptr<easymedia::Flow> video_enc_flow = nullptr;
+std::shared_ptr<easymedia::Flow> video_enc_flow_1 = nullptr;
+
+static void testStartStreamCallback(easymedia::Flow *f) {
+  LOG("%s:%s: force all video_enc send I frame, Flow *f = %p.\n", __FILE__,
+      __func__, f);
+  auto value = std::make_shared<easymedia::ParameterBuffer>(0);
+  if (video_enc_flow)
+    video_enc_flow->Control(easymedia::VideoEncoder::kForceIdrFrame, value);
+  if (video_enc_flow_1)
+    video_enc_flow_1->Control(easymedia::VideoEncoder::kForceIdrFrame, value);
+}
+
 std::shared_ptr<easymedia::Flow> create_live555_rtsp_server_flow(
     std::string channel_name, std::string media_type,
     unsigned fSamplingFrequency = 0, unsigned fNumChannels = 0,
@@ -73,6 +86,7 @@ std::shared_ptr<easymedia::Flow> create_live555_rtsp_server_flow(
     fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
     // exit(EXIT_FAILURE);
   }
+  rtsp_flow->SetPlayVideoHandler(testStartStreamCallback);
   return rtsp_flow;
 }
 std::shared_ptr<easymedia::Flow>
@@ -502,10 +516,10 @@ int main(int argc, char **argv) {
 
   // stream 1
   std::shared_ptr<easymedia::Flow> video_read_flow;
-  std::shared_ptr<easymedia::Flow> video_enc_flow;
+  // std::shared_ptr<easymedia::Flow> video_enc_flow;
 
   std::shared_ptr<easymedia::Flow> video_read_flow_1;
-  std::shared_ptr<easymedia::Flow> video_enc_flow_1;
+  // std::shared_ptr<easymedia::Flow> video_enc_flow_1;
 
   std::shared_ptr<easymedia::Flow> audio_enc_flow;
   std::shared_ptr<easymedia::Flow> audio_source_flow;

@@ -6,8 +6,8 @@
 #define EASYMEDIA_FLOW_H_
 
 #include "lock.h"
-#include "reflector.h"
 #include "message.h"
+#include "reflector.h"
 
 #include <stdarg.h>
 
@@ -43,12 +43,17 @@ using FunctionProcess =
     std::add_pointer<bool(Flow *f, MediaBufferVector &input_vector)>::type;
 template <int in_index, int out_index>
 bool void_transaction(Flow *f, MediaBufferVector &input_vector);
-using LinkVideoHandler = std::add_pointer<void(unsigned char *buffer,
-    unsigned int buffer_size, unsigned int present_time, int nat_type)>::type;
-using LinkAudioHandler = std::add_pointer<void(unsigned char *buffer,
-    unsigned int buffer_size, unsigned int present_time)>::type;
-using LinkCaptureHandler = std::add_pointer<void(unsigned char *buffer,
-    unsigned int buffer_size, int type, const char* id)>::type;
+using LinkVideoHandler =
+    std::add_pointer<void(unsigned char *buffer, unsigned int buffer_size,
+                          unsigned int present_time, int nat_type)>::type;
+using LinkAudioHandler =
+    std::add_pointer<void(unsigned char *buffer, unsigned int buffer_size,
+                          unsigned int present_time)>::type;
+using LinkCaptureHandler =
+    std::add_pointer<void(unsigned char *buffer, unsigned int buffer_size,
+                          int type, const char *id)>::type;
+using PlayVideoHandler = std::add_pointer<void(Flow *f)>::type;
+using PlayAudioHandler = std::add_pointer<void(Flow *f)>::type;
 
 class _API SlotMap {
 public:
@@ -93,8 +98,8 @@ public:
     return Control(S_SUB_REQUEST, &subreq);
   }
 
-  //get input size for this flow
-  virtual int GetInputSize() {return 0;}
+  // get input size for this flow
+  virtual int GetInputSize() { return 0; }
 
   // The global event hander is the same thread to the born thread of this
   // object.
@@ -106,13 +111,28 @@ public:
   MessagePtr GetEventMessage();
   EventParamPtr GetEventParam(MessagePtr msg);
 
-  //Add Link hander For app Link
-  void SetVideoHandler(LinkVideoHandler hander){link_video_handler_ = hander; }
-  LinkVideoHandler GetVideoHandler(){ return link_video_handler_; }
-  void SetAudioHandler(LinkAudioHandler hander){link_audio_handler_ = hander; }
-  LinkAudioHandler GetAudioHandler(){ return link_audio_handler_; }
-  void SetCaptureHandler(LinkCaptureHandler hander){link_capture_handler_ = hander; }
-  LinkCaptureHandler GetCaptureHandler(){ return link_capture_handler_; }
+  // Add Link hander For app Link
+  void SetVideoHandler(LinkVideoHandler hander) {
+    link_video_handler_ = hander;
+  }
+  LinkVideoHandler GetVideoHandler() { return link_video_handler_; }
+  void SetAudioHandler(LinkAudioHandler hander) {
+    link_audio_handler_ = hander;
+  }
+  LinkAudioHandler GetAudioHandler() { return link_audio_handler_; }
+  void SetCaptureHandler(LinkCaptureHandler hander) {
+    link_capture_handler_ = hander;
+  }
+  LinkCaptureHandler GetCaptureHandler() { return link_capture_handler_; }
+
+  void SetPlayVideoHandler(PlayVideoHandler handler) {
+    play_video_handler_ = handler;
+  }
+  PlayVideoHandler GetPlayVideoHandler() { return play_video_handler_; }
+  void SetPlayAudioHandler(PlayAudioHandler handler) {
+    play_audio_handler_ = handler;
+  }
+  PlayAudioHandler GetPlayAudioHandler() { return play_audio_handler_; }
 
   bool IsAllBuffEmpty();
 
@@ -224,6 +244,8 @@ private:
   LinkAudioHandler link_audio_handler_;
   LinkCaptureHandler link_capture_handler_;
 
+  PlayVideoHandler play_video_handler_;
+  PlayAudioHandler play_audio_handler_;
   DEFINE_ERR_GETSET()
   DECLARE_PART_FINAL_EXPOSE_PRODUCT(Flow)
 };
