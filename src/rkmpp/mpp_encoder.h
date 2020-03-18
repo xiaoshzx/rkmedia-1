@@ -7,9 +7,6 @@
 
 #include "encoder.h"
 #include "mpp_inc.h"
-#ifdef MPP_SUPPORT_HW_OSD
-#include "osd_caches/osd_producer.h"
-#endif
 
 #define  RK_MPP_VERSION_NEW 1
 
@@ -86,27 +83,7 @@ private:
   int64_t cur_ts;
 
 #ifdef MPP_SUPPORT_HW_OSD
-  MppEncOSDData enc_osd_data;
-  OsdRegionData region_data[OSD_REGIONS_CNT];
-  ReadWriteLockMutex region_mutex;
-
-  // osd_data[2] for ping pong.
-  MppEncOSDData osd_data[2];
-  ReadWriteLockMutex osd_mutex[2];
-  // 0x00: none is valid;
-  // 0x01: osd_data[0] is valid;
-  // 0x02: osd_data[1] is valid;
-  uint8_t osd_mask;
-  // 0x00: none need refresh;
-  // 0x01: osd_data[0] need refresh;
-  // 0x02: osd_data[1] need refresh;
-  // 0x03: osd_data[0] and osd_data[1] need refresh;
-  uint8_t osd_refresh_mask;
-  std::thread *osd_thread;
-  bool osd_thread_loop;
-
-  void OsdAsyncUpdateRegions();
-  void OsdSyncUpdateRegions();
+  MppEncOSDData osd_data;
 #endif // MPP_SUPPORT_HW_OSD
 
   // for roi regions config.

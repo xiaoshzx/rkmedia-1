@@ -30,7 +30,7 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
-static char optstr[] = "?:i:o:w:h:f:t:";
+static char optstr[] = "?:i:o:w:h:f:t:m:";
 
 static void print_usage(char *name) {
   printf("usage example: \n");
@@ -38,6 +38,8 @@ static void print_usage(char *name) {
          "-f nv12 -t h265\n", name);
   printf("#[-t] support list:\n\th264\n\th265\n\tjpeg\n");
   printf("#[-f] support list:\n\tyuyv422\n\tnv12\n");
+  printf("#[-m] support list:\n");
+  printf("\t0:8 static squares\n\t1:Random square\n");
 }
 
 int main(int argc, char **argv) {
@@ -49,6 +51,7 @@ int main(int argc, char **argv) {
   int video_fps = 30;
   unsigned int bpsmax = video_width * video_height;
   std::string video_enc_type = VIDEO_H264;
+  int test_mode = 0;
 
   std::string output_path;
   std::string input_path;
@@ -89,6 +92,10 @@ int main(int argc, char **argv) {
       video_enc_type = optarg;
       printf("#IN ARGS: video_enc_type: %s\n", video_enc_type.c_str());
       break;
+    case 'm':
+      test_mode = atoi(optarg);
+      printf("#IN ARGS: test_mode: %d\n", test_mode);
+      break;
     case '?':
     default:
       print_usage(argv[0]);
@@ -113,8 +120,6 @@ int main(int argc, char **argv) {
   //add prefix for encoder type
   if ((video_enc_type =="h264") || (video_enc_type == "h265"))
     video_enc_type = "video:" + video_enc_type;
-  else if (video_enc_type == "jpeg")
-    video_enc_type = "image:" + video_enc_type;
   else {
     printf("ERROR: encoder type:%s not support!\n", video_enc_type.c_str());
     print_usage(argv[0]);
@@ -231,8 +236,7 @@ int main(int argc, char **argv) {
     // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
     vid_cfg.rc_quality = KEY_MEDIUM;
     vid_cfg.rc_mode = KEY_CBR;
-  } else if (video_enc_type == IMAGE_JPEG)
-    img_cfg.qp_init = 10;
+  }
 
   enc_param = "";
   enc_param.append(easymedia::to_param_string(enc_config, video_enc_type));
@@ -257,7 +261,6 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-#if 0
   //easymedia::video_encoder_enable_statistics(video_encoder_flow, 1);
 #define MPP_ENC_OSD_PLT_WHITE           (uint32_t)((255<<24)|(128<<16)|(128<<8)|235)
 #define MPP_ENC_OSD_PLT_YELLOW          (uint32_t)((255<<24)|(146<<16)|( 16<<8 )|210)
@@ -283,71 +286,94 @@ int main(int argc, char **argv) {
     corlor_plt[i] = plt_ori[i%8];
   }
   video_encoder_set_osd_plt(video_encoder_flow, corlor_plt);
-#endif
-
-  OsdRegionData region_data;
-  memset(&region_data, 0, sizeof(region_data));
-  region_data.enable = 1;
-  region_data.region_id = 1;
-  region_data.inverse = 0;
-  region_data.offset_x = 0;
-  region_data.offset_y = 0;
-  region_data.width = 480;
-  region_data.height = 32;
-  sprintf(region_data.str, "%s", "YYYY-MM-DD WEEKCN TIME24");
-  region_data.str_corlor = 0xFF0000;
-  region_data.is_ts = 1;
-  video_encoder_set_osd_region(video_encoder_flow, &region_data);
-
-  memset(&region_data, 0, sizeof(region_data));
-  region_data.enable = 1;
-  region_data.region_id = 2;
-  region_data.inverse = 0;
-  region_data.offset_x = 0;
-  region_data.offset_y = 64;
-  region_data.width = 480;
-  region_data.height = 32;
-  sprintf(region_data.str, "%s", "CHR YYYY/MM/DD WEEK TIME12");
-  region_data.str_corlor = 0xFFF000;
-  region_data.is_ts = 1;
-  video_encoder_set_osd_region(video_encoder_flow, &region_data);
-
-  memset(&region_data, 0, sizeof(region_data));
-  region_data.enable = 1;
-  region_data.region_id = 3;
-  region_data.inverse = 0;
-  region_data.offset_x = 8*16;
-  region_data.offset_y = 96;
-  region_data.width = 12*16;
-  region_data.height = 32;
-  sprintf(region_data.str, "%s", "Hello RV1109");
-  region_data.str_corlor = 0x0FF000;
-  video_encoder_set_osd_region(video_encoder_flow, &region_data);
-
-  memset(&region_data, 0, sizeof(region_data));
-  region_data.enable = 1;
-  region_data.region_id = 4;
-  region_data.offset_x = 0;
-  region_data.offset_y = 96;
-  region_data.width = 16;
-  region_data.height = 32;
-  sprintf(region_data.path, "%s", "/tmp/osd_test.bmp");
-  video_encoder_set_osd_region(video_encoder_flow, &region_data);
 
   video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);
   video_read_flow->AddDownFlow(video_encoder_flow, 0, 0);
 
-  LOG("%s initial finish\n", argv[0]);
-
-  while(!quit) {
-    easymedia::msleep(100);
+  uint8_t *buffer = (uint8_t *)malloc(video_width * video_width * 2);
+  if (!buffer) {
+    printf("ERROR: %s no space left.\n", argv[0]);
+    return -1;
   }
 
+  if (!test_mode) {
+    int last_width = 0;
+    int last_height = 0;
+    for (int i = 1; i <= OSD_REGIONS_CNT; i++) {
+      OsdRegionData region_data;
+      memset(&region_data, 0, sizeof(region_data));
+      region_data.enable = 1;
+      region_data.region_id = i;
+      region_data.inverse = i % 2;
+      region_data.pos_x = UPALIGNTO16(last_width / 4);
+      region_data.pos_y = UPALIGNTO16(last_height / 4);
+#if 0
+      region_data.width = UPALIGNTO16(video_width * (i + 1) / 7);
+      region_data.height = UPALIGNTO16(video_height * (i + 1) / 7);
+#else
+      region_data.width = video_height / 8 / 16 * 16;
+      region_data.height = video_height / 8 / 16 * 16;
+#endif
+      last_width = region_data.width;
+      last_height = region_data.height;
+
+      printf("#Set osd region[%d]: (x,y)=(%d, %d), (w,h)=(%d, %d)\n",
+        i, region_data.pos_x, region_data.pos_y,
+        region_data.width, region_data.height);
+
+      region_data.buffer = buffer;
+      memset(buffer, i-1, region_data.width * region_data.height);
+      easymedia::video_encoder_set_osd_region(video_encoder_flow, &region_data);
+    }
+  }
+
+  int region_id = 1;
+  int cnt = 0;
+  int rand_den = video_width / 10;
+
+  while(!quit) {
+    if (test_mode) {
+    srand((unsigned)time(NULL));
+      int rand_value = rand() % rand_den;
+      OsdRegionData region_data;
+      memset(&region_data, 0, sizeof(region_data));
+      region_data.enable = rand_value % 2;
+      region_data.region_id = region_id;
+      region_data.inverse = rand_value % 3;
+      region_data.pos_x = rand_value;
+      region_data.pos_y = rand_value;
+      if (rand_value < 16) {
+        region_data.width = 16;
+        region_data.height = 16;
+      } else {
+        region_data.width = rand_value / 16 * 16;
+        region_data.height = region_data.width;
+      }
+      region_data.buffer = buffer;
+      memset(buffer, region_id - 1, region_data.width * region_data.height);
+      printf("#%2d region[%d]: x,y:%d,%d w,h:%d,%d\n",
+        cnt++, region_id, region_data.pos_x, region_data.pos_y,
+        region_data.width, region_data.height);
+      easymedia::video_encoder_set_osd_region(video_encoder_flow, &region_data);
+
+      region_id++;
+      if (region_id > OSD_REGIONS_CNT) {
+        region_id = 1;
+        rand_den += (video_width / 10);
+        if (rand_den > video_width)
+          rand_den = video_width / 10;
+      }
+    }
+    easymedia::msleep(500);
+  }
+
+  free(buffer);
   video_read_flow->RemoveDownFlow(video_encoder_flow);
   video_read_flow.reset();
   video_encoder_flow->RemoveDownFlow(video_save_flow);
   video_encoder_flow.reset();
   video_save_flow.reset();
+  printf("#%s exit!\n", __func__);
 
   return 0;
 }

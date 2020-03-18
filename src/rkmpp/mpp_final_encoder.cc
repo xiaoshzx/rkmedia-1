@@ -9,10 +9,6 @@
 #include "media_type.h"
 #include "mpp_encoder.h"
 
-#ifdef MPP_SUPPORT_HW_OSD
-#include "osd_caches/color_table.h"
-#endif
-
 namespace easymedia {
 
 class MPPConfig {
@@ -316,16 +312,6 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
     mpp_enc.GetExtraData()->SetUserFlag(MediaBuffer::kExtraIntra);
     packet = NULL;
   }
-
-#ifdef MPP_SUPPORT_HW_OSD
-  MppEncOSDPlt palette;
-  memcpy(palette.buf, yuv444_palette_table, 256 * sizeof(int));
-  ret = mpp_enc.EncodeControl(MPP_ENC_SET_OSD_PLT_CFG, &palette);
-  if (ret) {
-    LOG("encode_control set osd plt cfg failed\n");
-    return false;
-  }
-#endif
 
   mpp_enc.GetConfig().vid_cfg = vconfig;
   mpp_enc.GetConfig().type = Type::Video;

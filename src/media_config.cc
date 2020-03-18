@@ -252,11 +252,21 @@ int video_encoder_set_osd_region(
   if (!enc_flow || !region_data)
     return -EINVAL;
 
-  void *rdata = (void *)malloc(sizeof(OsdRegionData));
-  memcpy(rdata, (void *)region_data, sizeof(OsdRegionData));
+  if (region_data->enable &&
+    ((region_data->width % 16) || (region_data->height % 16))) {
+    LOG("ERROR: osd region size must be a multiple of 16x16.");
+    return -EINVAL;
+  }
+
+  int buffer_size = region_data->width * region_data->height;
+  OsdRegionData *rdata =
+    (OsdRegionData *)malloc(sizeof(OsdRegionData) + buffer_size);
+  memcpy((void *)rdata, (void *)region_data, sizeof(OsdRegionData));
+  rdata->buffer = (uint8_t *)rdata + sizeof(OsdRegionData);
+  memcpy(rdata->buffer, region_data->buffer, buffer_size);
 
   auto pbuff = std::make_shared<ParameterBuffer>(0);
-  pbuff->SetPtr(rdata, sizeof(OsdRegionData));
+  pbuff->SetPtr(rdata, sizeof(OsdRegionData) + buffer_size);
   enc_flow->Control(VideoEncoder::kOSDDataChange, pbuff);
 
   return 0;

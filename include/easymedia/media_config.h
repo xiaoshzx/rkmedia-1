@@ -63,17 +63,14 @@ typedef struct {
 #define OSD_REGIONS_CNT 8
 
 typedef struct  {
-  char path[128]; //bmp file path.
-  char str[128]; //The string to be superimposed.
+  uint8_t *buffer; //Content: ID of palette
+  uint32_t pos_x;
+  uint32_t pos_y;
   uint32_t width;
   uint32_t height;
-  uint32_t offset_x;
-  uint32_t offset_y;
-  uint32_t str_corlor;
   uint32_t inverse;
-  uint32_t is_ts; // is timestamp?
   uint32_t region_id; // max = 8.
-  uint32_t enable;
+  uint8_t enable;
 } OsdRegionData;
 
 typedef struct  {
