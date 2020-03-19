@@ -22,11 +22,6 @@ if(RKMPP)
   if (RKMPP_ENCODER)
     if (RKMPP_ENCODER_OSD)
       add_definitions(-DMPP_SUPPORT_HW_OSD)
-      pkg_check_modules(FREETYPE REQUIRED freetype2)
-      include_directories(${FREETYPE_INCLUDE_DIRS}/rockchip/)
-      include_directories(rkmpp/osd_caches)
-      set(EASY_MEDIA_DEPENDENT_LIBS
-        ${EASY_MEDIA_DEPENDENT_LIBS} ${FREETYPE_LIBRARIES})
     endif()
   endif()
 
