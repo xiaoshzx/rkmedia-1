@@ -23,7 +23,6 @@ using ListReductionPtr = std::add_pointer<void(
 class Live555MediaInput : public Medium {
 public:
   static Live555MediaInput *createNew(UsageEnvironment &env);
-  virtual ~Live555MediaInput();
   FramedSource *videoSource();
   FramedSource *audioSource();
   void Start(UsageEnvironment &env);
@@ -31,6 +30,9 @@ public:
 
   void PushNewVideo(std::shared_ptr<MediaBuffer> &buffer);
   void PushNewAudio(std::shared_ptr<MediaBuffer> &buffer);
+
+protected:
+  virtual ~Live555MediaInput();
 
 private:
   Live555MediaInput(UsageEnvironment &env);

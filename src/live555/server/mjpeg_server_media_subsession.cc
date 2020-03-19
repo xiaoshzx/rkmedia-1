@@ -48,10 +48,14 @@ void MJPEGServerMediaSubsession::deleteStream(unsigned clientSessionId,
 }
 
 FramedSource *
-MJPEGServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/,
+MJPEGServerMediaSubsession::createNewStreamSource(unsigned clientSessionId,
                                                   unsigned &estBitrate) {
   estBitrate = fEstimatedKbps;
   LOG_FILE_FUNC_LINE();
+  if (!fSDPLines && clientSessionId != 0) {
+    LOG("%s:%s:%d --- you must get sdp first.\n", __FILE__, __func__, __LINE__);
+    return NULL;
+  }
   // Create a framer for the Video Elementary Stream:
   FramedSource *source =
       MJPEGVideoSource::createNew(envir(), fMediaInput.videoSource());

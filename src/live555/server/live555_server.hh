@@ -70,8 +70,40 @@ private:
   int msg_fd[2];
   std::map<std::string, Live555MediaInput *> input_map;
   ConditionLockMutex mtx;
+  std::mutex lock_msg;
   volatile bool flag;
 };
+
+class RKServerMediaSession : public ServerMediaSession {
+public:
+  static RKServerMediaSession *createNew(UsageEnvironment &env,
+                                         char const *streamName,
+                                         Live555MediaInput *server_input) {
+
+    time_t t;
+    t = time(&t);
+    return new RKServerMediaSession(env, streamName, ctime(&t),
+                                    "rtsp stream server", False, NULL,
+                                    server_input);
+  }
+
+protected:
+  RKServerMediaSession(UsageEnvironment &env, char const *streamName,
+                       char const *info, char const *description, Boolean isSSM,
+                       char const *miscSDPLines,
+                       Live555MediaInput *server_input)
+      : ServerMediaSession(env, streamName, info, description, isSSM,
+                           miscSDPLines),
+        m_server_input(server_input) {}
+  virtual ~RKServerMediaSession() {
+    LOG_FILE_FUNC_LINE();
+    Medium::close(m_server_input);
+  };
+
+private:
+  Live555MediaInput *m_server_input;
+};
+
 } // namespace easymedia
 
 #endif // #ifndef EASYMEDIA_LIVE555_SERVER_HH_

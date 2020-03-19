@@ -150,22 +150,29 @@ void RtspConnection::incomingMsgHandler1() {
   }
 
   LOG("%s: before mtx.notify\n", __func__);
+  mtx.lock();
   flag = false;
   mtx.notify();
+  mtx.unlock();
   LOG("%s: after mtx.notify\n", __func__);
 }
 
 void RtspConnection::addSession(struct message msg) {
   // 1. server_input
   Live555MediaInput *server_input = Live555MediaInput::createNew(*env);
+  auto search = input_map.find(msg.channel_name);
+  if (search != input_map.end()) {
+    LOG("%s:%s:: input_map, %s already exists, so we have to delete it.\n",
+        __FILE__, __func__, msg.channel_name);
+    input_map.erase(msg.channel_name);
+  }
+
   input_map.insert(std::pair<std::string, Live555MediaInput *>(msg.channel_name,
                                                                server_input));
-
   time_t t;
   t = time(&t);
   ServerMediaSession *sms =
-      ServerMediaSession::createNew(*(env), msg.channel_name, ctime(&t),
-                                    "rtsp stream server", False /*UNICAST*/);
+      RKServerMediaSession::createNew(*(env), msg.channel_name, server_input);
 
   if (rtspServer != nullptr && sms != nullptr) {
     char *url = nullptr;
@@ -210,19 +217,14 @@ void RtspConnection::addSession(struct message msg) {
 }
 
 void RtspConnection::removeSession(struct message msg) {
-  //根据名字删除，并且释放live555_media_input
   if (rtspServer != nullptr) {
     rtspServer->deleteServerMediaSession(msg.channel_name);
-    auto search = input_map.find(msg.channel_name);
     input_map.erase(msg.channel_name);
-    if (search != input_map.end()) {
-      delete search->second;
-      search->second = nullptr;
-    }
     LOG("RtspConnection delete %s.\n", msg.channel_name);
   }
 }
 void RtspConnection::sendMessage(struct message msg) {
+  lock_msg.lock();
   mtx.lock();
   flag = true;
   write(msg_fd[1], (void *)&msg, sizeof(msg));
@@ -230,8 +232,9 @@ void RtspConnection::sendMessage(struct message msg) {
   while (flag) {
     mtx.wait();
   }
-  LOG("%s: after mtx.wait.\n", __func__);
   mtx.unlock();
+  lock_msg.unlock();
+  LOG("%s: after mtx.wait.\n", __func__);
 }
 
 RtspConnection::~RtspConnection() {

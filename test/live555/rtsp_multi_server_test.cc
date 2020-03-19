@@ -613,6 +613,8 @@ int main(int argc, char **argv) {
   // stress test
   if (stress_sleep_time > 0) {
     while (!quit) {
+      LOG("=========start stress test stress_sleep_time = %d.\n",
+          stress_sleep_time);
       std::shared_ptr<easymedia::Flow> rtsp_stream_t_flow;
       std::shared_ptr<easymedia::Flow> video_enc_t_flow;
 
@@ -650,8 +652,8 @@ int main(int argc, char **argv) {
         audio_enc_flow->RemoveDownFlow(rtsp_stream_t_flow);
       }
 
-      if (video_enc_flow_1) {
-        video_enc_flow_1->RemoveDownFlow(rtsp_stream_t_flow);
+      if (video_enc_t_flow) {
+        video_enc_t_flow->RemoveDownFlow(rtsp_stream_t_flow);
       }
       if (video_read_flow_1) {
         video_read_flow_1->RemoveDownFlow(video_enc_t_flow);
