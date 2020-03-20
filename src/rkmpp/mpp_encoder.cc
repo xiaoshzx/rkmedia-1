@@ -370,64 +370,22 @@ ENCODE_OUT:
 }
 
 int MPPEncoder::Process(MppFrame frame, MppPacket &packet, MppBuffer &mv_buf) {
-  MppTask task = NULL;
   MppCtx ctx = mpp_ctx->ctx;
   MppApi *mpi = mpp_ctx->mpi;
-  int ret = mpi->poll(ctx, MPP_PORT_INPUT, MPP_POLL_BLOCK);
-  if (ret) {
-    LOG("input poll ret %d\n", ret);
-    return ret;
-  }
 
-  ret = mpi->dequeue(ctx, MPP_PORT_INPUT, &task);
-  if (ret || NULL == task) {
-    LOG("mpp task input dequeue failed\n");
-    return ret;
-  }
-
-  mpp_task_meta_set_frame(task, KEY_INPUT_FRAME, frame);
-  if (packet)
-    mpp_task_meta_set_packet(task, KEY_OUTPUT_PACKET, packet);
   if (mv_buf)
-    mpp_task_meta_set_buffer(task, KEY_MOTION_INFO, mv_buf);
-  ret = mpi->enqueue(ctx, MPP_PORT_INPUT, task);
-  if (ret) {
-    LOG("mpp task input enqueue failed\n");
-    return ret;
-  }
-  task = NULL;
+    LOG("TODO move detection frome mpp encoder...\n");
 
-  ret = mpi->poll(ctx, MPP_PORT_OUTPUT, MPP_POLL_BLOCK);
+  int ret = mpi->encode_put_frame(ctx, frame);
   if (ret) {
-    LOG("output poll ret %d\n", ret);
-    return ret;
+    LOG("mpp encode put frame failed\n");
+    return -1;
   }
 
-  ret = mpi->dequeue(ctx, MPP_PORT_OUTPUT, &task);
-  if (ret || !task) {
-    LOG("mpp task output dequeue failed, ret %d \n", ret);
-    return ret;
-  }
-  if (task) {
-    MppPacket packet_out = nullptr;
-    mpp_task_meta_get_packet(task, KEY_OUTPUT_PACKET, &packet_out);
-    ret = mpi->enqueue(ctx, MPP_PORT_OUTPUT, task);
-    if (ret != MPP_OK) {
-      LOG("enqueue task output failed, ret = %d\n", ret);
-      return ret;
-    }
-    if (!packet) {
-      // the buffer comes from mpp
-      packet = packet_out;
-      packet_out = nullptr;
-    } else {
-      assert(packet == packet_out);
-    }
-    // should not go follow
-    if (packet_out && packet != packet_out) {
-      mpp_packet_deinit(&packet);
-      packet = packet_out;
-    }
+  ret = mpi->encode_get_packet(ctx, &packet);
+  if (ret) {
+    LOG("mpp encode get packet failed\n");
+    return -1;
   }
 
   return 0;
