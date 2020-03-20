@@ -152,21 +152,22 @@ static int CalcMppBps(MppEncRcCfg *rc_cfg, int bps_max) {
 bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   VideoConfig vconfig = cfg.vid_cfg;
   const ImageConfig &img_cfg = vconfig.image_cfg;
-  MpiCmd mpi_cmd = MPP_CMD_BASE;
-  MppParam param = NULL;
-
   MppEncRcCfg rc_cfg;
   MppEncPrepCfg prep_cfg;
   MppEncCodecCfg codec_cfg;
-  unsigned int need_block = 1;
-  int dummy = 1;
   memset(&rc_cfg, 0, sizeof(rc_cfg));
   memset(&prep_cfg, 0, sizeof(prep_cfg));
   memset(&codec_cfg, 0, sizeof(codec_cfg));
 
-  mpi_cmd = MPP_SET_INPUT_BLOCK;
-  param = &need_block;
-  int ret = mpp_enc.EncodeControl(mpi_cmd, param);
+  MppPollType timeout = MPP_POLL_BLOCK;
+  LOGD("MPP Encoder: Set output block mode.\n");
+  int ret = mpp_enc.EncodeControl(MPP_SET_OUTPUT_TIMEOUT, &timeout);
+  if (ret != 0) {
+    LOG("mpp control set output block failed ret %d\n", ret);
+    return false;
+  }
+  LOGD("MPP Encoder: Set input block mode.\n");
+  ret = mpp_enc.EncodeControl(MPP_SET_INPUT_TIMEOUT, &timeout);
   if (ret != 0) {
     LOG("mpp control set input block failed ret %d\n", ret);
     return false;
@@ -180,15 +181,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
     return false;
   }
 
-  param = &dummy;
-  ret = mpp_enc.EncodeControl(MPP_ENC_PRE_ALLOC_BUFF, param);
-  if (ret) {
-    LOG("mpi control pre alloc buff failed ret %d\n", ret);
-    return false;
-  }
-
   rc_cfg.change = MPP_ENC_RC_CFG_CHANGE_ALL;
-
   rc_cfg.rc_mode = GetMPPRCMode(vconfig.rc_mode);
   if (rc_cfg.rc_mode == MPP_ENC_RC_MODE_BUTT) {
     LOG("Invalid rc mode %s\n", vconfig.rc_mode);
@@ -241,7 +234,6 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
         (profile == 66 || profile == 77) ? (0) : (1);
     codec_cfg.h264.cabac_init_idc = 0;
 
-#ifdef RK_MPP_VERSION_NEW
     if (vconfig.trans_8x8) {
       if (profile == 100) {
         codec_cfg.h264.change |= MPP_ENC_H264_CFG_CHANGE_TRANS_8x8;
@@ -251,13 +243,6 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
           "to enable h264 enc trans_8x8.\n");
       }
     }
-#endif
-    // setup QP on CQP mode
-    codec_cfg.h264.change |= MPP_ENC_H264_CFG_CHANGE_QP_LIMIT;
-    codec_cfg.h264.qp_init = img_cfg.qp_init;
-    codec_cfg.h264.qp_min = vconfig.qp_min;
-    codec_cfg.h264.qp_max = vconfig.qp_max;
-    codec_cfg.h264.qp_max_step = vconfig.qp_step;
     break;
   case MPP_VIDEO_CodingHEVC:
 #ifdef RK_MPP_VERSION_NEW
@@ -285,6 +270,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
     return false;
   }
 
+#if 0
   if (bps >= 50000000) {
     RK_U32 qp_scale = 2; // 1 or 2
     ret = mpp_enc.EncodeControl(MPP_ENC_SET_QP_RANGE, &qp_scale);
@@ -294,6 +280,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
     }
     LOG("qp_scale:%d\n", qp_scale);
   }
+#endif
 
   MppPacket packet = nullptr;
   ret = mpp_enc.EncodeControl(MPP_ENC_GET_EXTRA_INFO, &packet);
