@@ -85,6 +85,29 @@ typedef struct  {
   uint8_t  abs_qp_en;    /**< absolute qp enable flag*/
 } EncROIRegion;
 
+typedef struct {
+  char *type;
+  uint32_t max_bps;
+  //KEY_WORST/KEY_WORSE/KEY_MEDIUM/KEY_BETTER/KEY_BEST
+  const char *rc_quality;
+  //KEY_VBR/KEY_CBR
+  const char *rc_mode;
+  uint16_t fps;
+  uint16_t gop;
+  // For AVC
+  uint8_t profile;
+  uint8_t enc_levle;
+} VideoEncoderCfg;
+
+typedef struct {
+  int qp_init;
+  int qp_step;
+  int qp_min; //0~48
+  int qp_max; //8-51
+  int min_i_qp;
+  int max_i_qp;
+} VideoEncoderQp;
+
 #include <map>
 
 namespace easymedia {
@@ -97,27 +120,30 @@ _API std::string to_param_string(const VideoConfig &vid_cfg);
 _API std::string to_param_string(const AudioConfig &aud_cfg);
 _API std::string to_param_string(const MediaConfig &mc,
                                  const std::string &out_type);
-
+_API std::string get_video_encoder_config_string (
+  const ImageInfo &info, const VideoEncoderCfg &cfg);
 _API int video_encoder_set_maxbps(
   std::shared_ptr<Flow> &enc_flow, unsigned int bpsmax);
-
+// rc_quality Ranges:
+//   KEY_WORST/KEY_WORSE/KEY_MEDIUM/KEY_BETTER/KEY_BEST
+_API int video_encoder_set_rc_quality(
+  std::shared_ptr<Flow> &enc_flow, const char *rc_quality);
+// rc_mode Ranges:KEY_VBR/KEY_CBR
+_API int video_encoder_set_rc_mode(
+  std::shared_ptr<Flow> &enc_flow, const char *rc_mode);
+_API int video_encoder_set_qp(
+  std::shared_ptr<Flow> &enc_flow, VideoEncoderQp &qps);
 _API int video_encoder_force_idr(std::shared_ptr<Flow> &enc_flow);
-
 _API int video_encoder_set_fps(
   std::shared_ptr<Flow> &enc_flow, uint8_t num, uint8_t den);
-
 _API int video_encoder_set_osd_plt(
   std::shared_ptr<Flow> &enc_flow, uint32_t *yuv_plt);
-
 _API int video_encoder_set_osd_region(
   std::shared_ptr<Flow> &enc_flow, OsdRegionData *region_data);
-
 _API int video_encoder_set_move_detection(std::shared_ptr<Flow> &enc_flow,
   std::shared_ptr<Flow> &md_flow);
-
 _API int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
   EncROIRegion *regions, int region_cnt);
-
 _API int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable);
 } // namespace easymedia
