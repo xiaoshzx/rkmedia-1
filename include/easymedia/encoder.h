@@ -77,6 +77,8 @@ public:
   static const uint32_t kOSDPltChange = (1 << 5);
   static const uint32_t kMoveDetectionFlow = (1 << 6);
   static const uint32_t kROICfgChange = (1 << 7);
+  static const uint32_t kRcModeChange = (1 << 8);
+  static const uint32_t kRcQualityChange = (1 << 9);
   //enable fps/bps statistics.
   static const uint32_t kEnableStatistics = (1 << 31);
 

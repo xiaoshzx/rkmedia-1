@@ -29,14 +29,15 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
-static char optstr[] = "?:i:o:w:h:f:t:";
+static char optstr[] = "?:i:o:w:h:f:t:m:";
 
 static void print_usage(char *name) {
-  printf("usage example: \n");
+  printf("usage example for normal mode: \n");
   printf("%s -i /dev/video0 -o output.h264 -w 1920 -h 1080 "
          "-f nv12 -t h264\n", name);
-  printf("#[-t] support list:\n\th264\n\th265\n\tjpeg\n");
-  printf("#[-f] support list:\n\tyuyv422\n\tnv12\n");
+  printf("#[-t] enc type support list:\n\th264\n\th265\n\tjpeg\n");
+  printf("#[-f] pix formate support list:\n\tyuyv422\n\tnv12\n");
+  printf("#[-m] mode support list:\n\tnormal\n\tstressTest\n");
 }
 
 int main(int argc, char **argv) {
@@ -47,6 +48,7 @@ int main(int argc, char **argv) {
   std::string pixel_format;
   int video_fps = 30;
   std::string video_enc_type = VIDEO_H264;
+  int test_mode = 0; //0 for normal,1 for stressTest.
 
   std::string output_path;
   std::string input_path;
@@ -86,6 +88,14 @@ int main(int argc, char **argv) {
     case 't':
       video_enc_type = optarg;
       printf("#IN ARGS: video_enc_type: %s\n", video_enc_type.c_str());
+      break;
+    case 'm':
+      if (strstr(optarg, "stressTest")) {
+        test_mode = 1;
+        printf("======================================\n");
+        printf("# Stress Test\n");
+        printf("======================================\n");
+      }
       break;
     case '?':
     default:
@@ -132,6 +142,8 @@ int main(int argc, char **argv) {
     printf("INFO: reading yuv frome file!\n");
     local_file_flag = 1;
   }
+
+RESTART:
 
   if (local_file_flag) {
     //Reading yuv from file.
@@ -195,49 +207,18 @@ int main(int argc, char **argv) {
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, video_enc_type);
 
-  MediaConfig enc_config;
-  memset(&enc_config, 0, sizeof(enc_config));
-  VideoConfig &vid_cfg = enc_config.vid_cfg;
-  ImageConfig &img_cfg = vid_cfg.image_cfg;
-  img_cfg.image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
-  img_cfg.image_info.width = video_width;
-  img_cfg.image_info.height = video_height;
-  img_cfg.image_info.vir_width = vir_width;
-  img_cfg.image_info.vir_height = vir_height;
-  if ((video_enc_type == VIDEO_H264)) {
-    img_cfg.qp_init = 24;
-    vid_cfg.qp_step = 4;
-    vid_cfg.qp_min = 12;
-    vid_cfg.qp_max = 48;
-    vid_cfg.bit_rate = video_width * video_height * 7;
-    if (vid_cfg.bit_rate > 1000000) {
-      vid_cfg.bit_rate /= 1000000;
-      vid_cfg.bit_rate *= 1000000;
-    }
-    vid_cfg.frame_rate = video_fps;
-    vid_cfg.level = 52;
-    vid_cfg.gop_size = video_fps;
-    vid_cfg.profile = 100;
-    // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
-    vid_cfg.rc_quality = KEY_BEST;
-    vid_cfg.rc_mode = KEY_CBR;
-  } else if (video_enc_type == VIDEO_H265) {
-    img_cfg.qp_init = -1;
-    vid_cfg.max_i_qp = 46;
-    vid_cfg.min_i_qp = 24;
-    vid_cfg.qp_min = 10;
-    vid_cfg.qp_max = 51;
-    vid_cfg.bit_rate = video_width * video_height / 8 * video_fps;
-    vid_cfg.frame_rate = video_fps;
-    vid_cfg.gop_size = video_fps * 2;
-    // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
-    vid_cfg.rc_quality = KEY_MEDIUM;
-    vid_cfg.rc_mode = KEY_CBR;
-  } else if (video_enc_type == IMAGE_JPEG)
-    img_cfg.qp_init = 10;
-
-  enc_param = "";
-  enc_param.append(easymedia::to_param_string(enc_config, video_enc_type));
+  VideoEncoderCfg vcfg;
+  memset(&vcfg, 0, sizeof(vcfg));
+  vcfg.type = (char *)video_enc_type.c_str();
+  vcfg.fps = video_fps;
+  vcfg.max_bps = video_width * video_height * video_fps / 14;
+  ImageInfo image_info;
+  image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
+  image_info.width = video_width;
+  image_info.height = video_height;
+  image_info.vir_width = vir_width;
+  image_info.vir_height = vir_height;
+  enc_param = easymedia::get_video_encoder_config_string(image_info, vcfg);
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   printf("\n#VideoEncoder flow param:\n%s\n", flow_param.c_str());
   video_encoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
@@ -264,8 +245,15 @@ int main(int argc, char **argv) {
 
   LOG("%s initial finish\n", argv[0]);
 
-  while(!quit) {
-    easymedia::msleep(100);
+  while(!test_mode && !quit) {
+      easymedia::msleep(100);
+  }
+
+  if (test_mode) {
+    srand((unsigned)time(NULL));
+    int delay_ms = rand() % 100000;
+    printf("=> Stress Test: sleep %dms\n", delay_ms);
+    easymedia::msleep(delay_ms);
   }
 
   video_read_flow->RemoveDownFlow(video_encoder_flow);
@@ -273,6 +261,12 @@ int main(int argc, char **argv) {
   video_encoder_flow->RemoveDownFlow(video_save_flow);
   video_encoder_flow.reset();
   video_save_flow.reset();
+  LOG("%s deinitial finish\n", argv[0]);
+
+  if (test_mode && !quit) {
+    printf("=> Stress Test: resatr\n");
+    goto RESTART;
+  }
 
   return 0;
 }

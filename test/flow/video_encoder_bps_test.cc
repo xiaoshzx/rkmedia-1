@@ -201,45 +201,19 @@ int main(int argc, char **argv) {
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, video_enc_type);
 
-  MediaConfig enc_config;
-  memset(&enc_config, 0, sizeof(enc_config));
-  VideoConfig &vid_cfg = enc_config.vid_cfg;
-  ImageConfig &img_cfg = vid_cfg.image_cfg;
-  img_cfg.image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
-  img_cfg.image_info.width = video_width;
-  img_cfg.image_info.height = video_height;
-  img_cfg.image_info.vir_width = vir_width;
-  img_cfg.image_info.vir_height = vir_height;
-  if ((video_enc_type == VIDEO_H264)) {
-    img_cfg.qp_init = 24;
-    vid_cfg.qp_step = 4;
-    vid_cfg.qp_min = 12;
-    vid_cfg.qp_max = 48;
-    vid_cfg.bit_rate = bpsmax;
-    vid_cfg.frame_rate = video_fps;
-    vid_cfg.level = 40;
-    vid_cfg.gop_size = video_fps;
-    vid_cfg.profile = 100;
-    // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
-    vid_cfg.rc_quality = KEY_MEDIUM;
-    vid_cfg.rc_mode = KEY_CBR;
-  } else if (video_enc_type == VIDEO_H265) {
-    img_cfg.qp_init = -1;
-    vid_cfg.max_i_qp = 46;
-    vid_cfg.min_i_qp = 24;
-    vid_cfg.qp_min = 10;
-    vid_cfg.qp_max = 51;
-    vid_cfg.bit_rate = bpsmax;
-    vid_cfg.frame_rate = video_fps;
-    vid_cfg.gop_size = video_fps * 2;
-    // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
-    vid_cfg.rc_quality = KEY_MEDIUM;
-    vid_cfg.rc_mode = KEY_CBR;
-  } else if (video_enc_type == IMAGE_JPEG)
-    img_cfg.qp_init = 10;
-
-  enc_param = "";
-  enc_param.append(easymedia::to_param_string(enc_config, video_enc_type));
+  VideoEncoderCfg vcfg;
+  memset(&vcfg, 0, sizeof(vcfg));
+  vcfg.type = (char *)video_enc_type.c_str();
+  vcfg.fps = video_fps;
+  vcfg.rc_mode = KEY_CBR;
+  vcfg.max_bps = bpsmax;
+  ImageInfo image_info;
+  image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
+  image_info.width = video_width;
+  image_info.height = video_height;
+  image_info.vir_width = vir_width;
+  image_info.vir_height = vir_height;
+  enc_param = easymedia::get_video_encoder_config_string(image_info, vcfg);
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   printf("\n#VideoEncoder flow param:\n%s\n", flow_param.c_str());
   video_encoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
@@ -268,12 +242,39 @@ int main(int argc, char **argv) {
 
   LOG("%s initial finish\n", argv[0]);
 
-  while(!quit) {
-    int new_bps = 0;
-    std::cout << "#Please input new bps:" << std::endl;
-    std::cin >> new_bps;
-    easymedia::video_encoder_set_maxbps(video_encoder_flow, new_bps);
-    easymedia::msleep(100);
+  LOG("\n#Encoder in CBR MODE for 30s....\n");
+  easymedia::msleep(30000);
+
+  LOG("\n#Encoder in VBR MODE for 30s....\n");
+  easymedia::video_encoder_set_rc_mode(video_encoder_flow, KEY_VBR);
+  easymedia::msleep(30000);
+
+  LOG("\n#Encoder in BEST Quality for 30s....\n");
+  easymedia::video_encoder_set_rc_quality(video_encoder_flow, KEY_BEST);
+  easymedia::msleep(30000);
+
+  LOG("\n#Encoder in WORST Quality for 30s....\n");
+  easymedia::video_encoder_set_rc_quality(video_encoder_flow, KEY_WORST);
+  easymedia::msleep(30000);
+
+  LOG("\n#Encoder with new qp for 30s....\n");
+  VideoEncoderQp qps;
+  memset(&qps, 0, sizeof(qps));
+  qps.qp_init = 30;
+  qps.qp_max = 51;
+  qps.qp_min = 10;
+  qps.qp_step = 10;
+  easymedia::video_encoder_set_qp(video_encoder_flow, qps);
+  easymedia::msleep(30000);
+
+  LOG("\n#Encoder start bps change test....\n");
+  bpsmax = video_width * video_height * video_fps / 4;
+  int bpsmin = video_width * video_height * video_fps / 60;
+  int bpsstep = (bpsmax - bpsmin / 4);
+  for (int i = 0; i < 4; i++) {
+    LOG("[%d] bps:%d keep 10s...\n", i, bpsmin + i * bpsstep);
+    easymedia::video_encoder_set_maxbps(video_encoder_flow, bpsmin + i * bpsstep);
+    easymedia::msleep(10000);
   }
 
   video_read_flow->RemoveDownFlow(video_encoder_flow);
@@ -281,6 +282,7 @@ int main(int argc, char **argv) {
   video_encoder_flow->RemoveDownFlow(video_save_flow);
   video_encoder_flow.reset();
   video_save_flow.reset();
+  LOG("%s deinitial finish\n", argv[0]);
 
   return 0;
 }
