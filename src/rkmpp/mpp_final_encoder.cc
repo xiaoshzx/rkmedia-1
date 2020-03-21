@@ -282,6 +282,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   }
 #endif
 
+#if 0
   MppPacket packet = nullptr;
   ret = mpp_enc.EncodeControl(MPP_ENC_GET_EXTRA_INFO, &packet);
   if (ret) {
@@ -300,6 +301,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
     mpp_enc.GetExtraData()->SetUserFlag(MediaBuffer::kExtraIntra);
     packet = NULL;
   }
+#endif
 
   mpp_enc.GetConfig().vid_cfg = vconfig;
   mpp_enc.GetConfig().type = Type::Video;
