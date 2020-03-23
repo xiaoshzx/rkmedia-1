@@ -205,7 +205,7 @@ void RtspConnection::addSession(struct message msg) {
     subsession = MP2ServerMediaSubsession::createNew(*env, *server_input);
   } else if (strcmp(msg.audioType, AUDIO_G711A) == 0 ||
              strcmp(msg.audioType, AUDIO_G711U) == 0 ||
-             strcmp(msg.audioType, AUDIO_G726)) {
+             strcmp(msg.audioType, AUDIO_G726) == 0) {
     subsession = SIMPLEServerMediaSubsession::createNew(
         *env, *server_input, msg.sample_rate, msg.channels, msg.audioType,
         msg.bitrate);
