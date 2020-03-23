@@ -299,6 +299,20 @@ std::string get_video_encoder_config_string (
     LOG("INFO: VideoEnc: rc_quality use defalut value: Middle\n");
   }
 
+  // for jpeg
+  if (img_cfg.codec_type == CODEC_TYPE_JPEG) {
+    if (!strcmp(vid_cfg.rc_quality, KEY_BEST))
+      img_cfg.qp_init =10;
+    else if (!strcmp(vid_cfg.rc_quality, KEY_BETTER))
+      img_cfg.qp_init =8;
+    else if (!strcmp(vid_cfg.rc_quality, KEY_MEDIUM))
+      img_cfg.qp_init =6;
+    else if (!strcmp(vid_cfg.rc_quality, KEY_WORSE))
+      img_cfg.qp_init =3;
+    else if (!strcmp(vid_cfg.rc_quality, KEY_WORST))
+      img_cfg.qp_init =1;
+  }
+
   if (cfg.rc_mode)
     vid_cfg.rc_mode = cfg.rc_mode;
   else {

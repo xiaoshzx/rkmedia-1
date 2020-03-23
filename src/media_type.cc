@@ -19,6 +19,7 @@ static const struct CodecTypeEntry {
     {CODEC_TYPE_G726, AUDIO_G726},
     {CODEC_TYPE_H264, VIDEO_H264},
     {CODEC_TYPE_H265, VIDEO_H265},
+    {CODEC_TYPE_JPEG, IMAGE_JPEG},
 };
 
 const char *CodecTypeToString(CodecType fmt) {
