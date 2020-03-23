@@ -7,9 +7,9 @@
 #include <assert.h>
 #include <errno.h>
 
-#include "buffer.h"
 #include "alsa_utils.h"
 #include "alsa_volume.h"
+#include "buffer.h"
 #include "media_type.h"
 #include "utils.h"
 
@@ -17,10 +17,10 @@ namespace easymedia {
 
 class AlsaPlayBackStream : public Stream {
 public:
-  static const int kStartDelays = 2; // number delays of periods
-  static const int kPresetFrames = 1024;
-  static const int kPresetSampleRate = 48000; // the same to asound.conf
-  static const int kPresetMinBufferSize = 8192;
+  static const int kStartDelays;
+  static const int kPresetFrames;
+  static const int kPresetSampleRate;
+  static const int kPresetMinBufferSize;
   AlsaPlayBackStream(const char *param);
   virtual ~AlsaPlayBackStream();
   static const char *GetStreamName() { return "alsa_playback_stream"; }
@@ -50,6 +50,11 @@ private:
   int interleaved;
 };
 
+const int AlsaPlayBackStream::kStartDelays = 2; // number delays of periods
+const int AlsaPlayBackStream::kPresetFrames = 1024;
+const int AlsaPlayBackStream::kPresetSampleRate =
+    48000; // the same to asound.conf
+const int AlsaPlayBackStream::kPresetMinBufferSize = 8192;
 AlsaPlayBackStream::AlsaPlayBackStream(const char *param)
     : alsa_handle(NULL), frame_size(0) {
   memset(&sample_info, 0, sizeof(sample_info));
@@ -72,7 +77,7 @@ AlsaPlayBackStream::~AlsaPlayBackStream() {
 }
 
 size_t AlsaPlayBackStream::Write(const void *ptr, size_t size, size_t nmemb) {
-    if (interleaved)
+  if (interleaved)
     return Writei(ptr, size, nmemb);
   else
     return Writen(ptr, size, nmemb);
@@ -152,8 +157,7 @@ out:
   return (buffer_len - frames * frame_size) / size;
 }
 
-bool AlsaPlayBackStream::Write(std::shared_ptr<MediaBuffer> mb)
-{
+bool AlsaPlayBackStream::Write(std::shared_ptr<MediaBuffer> mb) {
   if (mb->IsValid()) {
     auto in = std::static_pointer_cast<SampleBuffer>(mb);
     Write(in->GetPtr(), in->GetSampleSize(), in->GetSamples());
@@ -322,7 +326,8 @@ int AlsaPlayBackStream::Open() {
         (int)period_size, snd_strerror(status));
     goto err;
   }
-  status = snd_pcm_sw_params_set_start_threshold(pcm_handle, swparams, period_size * kStartDelays);
+  status = snd_pcm_sw_params_set_start_threshold(pcm_handle, swparams,
+                                                 period_size * kStartDelays);
   if (status < 0) {
     LOG("Unable to set start threshold mode for playback: %s\n",
         snd_strerror(status));
