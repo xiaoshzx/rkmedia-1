@@ -17,7 +17,10 @@ public:
   static H265ServerMediaSubsession *createNew(UsageEnvironment &env,
                                               Live555MediaInput &wisInput);
   void setDoneFlag() { fDoneFlag = ~0; }
+
+  // Used to implement "getAuxSDPLine()":
   void checkForAuxSDPLine1();
+  void afterPlayingDummy1();
 
 protected: // we're a virtual base class
   H265ServerMediaSubsession(UsageEnvironment &env,
@@ -36,7 +39,6 @@ protected:
   unsigned fEstimatedKbps;
 
 private: // redefined virtual functions
-  virtual char const *sdpLines();
   virtual char const *getAuxSDPLine(RTPSink *rtpSink,
                                     FramedSource *inputSource);
   virtual FramedSource *createNewStreamSource(unsigned clientSessionId,
@@ -48,13 +50,12 @@ private: // redefined virtual functions
 private:
   char fDoneFlag;         // used when setting up 'SDPlines'
   RTPSink *fDummyRTPSink; // ditto
-  int fGetSdpTimeOut;
+  // int fGetSdpTimeOut;
+  int fGetSdpCount;
+  char *fAuxSDPLine;
 
-  static std::mutex kMutex;
-  static std::list<unsigned int> kSessionIdList;
-
-  enum { INITIAL, GETTING_SDP_LINES, GET_SDP_LINES_TIMEOUT, GOT_SDP_LINES };
-  int sdpState;
+  std::mutex kMutex;
+  std::list<unsigned int> kSessionIdList;
 };
 } // namespace easymedia
 
