@@ -261,6 +261,12 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
   if (ret)
     goto ENCODE_OUT;
 
+  if (!packet) {
+    LOG("ERROR: MPP Encoder: input frame:%p, %zuBytes; output null packet!\n",
+      frame, mpp_buffer_get_size(mpp_frame_get_buffer(frame)));
+    goto ENCODE_OUT;
+  }
+
   packet_len = mpp_packet_get_length(packet);
   packet_flag = (mpp_packet_get_flag(packet) & MPP_PACKET_FLAG_INTRA)
                     ? MediaBuffer::kIntra
