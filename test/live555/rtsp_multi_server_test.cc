@@ -49,6 +49,7 @@ static void print_usage(char *name) {
 
 std::shared_ptr<easymedia::Flow> video_enc_flow = nullptr;
 std::shared_ptr<easymedia::Flow> video_enc_flow_1 = nullptr;
+std::shared_ptr<easymedia::Flow> video_enc_t_flow = nullptr;
 
 static void testStartStreamCallback(easymedia::Flow *f) {
   LOG("%s:%s: force all video_enc send I frame, Flow *f = %p.\n", __FILE__,
@@ -58,6 +59,8 @@ static void testStartStreamCallback(easymedia::Flow *f) {
     video_enc_flow->Control(easymedia::VideoEncoder::kForceIdrFrame, value);
   if (video_enc_flow_1)
     video_enc_flow_1->Control(easymedia::VideoEncoder::kForceIdrFrame, value);
+  if (video_enc_t_flow)
+    video_enc_t_flow->Control(easymedia::VideoEncoder::kForceIdrFrame, value);
 }
 
 std::shared_ptr<easymedia::Flow> create_live555_rtsp_server_flow(
@@ -630,7 +633,6 @@ int main(int argc, char **argv) {
       LOG("=========start stress test stress_sleep_time = %d.\n",
           stress_sleep_time);
       std::shared_ptr<easymedia::Flow> rtsp_stream_t_flow;
-      std::shared_ptr<easymedia::Flow> video_enc_t_flow;
 
       video_enc_t_flow =
           create_video_enc_flow(input_format, CodecToString(videoType),

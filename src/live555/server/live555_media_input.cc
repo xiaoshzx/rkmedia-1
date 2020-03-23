@@ -17,54 +17,29 @@
 namespace easymedia {
 // A common "FramedSource" subclass, used for reading from a cached buffer list:
 
-class ListSource : public FramedSource {
-protected:
-  ListSource(UsageEnvironment &env, Live555MediaInput &input)
-      : FramedSource(env), fInput(input), fReadFd(-1) {}
-  virtual ~ListSource() {
-    if (fReadFd >= 0)
-      envir().taskScheduler().turnOffBackgroundReadHandling(fReadFd);
-  }
-
-  virtual bool readFromList(bool flush = false) = 0;
-  virtual void flush();
-
-  Live555MediaInput &fInput;
-  int fReadFd;
-
-private: // redefined virtual functions:
-  virtual void doGetNextFrame();
-  virtual void doStopGettingFrames();
-
-  static void incomingDataHandler(ListSource *source, int mask);
-  void incomingDataHandler1();
-};
-
-class VideoFramedSource : public ListSource {
-public:
-  VideoFramedSource(UsageEnvironment &env, Live555MediaInput &input);
-  virtual ~VideoFramedSource();
-
-protected: // redefined virtual functions:
-  virtual bool readFromList(bool flush = false);
-  bool got_iframe;
-};
-
-class AudioFramedSource : public ListSource {
-public:
-  AudioFramedSource(UsageEnvironment &env, Live555MediaInput &input);
-  virtual ~AudioFramedSource();
-
-protected: // redefined virtual functions:
-  virtual bool readFromList(bool flush = false);
-};
-
 Live555MediaInput::Live555MediaInput(UsageEnvironment &env)
     : Medium(env), connecting(false), video_source(nullptr),
       audio_source(nullptr), video_callback(nullptr), audio_callback(nullptr) {}
 
 Live555MediaInput::~Live555MediaInput() {
   LOG_FILE_FUNC_LINE();
+  video_list.remove_if([](Source *s) {
+    if (s->GetReadFd() < 0) {
+      delete s;
+      return true;
+    } else {
+      return false;
+    }
+  });
+
+  audio_list.remove_if([](Source *s) {
+    if (s->GetReadFd() < 0) {
+      delete s;
+      return true;
+    } else {
+      return false;
+    }
+  });
   connecting = false;
 }
 
@@ -80,47 +55,8 @@ void Live555MediaInput::Stop(UsageEnvironment &env _UNUSED) {
 }
 
 Live555MediaInput *Live555MediaInput::createNew(UsageEnvironment &env) {
-  Live555MediaInput *mi = new Live555MediaInput(env);
-  if (mi && !mi->initialize(env)) {
-    delete mi;
-    return nullptr;
-  }
-  return mi;
+  return new Live555MediaInput(env);
 }
-
-FramedSource *Live555MediaInput::videoSource() {
-  if (!video_source)
-    video_source = new VideoFramedSource(envir(), *this);
-  return video_source;
-}
-
-FramedSource *Live555MediaInput::audioSource() {
-  if (!audio_source)
-    audio_source = new AudioFramedSource(envir(), *this);
-  return audio_source;
-}
-
-Boolean Live555MediaInput::initialize(UsageEnvironment &env) {
-  do {
-    if (!initAudio(env))
-      break;
-    if (!initVideo(env))
-      break;
-
-    return True;
-  } while (0);
-
-  // An error occurred
-  return False;
-}
-
-#if 0
-static void printErr(UsageEnvironment& env, char const* str = NULL) {
-  if (str != NULL)
-    env << str;
-  env << ": " << strerror(env.getErrno()) << "\n";
-}
-#endif
 
 #define MAX_CACHE_NUMBER 60
 static void common_reduction(std::list<std::shared_ptr<MediaBuffer>> &mb_list) {
@@ -129,17 +65,6 @@ static void common_reduction(std::list<std::shared_ptr<MediaBuffer>> &mb_list) {
       mb_list.pop_front();
     LOG("call common_reduction.\n");
   }
-}
-
-Boolean Live555MediaInput::initAudio(UsageEnvironment &env _UNUSED) {
-  as = std::make_shared<Source>();
-  if (!as)
-    return False;
-  if (!as->Init(common_reduction)) {
-    as.reset();
-    return False;
-  }
-  return True;
 }
 
 static void
@@ -166,30 +91,88 @@ h264_packet_reduction(std::list<std::shared_ptr<MediaBuffer>> &mb_list) {
   LOG("h264 reduction after, num: %d \n", (int)mb_list.size());
 }
 
-Boolean Live555MediaInput::initVideo(UsageEnvironment &env _UNUSED) {
-  vs = std::make_shared<Source>();
-  if (!vs)
-    return False;
-  if (!vs->Init(h264_packet_reduction)) {
-    vs.reset();
-    return False;
+FramedSource *Live555MediaInput::videoSource() {
+  // if (!video_source)
+  Source *source = new Source();
+  if (!source)
+    return nullptr;
+  if (!source->Init(h264_packet_reduction)) {
+    delete source;
+    return nullptr;
   }
-  return True;
+  video_list.push_back(source);
+  video_source = new VideoFramedSource(envir(), *source);
+  return video_source;
 }
+
+FramedSource *Live555MediaInput::audioSource() {
+  Source *source = new Source();
+  if (!source)
+    return nullptr;
+  if (!source->Init(common_reduction)) {
+    delete source;
+    return nullptr;
+  }
+  audio_list.push_back(source);
+  audio_source = new AudioFramedSource(envir(), *source);
+  return audio_source;
+}
+
+#if 0
+static void printErr(UsageEnvironment& env, char const* str = NULL) {
+  if (str != NULL)
+    env << str;
+  env << ": " << strerror(env.getErrno()) << "\n";
+}
+#endif
 
 void Live555MediaInput::PushNewVideo(std::shared_ptr<MediaBuffer> &buffer) {
   if (!buffer)
     return;
+  /*
   if ((connecting && video_source != nullptr) ||
       (buffer->GetUserFlag() & MediaBuffer::kExtraIntra))
-    vs->Push(buffer);
+    vs->Push(buffer);*/
+  video_list.remove_if([](Source *s) {
+    if (s->GetReadFd() < 0) {
+      delete s;
+      return true;
+    } else {
+      return false;
+    }
+  });
+
+  for (auto video : video_list) {
+    if (video) {
+      if (video->GetReadFd() >= 0) {
+        video->Push(buffer);
+      }
+    }
+  }
 }
 
 void Live555MediaInput::PushNewAudio(std::shared_ptr<MediaBuffer> &buffer) {
   if (!buffer)
     return;
+  /*
   if (connecting && audio_source != nullptr)
     as->Push(buffer);
+    */
+  audio_list.remove_if([](Source *s) {
+    if (s->GetReadFd() < 0) {
+      delete s;
+      return true;
+    } else {
+      return false;
+    }
+  });
+  for (auto audio : audio_list) {
+    if (audio) {
+      if (audio->GetReadFd() >= 0) {
+        audio->Push(buffer);
+      }
+    }
+  }
 }
 
 void Live555MediaInput::SetStartVideoStreamCallback(
@@ -211,12 +194,19 @@ StartStreamCallback Live555MediaInput::GetStartAudioStreamCallback() {
   return audio_callback;
 }
 
-Live555MediaInput::Source::Source() : reduction(nullptr) {
+Source::Source() : reduction(nullptr) {
   wakeFds[0] = wakeFds[1] = -1;
   LOG("Source :: %p.\n", this);
 }
 
-Live555MediaInput::Source::~Source() {
+void Source::CloseReadFd() {
+  if (wakeFds[0] >= 0) {
+    ::close(wakeFds[0]);
+    wakeFds[0] = -1;
+  }
+}
+
+Source::~Source() {
   if (wakeFds[0] >= 0) {
     ::close(wakeFds[0]);
     wakeFds[0] = -1;
@@ -229,7 +219,7 @@ Live555MediaInput::Source::~Source() {
       (int)cached_buffers.size());
 }
 
-bool Live555MediaInput::Source::Init(ListReductionPtr func) {
+bool Source::Init(ListReductionPtr func) {
   // create pipe fds
   int ret = pipe2(wakeFds, O_CLOEXEC);
   if (ret) {
@@ -241,7 +231,7 @@ bool Live555MediaInput::Source::Init(ListReductionPtr func) {
   return true;
 }
 
-void Live555MediaInput::Source::Push(std::shared_ptr<MediaBuffer> &buffer) {
+void Source::Push(std::shared_ptr<MediaBuffer> &buffer) {
   AutoLockMutex _alm(mtx);
   if (reduction)
     reduction(cached_buffers);
@@ -251,7 +241,7 @@ void Live555MediaInput::Source::Push(std::shared_ptr<MediaBuffer> &buffer) {
   write(wakeFds[1], &i, sizeof(i));
 }
 
-std::shared_ptr<MediaBuffer> Live555MediaInput::Source::Pop() {
+std::shared_ptr<MediaBuffer> Source::Pop() {
   AutoLockMutex _alm(mtx);
   if (cached_buffers.empty())
     return nullptr;
@@ -261,11 +251,11 @@ std::shared_ptr<MediaBuffer> Live555MediaInput::Source::Pop() {
 }
 
 void ListSource::doGetNextFrame() {
-  assert(fReadFd >= 0);
+  assert(fSource.GetReadFd() >= 0);
   // Await the next incoming data on our FID:
   envir().taskScheduler().turnOnBackgroundReadHandling(
-      fReadFd, (TaskScheduler::BackgroundHandlerProc *)&incomingDataHandler,
-      this);
+      fSource.GetReadFd(),
+      (TaskScheduler::BackgroundHandlerProc *)&incomingDataHandler, this);
 }
 
 void ListSource::doStopGettingFrames() {
@@ -281,9 +271,9 @@ void ListSource::incomingDataHandler1() {
   // Read the data from our file into the client's buffer:
   readFromList();
 
-  assert(fReadFd >= 0);
+  assert(fSource.GetReadFd() >= 0);
   // Stop handling any more input, until we're ready again:
-  envir().taskScheduler().turnOffBackgroundReadHandling(fReadFd);
+  envir().taskScheduler().turnOffBackgroundReadHandling(fSource.GetReadFd());
 
   // Tell our client that we have new data:
   afterGetting(this);
@@ -297,15 +287,14 @@ void ListSource::flush() {
   fNumTruncatedBytes = 0;
 }
 
-VideoFramedSource::VideoFramedSource(UsageEnvironment &env,
-                                     Live555MediaInput &input)
-    : ListSource(env, input), got_iframe(false) {
-  fReadFd = input.vs->GetReadFd();
+VideoFramedSource::VideoFramedSource(UsageEnvironment &env, Source &source)
+    : ListSource(env, source), got_iframe(false) {
+  // fReadFd = input.vs->GetReadFd();
 }
 
 VideoFramedSource::~VideoFramedSource() {
   LOG_FILE_FUNC_LINE();
-  fInput.video_source = NULL;
+  // fInput.video_source = NULL;
 }
 
 bool VideoFramedSource::readFromList(bool flush _UNUSED) {
@@ -315,14 +304,14 @@ bool VideoFramedSource::readFromList(bool flush _UNUSED) {
   std::shared_ptr<MediaBuffer> buffer;
   int i = 0;
   ssize_t read_size = (ssize_t)sizeof(i);
-  ssize_t ret = read(fReadFd, &i, sizeof(i));
+  ssize_t ret = read(fSource.GetReadFd(), &i, sizeof(i));
   if (ret != read_size) {
     LOG("%s:%d, read from pipe error, %m\n", __func__, __LINE__);
     envir() << __LINE__ << " read from pipe error: " << errno << "\n";
     goto err;
   }
 
-  buffer = fInput.vs->Pop();
+  buffer = fSource.Pop();
   if (buffer) {
     if (!got_iframe) {
       got_iframe = buffer->GetUserFlag() & MediaBuffer::kIntra;
@@ -369,15 +358,14 @@ err:
   return false;
 }
 
-AudioFramedSource::AudioFramedSource(UsageEnvironment &env,
-                                     Live555MediaInput &input)
-    : ListSource(env, input) {
-  fReadFd = input.as->GetReadFd();
+AudioFramedSource::AudioFramedSource(UsageEnvironment &env, Source &source)
+    : ListSource(env, source) {
+  // fReadFd = input.as->GetReadFd();
 }
 
 AudioFramedSource::~AudioFramedSource() {
   LOG_FILE_FUNC_LINE();
-  fInput.audio_source = NULL;
+  // fInput.audio_source = NULL;
 }
 
 bool AudioFramedSource::readFromList(bool flush _UNUSED) {
@@ -389,14 +377,14 @@ bool AudioFramedSource::readFromList(bool flush _UNUSED) {
 
   int i = 0;
   ssize_t read_size = (ssize_t)sizeof(i);
-  ssize_t ret = read(fReadFd, &i, sizeof(i));
+  ssize_t ret = read(fSource.GetReadFd(), &i, sizeof(i));
   if (ret != read_size) {
     LOG("%s:%d, read from pipe error, %m\n", __func__, __LINE__);
     envir() << __LINE__ << " read from pipe error: " << errno << "\n";
     goto err;
   }
 
-  buffer = fInput.as->Pop();
+  buffer = fSource.Pop();
   if (buffer) {
     p = (uint8_t *)buffer->GetPtr();
     fPresentationTime = buffer->GetTimeVal();

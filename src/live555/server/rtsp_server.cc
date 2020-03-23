@@ -70,7 +70,7 @@ bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector) {
       buffer = new_buffer;
     }
 
-    if ((buffer->GetUserFlag() & MediaBuffer::kExtraIntra)) {
+    if ((buffer->GetUserFlag() & MediaBuffer::kIntra)) {
       std::list<std::shared_ptr<easymedia::MediaBuffer>> spspps;
       if (rtsp_flow->video_type == VIDEO_H264) {
         spspps = split_h264_separate((const uint8_t *)buffer->GetPtr(),
@@ -83,7 +83,10 @@ bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector) {
       }
       for (auto &buf : spspps) {
         rtsp_flow->server_input->PushNewVideo(buf);
+        buffer->SetPtr((uint8_t *)buffer->GetPtr() + buf->GetValidSize());
+        buffer->SetValidSize(buffer->GetValidSize() - buf->GetValidSize());
       }
+      rtsp_flow->server_input->PushNewVideo(buffer);
     } else if (buffer->GetType() == Type::Audio)
       rtsp_flow->server_input->PushNewAudio(buffer);
     else if (buffer->GetType() == Type::Video)

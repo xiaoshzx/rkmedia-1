@@ -24,6 +24,24 @@ using ListReductionPtr = std::add_pointer<void(
 // using StartStreamCallback = std::add_pointer<void(void)>::type;
 typedef std::function<void()> StartStreamCallback;
 
+class Source {
+public:
+  Source();
+  ~Source();
+  bool Init(ListReductionPtr func = nullptr);
+  void Push(std::shared_ptr<easymedia::MediaBuffer> &);
+  std::shared_ptr<MediaBuffer> Pop();
+  int GetReadFd() { return wakeFds[0]; }
+  int GetWriteFd() { return wakeFds[1]; }
+  void CloseReadFd();
+
+private:
+  std::list<std::shared_ptr<MediaBuffer>> cached_buffers;
+  ConditionLockMutex mtx;
+  ListReductionPtr reduction;
+  int wakeFds[2]; // Live555's EventTrigger is poor for multithread, use fds
+};
+
 class Live555MediaInput : public Medium {
 public:
   static Live555MediaInput *createNew(UsageEnvironment &env);
@@ -45,28 +63,9 @@ protected:
 
 private:
   Live555MediaInput(UsageEnvironment &env);
-  Boolean initialize(UsageEnvironment &env);
-  Boolean initAudio(UsageEnvironment &env);
-  Boolean initVideo(UsageEnvironment &env);
 
-  class Source {
-  public:
-    Source();
-    ~Source();
-    bool Init(ListReductionPtr func = nullptr);
-    void Push(std::shared_ptr<easymedia::MediaBuffer> &);
-    std::shared_ptr<MediaBuffer> Pop();
-    int GetReadFd() { return wakeFds[0]; }
-    int GetWriteFd() { return wakeFds[1]; }
-
-  private:
-    std::list<std::shared_ptr<MediaBuffer>> cached_buffers;
-    ConditionLockMutex mtx;
-    ListReductionPtr reduction;
-    int wakeFds[2]; // Live555's EventTrigger is poor for multithread, use fds
-  };
-  std::shared_ptr<Source> vs, as;
-
+  std::list<Source *> video_list;
+  std::list<Source *> audio_list;
   volatile bool connecting;
   VideoFramedSource *video_source;
   AudioFramedSource *audio_source;
@@ -76,8 +75,52 @@ private:
 
   ConditionLockMutex video_callback_mtx;
   ConditionLockMutex audio_callback_mtx;
+
   friend class VideoFramedSource;
   friend class AudioFramedSource;
+};
+
+class ListSource : public FramedSource {
+protected:
+  ListSource(UsageEnvironment &env, Source &source)
+      : FramedSource(env), fSource(source) {}
+  virtual ~ListSource() {
+    if (fSource.GetReadFd() >= 0)
+      envir().taskScheduler().turnOffBackgroundReadHandling(
+          fSource.GetReadFd());
+    fSource.CloseReadFd();
+  }
+
+  virtual bool readFromList(bool flush = false) = 0;
+  virtual void flush();
+
+  Source &fSource;
+
+private: // redefined virtual functions:
+  virtual void doGetNextFrame();
+  virtual void doStopGettingFrames();
+
+  static void incomingDataHandler(ListSource *source, int mask);
+  void incomingDataHandler1();
+};
+
+class VideoFramedSource : public ListSource {
+public:
+  VideoFramedSource(UsageEnvironment &env, Source &source);
+  virtual ~VideoFramedSource();
+
+protected: // redefined virtual functions:
+  virtual bool readFromList(bool flush = false);
+  bool got_iframe;
+};
+
+class AudioFramedSource : public ListSource {
+public:
+  AudioFramedSource(UsageEnvironment &env, Source &source);
+  virtual ~AudioFramedSource();
+
+protected: // redefined virtual functions:
+  virtual bool readFromList(bool flush = false);
 };
 
 // Functions to set the optimal buffer size for RTP sink objects.

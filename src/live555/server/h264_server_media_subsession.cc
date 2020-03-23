@@ -20,10 +20,14 @@ H264ServerMediaSubsession::H264ServerMediaSubsession(
     UsageEnvironment &env, Live555MediaInput &mediaInput)
     : OnDemandServerMediaSubsession(env, True /*reuse the first source*/),
       fMediaInput(mediaInput), fEstimatedKbps(1000), fDoneFlag(0),
-      fDummyRTPSink(NULL), fGetSdpTimeOut(1000 * 10), sdpState(INITIAL) {}
+      fDummyRTPSink(NULL), fGetSdpCount(10), fAuxSDPLine(NULL) {}
 
 H264ServerMediaSubsession::~H264ServerMediaSubsession() {
   LOG_FILE_FUNC_LINE();
+  if (fAuxSDPLine != NULL) {
+    delete[] fAuxSDPLine;
+    fAuxSDPLine = NULL;
+  }
 }
 
 // std::mutex H264ServerMediaSubsession::kMutex;
@@ -45,7 +49,8 @@ void H264ServerMediaSubsession::startStream(
   }
   if (kSessionIdList.empty())
     fMediaInput.Start(envir());
-  LOG("%s - clientSessionId: 0x%08x\n", __func__, clientSessionId);
+  LOG("%s:%s:%p - clientSessionId: 0x%08x\n", __FILE__, __func__, this,
+      clientSessionId);
   kSessionIdList.push_back(clientSessionId);
   // kMutex.unlock();
 }
@@ -64,7 +69,14 @@ static void afterPlayingDummy(void *clientData) {
   H264ServerMediaSubsession *subsess = (H264ServerMediaSubsession *)clientData;
   LOG("%s, set done.\n", __func__);
   // Signal the event loop that we're done:
-  subsess->setDoneFlag();
+  subsess->afterPlayingDummy1();
+}
+
+void H264ServerMediaSubsession::afterPlayingDummy1() {
+  // Unschedule any pending 'checking' task:
+  envir().taskScheduler().unscheduleDelayedTask(nextTask());
+  // Signal the event loop that we're done:
+  setDoneFlag();
 }
 
 static void checkForAuxSDPLine(void *clientData) {
@@ -73,22 +85,29 @@ static void checkForAuxSDPLine(void *clientData) {
 }
 
 void H264ServerMediaSubsession::checkForAuxSDPLine1() {
-  LOG("** fDoneFlag: %d, fGetSdpTimeOut: %d **\n", fDoneFlag, fGetSdpTimeOut);
-  if (fDummyRTPSink->auxSDPLine() != NULL) {
+  nextTask() = NULL;
+
+  char const *dasl;
+  if (fAuxSDPLine != NULL) {
     // Signal the event loop that we're done:
-    LOG("%s, set done.\n", __func__);
     setDoneFlag();
-  } else {
-    if (fGetSdpTimeOut <= 0) {
-      LOG("warning: get sdp time out, set done.\n");
-      sdpState = GET_SDP_LINES_TIMEOUT;
+  } else if (fDummyRTPSink != NULL &&
+             (dasl = fDummyRTPSink->auxSDPLine()) != NULL) {
+    fAuxSDPLine = strDup(dasl);
+    fDummyRTPSink = NULL;
+
+    // Signal the event loop that we're done:
+    setDoneFlag();
+  } else if (!fDoneFlag) {
+    if (fGetSdpCount-- < 0) {
       setDoneFlag();
+      LOG("%s:%s:%p: get sdp time out.\n", __FILE__, __func__, this);
     } else {
       // try again after a brief delay:
       int uSecsToDelay = 100000; // 100 ms
+      LOG_FILE_FUNC_LINE();
       nextTask() = envir().taskScheduler().scheduleDelayedTask(
           uSecsToDelay, (TaskFunc *)checkForAuxSDPLine, this);
-      fGetSdpTimeOut -= uSecsToDelay;
     }
   }
 }
@@ -100,55 +119,28 @@ H264ServerMediaSubsession::getAuxSDPLine(RTPSink *rtpSink,
   // until we start reading the Buffer.  This means that "rtpSink"s
   // "auxSDPLine()" will be NULL initially, and we need to start reading
   // data from our buffer until this changes.
-  sdpState = GETTING_SDP_LINES;
-  fDoneFlag = 0;
-  fDummyRTPSink = rtpSink;
-  fGetSdpTimeOut = 100000 * 10;
-  // Start reading the buffer:
-  fDummyRTPSink->startPlaying(*inputSource, afterPlayingDummy, this);
-  LOG_FILE_FUNC_LINE();
-  // Check whether the sink's 'auxSDPLine()' is ready:
-  checkForAuxSDPLine(this);
-
-  envir().taskScheduler().doEventLoop(&fDoneFlag);
-  LOG_FILE_FUNC_LINE();
-  char const *auxSDPLine = fDummyRTPSink->auxSDPLine();
-  LOG("++ auxSDPLine: %p\n", auxSDPLine);
-  if (auxSDPLine)
-    sdpState = GOT_SDP_LINES;
-  else
-    sdpState = INITIAL;
-  return auxSDPLine;
-}
-
-char const *H264ServerMediaSubsession::sdpLines() {
-  // if (!fSDPLines)
-  //  sdpState = INITIAL;
-  LOG_FILE_FUNC_LINE();
-  char const *ret = OnDemandServerMediaSubsession::sdpLines();
-  if (sdpState == GET_SDP_LINES_TIMEOUT) {
-    if (fSDPLines) {
-      delete[] fSDPLines;
-      fSDPLines = NULL;
+  if (fAuxSDPLine != NULL)
+    return fAuxSDPLine;
+  if (fDummyRTPSink == NULL) {
+    // force I framed
+    if (fMediaInput.GetStartVideoStreamCallback() != NULL) {
+      fMediaInput.GetStartVideoStreamCallback()();
     }
-    ret = NULL;
+    fDummyRTPSink = rtpSink;
+    fGetSdpCount = 10;
+    fDummyRTPSink->startPlaying(*inputSource, afterPlayingDummy, this);
+    checkForAuxSDPLine(this);
   }
-  return ret;
+  envir().taskScheduler().doEventLoop(&fDoneFlag);
+  return fAuxSDPLine;
 }
 
-FramedSource *H264ServerMediaSubsession::createNewStreamSource(
-    unsigned clientSessionId /*clientSessionId*/, unsigned &estBitrate) {
-  LOG("%s - clientSessionId: 0x%08x\n", __func__, clientSessionId);
-  if (clientSessionId != 0 && sdpState != GOT_SDP_LINES) {
-    LOG("you must get sdp first.\n");
-    return NULL;
-  }
+FramedSource *
+H264ServerMediaSubsession::createNewStreamSource(unsigned clientSessionId,
+                                                 unsigned &estBitrate) {
+  LOG("%s:%s:%p - clientSessionId: 0x%08x\n", __FILE__, __func__, this,
+      clientSessionId);
   estBitrate = fEstimatedKbps;
-  if (sdpState == GETTING_SDP_LINES || sdpState == GET_SDP_LINES_TIMEOUT) {
-    LOG("sdpline is not ready, can not create new stream source\n");
-    return NULL;
-  }
-  LOG_FILE_FUNC_LINE();
   // Create a framer for the Video Elementary Stream:
   FramedSource *source = H264VideoStreamDiscreteFramer::createNew(
       envir(), fMediaInput.videoSource());

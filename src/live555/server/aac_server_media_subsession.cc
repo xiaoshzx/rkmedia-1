@@ -46,13 +46,9 @@ AACServerMediaSubsession::AACServerMediaSubsession(
 AACServerMediaSubsession::~AACServerMediaSubsession() { LOG_FILE_FUNC_LINE(); }
 
 FramedSource *
-AACServerMediaSubsession::createNewStreamSource(unsigned clientSessionId,
+AACServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/,
                                                 unsigned &estBitrate) {
   LOG_FILE_FUNC_LINE();
-  if (!fSDPLines && clientSessionId != 0) {
-    LOG("%s:%s:%d --- you must get sdp first.\n", __FILE__, __func__, __LINE__);
-    return NULL;
-  }
   estBitrate = 96; // kbps, estimate
   return fMediaInput.audioSource();
 }
@@ -88,7 +84,7 @@ void AACServerMediaSubsession::startStream(
   if (fMediaInput.GetStartAudioStreamCallback() != NULL) {
     fMediaInput.GetStartAudioStreamCallback()();
   }
-  LOG("%s - clientSessionId: 0x%08x\n", __func__, clientSessionId);
+  LOG("%s:%s:%p - clientSessionId: 0x%08x\n", __FILE__, __func__, this, clientSessionId);
   kSessionIdList.push_back(clientSessionId);
   // kMutex.unlock();
 }

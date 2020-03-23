@@ -21,13 +21,9 @@ MP2ServerMediaSubsession::MP2ServerMediaSubsession(
 MP2ServerMediaSubsession::~MP2ServerMediaSubsession() { LOG_FILE_FUNC_LINE(); }
 
 FramedSource *
-MP2ServerMediaSubsession::createNewStreamSource(unsigned clientSessionId,
+MP2ServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/,
                                                 unsigned &estBitrate) {
   LOG_FILE_FUNC_LINE();
-  if (!fSDPLines && clientSessionId != 0) {
-    LOG("%s:%s:%d --- you must get sdp first.\n", __FILE__, __func__, __LINE__);
-    return NULL;
-  }
   estBitrate = 128; // kbps, estimate
   return fMediaInput.audioSource();
 }
