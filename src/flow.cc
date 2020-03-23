@@ -4,9 +4,9 @@
 
 #include "flow.h"
 
+#include <algorithm>
 #include <assert.h>
 #include <sys/prctl.h>
-#include <algorithm>
 
 #include "buffer.h"
 #include "key_string.h"
@@ -297,7 +297,7 @@ FlowCoroutine::OutputHoldRelated(Flow::FlowMap &fm,
 
 int FlowCoroutine::GetCachedBufferCnt() {
   int cnt = 0;
-  for (auto inv: in_vector) {
+  for (auto inv : in_vector) {
     if (inv)
       cnt++;
   }
@@ -313,7 +313,8 @@ const FunctionProcess Flow::void_transaction00 = void_transaction<0, 0>;
 
 Flow::Flow()
     : out_slot_num(0), input_slot_num(0), down_flow_num(0), enable(true),
-      quit(false), event_handler_(nullptr) {}
+      quit(false), event_handler_(nullptr), play_video_handler_(nullptr),
+      play_audio_handler_(nullptr) {}
 
 Flow::~Flow() { StopAllThread(); }
 
@@ -332,24 +333,24 @@ bool Flow::IsAllBuffEmpty() {
   int i = 0;
 
   for (auto &input : v_input) {
-    LOG("#FLOW v_input-%d cached_buffers size:%zu\n",
-      i, input.cached_buffers.size());
-    LOG("#FLOW v_input-%d cached_buffer :%s\n",
-      i++, input.cached_buffer?"NotNull":"Null");
+    LOG("#FLOW v_input-%d cached_buffers size:%zu\n", i,
+        input.cached_buffers.size());
+    LOG("#FLOW v_input-%d cached_buffer :%s\n", i++,
+        input.cached_buffer ? "NotNull" : "Null");
   }
 
   i = 0;
   for (auto &coroutin : coroutines) {
-    LOG("#FLOW coroutin-%d in_vector size:%d\n",
-        i++, coroutin->GetCachedBufferCnt());
+    LOG("#FLOW coroutin-%d in_vector size:%d\n", i++,
+        coroutin->GetCachedBufferCnt());
   }
 
   i = 0;
   for (auto &fm : downflowmap) {
-    LOG("#FLOW downflowmap-%d cached_buffers size:%zu\n",
-      i, fm.cached_buffers.size());
-    LOG("#FLOW downflowmap-%d cached_buffer : %s\n",
-      i++, fm.cached_buffer?"NotNull":"Null");
+    LOG("#FLOW downflowmap-%d cached_buffers size:%zu\n", i,
+        fm.cached_buffers.size());
+    LOG("#FLOW downflowmap-%d cached_buffer : %s\n", i++,
+        fm.cached_buffer ? "NotNull" : "Null");
   }
 #endif
 
@@ -664,8 +665,7 @@ bool Flow::ParseWrapFlowParams(const char *param,
   return true;
 }
 
-void Flow::RegisterEventHandler(std::shared_ptr<Flow> flow, EventHook proc)
-{
+void Flow::RegisterEventHandler(std::shared_ptr<Flow> flow, EventHook proc) {
   event_handler_.reset(new EventHandler());
   if (event_handler_) {
     event_handler_->RegisterEventHook(flow, proc);
@@ -679,8 +679,7 @@ void Flow::UnRegisterEventHandler() {
   }
 }
 
-void Flow::NotifyToEventHandler(EventParamPtr param, int type)
-{
+void Flow::NotifyToEventHandler(EventParamPtr param, int type) {
   if (event_handler_) {
     MessagePtr msg = std::make_shared<EventMessage>(this, param, type);
     event_handler_->NotifyToEventHandler(msg);
@@ -688,8 +687,7 @@ void Flow::NotifyToEventHandler(EventParamPtr param, int type)
   }
 }
 
-void Flow::NotifyToEventHandler(int id, int type)
-{
+void Flow::NotifyToEventHandler(int id, int type) {
   if (event_handler_) {
     EventParamPtr event_param = std::make_shared<EventParam>(id, 0);
     MessagePtr msg = std::make_shared<EventMessage>(this, event_param, type);
@@ -698,14 +696,12 @@ void Flow::NotifyToEventHandler(int id, int type)
   }
 }
 
-void Flow::EventHookWait()
-{
+void Flow::EventHookWait() {
   if (event_handler_)
     event_handler_->EventHookWait();
 }
 
-MessagePtr Flow::GetEventMessage()
-{
+MessagePtr Flow::GetEventMessage() {
   if (event_handler_)
     return event_handler_->GetEventMessage();
   return nullptr;

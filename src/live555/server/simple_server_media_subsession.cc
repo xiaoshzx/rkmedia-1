@@ -97,6 +97,9 @@ void SIMPLEServerMediaSubsession::startStream(
   // kMutex.lock();
   if (kSessionIdList.empty())
     fMediaInput.Start(envir());
+  if (fMediaInput.GetStartAudioStreamCallback() != NULL) {
+    fMediaInput.GetStartAudioStreamCallback()();
+  }
   LOG("%s - clientSessionId: 0x%08x\n", __func__, clientSessionId);
   kSessionIdList.push_back(clientSessionId);
   // kMutex.unlock();

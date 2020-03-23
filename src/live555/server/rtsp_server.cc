@@ -38,7 +38,6 @@
 #include "media_type.h"
 
 namespace easymedia {
-
 static bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector);
 class RtspServerFlow : public Flow {
 public:
@@ -54,6 +53,8 @@ private:
   std::string video_type;
   std::string audio_type;
   friend bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector);
+  void CallPlayVideoHandler();
+  void CallPlayAudioHandler();
 };
 
 bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector) {
@@ -148,6 +149,10 @@ RtspServerFlow::RtspServerFlow(const char *param) {
     server_input = rtspConnection->createNewChannel(
         channel_name, video_type, audio_type, channels, sample_rate, bitrate,
         profiles);
+    server_input->SetStartVideoStreamCallback(
+        std::bind(&RtspServerFlow::CallPlayVideoHandler, this));
+    server_input->SetStartAudioStreamCallback(
+        std::bind(&RtspServerFlow::CallPlayAudioHandler, this));
     sm.process = SendMediaToServer;
     sm.thread_model = Model::ASYNCCOMMON;
     sm.mode_when_full = InputMode::BLOCKING;
@@ -163,6 +168,20 @@ RtspServerFlow::RtspServerFlow(const char *param) {
   return;
 err:
   SetError(-EINVAL);
+}
+
+void RtspServerFlow::CallPlayVideoHandler() {
+  auto handler = GetPlayVideoHandler();
+  if (handler != nullptr) {
+    handler(this);
+  }
+}
+
+void RtspServerFlow::CallPlayAudioHandler() {
+  auto handler = GetPlayAudioHandler();
+  if (handler) {
+    handler(this);
+  }
 }
 
 RtspServerFlow::~RtspServerFlow() {
