@@ -81,8 +81,10 @@ FilterFlow::FilterFlow(const char *param)
     sm.hold_input.push_back((HoldInputMode)std::stoi(hold));
 
   sm.process = do_filters;
-  if (!InstallSlotMap(sm, name, -1)) {
-    LOG("Fail to InstallSlotMap, %s\n", filter_name);
+  std::string slot_name = "Filter:";
+  slot_name.append(filter_name);
+  if (!InstallSlotMap(sm, slot_name, -1)) {
+    LOG("Fail to InstallSlotMap for %s\n", slot_name.c_str());
     SetError(-EINVAL);
     return;
   }

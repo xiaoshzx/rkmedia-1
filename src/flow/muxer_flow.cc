@@ -104,9 +104,8 @@ MuxerFlow::MuxerFlow(const char *param)
   sm.fetch_block.push_back(false);
   sm.process = save_buffer;
 
-  std::string &name = params[KEY_NAME];
-  if (!InstallSlotMap(sm, name, 0)) {
-    LOG("Fail to InstallSlotMap, %s\n", name.c_str());
+  if (!InstallSlotMap(sm, "MuxerFlow", 0)) {
+    LOG("Fail to InstallSlotMap for MuxerFlow\n");
     return;
   }
 }

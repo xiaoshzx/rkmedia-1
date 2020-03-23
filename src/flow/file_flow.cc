@@ -205,9 +205,8 @@ FileWriteFlow::FileWriteFlow(const char *param) {
   sm.input_maxcachenum.push_back(0);
   sm.process = save_buffer;
 
-  std::string &name = params[KEY_NAME];
-  if (!InstallSlotMap(sm, name, 0)) {
-    LOG("Fail to InstallSlotMap, %s\n", name.c_str());
+  if (!InstallSlotMap(sm, "FileWriteFlow", 0)) {
+    LOG("Fail to InstallSlotMap for FileWriteFlow\n");
     return;
   }
 }

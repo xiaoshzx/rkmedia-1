@@ -48,9 +48,8 @@ LinkFlow::LinkFlow(const char *param)
   sm.input_maxcachenum.push_back(0);
   sm.process = process_buffer;
 
-  std::string &name = params[KEY_NAME];
-  if (!InstallSlotMap(sm, name, 0)) {
-    LOG("Fail to InstallSlotMap, %s\n", name.c_str());
+  if (!InstallSlotMap(sm, "LinkFLow", 0)) {
+    LOG("Fail to InstallSlotMap for LinkFLow\n");
     return;
   }
 

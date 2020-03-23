@@ -262,8 +262,8 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
   sm.thread_model = Model::ASYNCCOMMON;
   sm.mode_when_full = InputMode::DROPFRONT;
   sm.input_maxcachenum.push_back(3);
-  if (!InstallSlotMap(sm, key_name, 40)) {
-    LOG("Fail to InstallSlotMap, md_detection\n");
+  if (!InstallSlotMap(sm, "MDFlow", 20)) {
+    LOG("Fail to InstallSlotMap for MDFlow\n");
     SetError(-EINVAL);
     return;
   }

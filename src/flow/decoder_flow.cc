@@ -59,8 +59,8 @@ VideoDecoderFlow::VideoDecoderFlow(const char *param)
   sm.input_maxcachenum.push_back(input_maxcachenum);
   sm.output_slots.push_back(0);
   sm.process = do_decode;
-  if (!InstallSlotMap(sm, name, -1)) {
-    LOG("Fail to InstallSlotMap, %s\n", decoder_name);
+  if (!InstallSlotMap(sm, "VideoDecoderFlow", -1)) {
+    LOG("Fail to InstallSlotMap for VideoDecoderFlow\n");
     SetError(-EINVAL);
     return;
   }

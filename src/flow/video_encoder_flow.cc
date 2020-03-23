@@ -192,7 +192,7 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
   sm.thread_model = Model::ASYNCCOMMON;
   sm.mode_when_full = InputMode::DROPFRONT;
   sm.input_maxcachenum.push_back(3);
-  if (!InstallSlotMap(sm, codec_name, 40)) {
+  if (!InstallSlotMap(sm, "VideoEncoderFlow", 40)) {
     LOG("Fail to InstallSlotMap, %s\n", ccodec_name);
     SetError(-EINVAL);
     return;

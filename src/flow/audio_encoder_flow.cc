@@ -164,8 +164,8 @@ AudioEncoderFlow::AudioEncoderFlow(const char *param) {
   sm.thread_model = Model::ASYNCCOMMON;
   sm.mode_when_full = InputMode::DROPFRONT;
   sm.input_maxcachenum.push_back(3);
-  if (!InstallSlotMap(sm, codec_name, 40)) {
-    LOG("Fail to InstallSlotMap, %s\n", ccodec_name);
+  if (!InstallSlotMap(sm, "AudioEncoderFlow", 40)) {
+    LOG("Fail to InstallSlotMap for AudioEncoderFlow\n");
     SetError(-EINVAL);
     return;
   }
