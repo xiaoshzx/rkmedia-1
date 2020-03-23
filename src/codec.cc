@@ -120,15 +120,14 @@ split_h264_separate(const uint8_t *buffer, size_t length, int64_t timestamp) {
     case 8:
       flag = MediaBuffer::kExtraIntra;
       break;
-    case 5:
-      flag = MediaBuffer::kIntra;
-      break;
-    case 1:
-      flag = MediaBuffer::kPredicted;
-      break;
     default:
       flag = 0;
     }
+
+    // not extraIntra?
+    if (!flag)
+      break;
+
     auto sub_buffer = MediaBuffer::Alloc(size);
     if (!sub_buffer) {
       LOG_NO_MEMORY(); // fatal error
@@ -170,15 +169,14 @@ split_h265_separate(const uint8_t *buffer, size_t length, int64_t timestamp) {
     case 34:
       flag = MediaBuffer::kExtraIntra;
       break;
-    case 19:
-      flag = MediaBuffer::kIntra;
-      break;
-    //    case 1:
-    //      flag = MediaBuffer::kPredicted;
-    //      break;
     default:
       flag = 0;
     }
+
+    // not extraIntra?
+    if (!flag)
+      break;
+
     auto sub_buffer = MediaBuffer::Alloc(size);
     if (!sub_buffer) {
       LOG_NO_MEMORY(); // fatal error
