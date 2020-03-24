@@ -52,10 +52,23 @@ static bool MppEncPrepConfig(MppEncPrepCfg &prep_cfg,
 bool MPPMJPEGConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   const ImageConfig &img_cfg = cfg.img_cfg;
   MppEncPrepCfg prep_cfg;
+  MppPollType timeout = MPP_POLL_BLOCK;
+  LOGD("MPP Encoder: Set output block mode.\n");
+  int ret = mpp_enc.EncodeControl(MPP_SET_OUTPUT_TIMEOUT, &timeout);
+  if (ret != 0) {
+    LOG("mpp control set output block failed ret %d\n", ret);
+    return false;
+  }
+  LOGD("MPP Encoder: Set input block mode.\n");
+  ret = mpp_enc.EncodeControl(MPP_SET_INPUT_TIMEOUT, &timeout);
+  if (ret != 0) {
+    LOG("mpp control set input block failed ret %d\n", ret);
+    return false;
+  }
 
   if (!MppEncPrepConfig(prep_cfg, img_cfg.image_info))
     return false;
-  int ret = mpp_enc.EncodeControl(MPP_ENC_SET_PREP_CFG, &prep_cfg);
+  ret = mpp_enc.EncodeControl(MPP_ENC_SET_PREP_CFG, &prep_cfg);
   if (ret) {
     LOG("mpi control enc set cfg failed\n");
     return false;
