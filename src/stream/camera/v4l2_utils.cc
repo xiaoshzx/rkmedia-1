@@ -45,6 +45,8 @@ static const struct V4L2FmtStringEntry {
 } v4l2_fmt_string_map[] = {{V4L2_PIX_FMT_YUV420, IMAGE_YUV420P},
                            {V4L2_PIX_FMT_NV12, IMAGE_NV12},
                            {V4L2_PIX_FMT_NV21, IMAGE_NV21},
+                           {V4L2_PIX_FMT_FBC2, IMAGE_FBC2},
+                           {V4L2_PIX_FMT_FBC0, IMAGE_FBC0},
                            {V4L2_PIX_FMT_YUV422P, IMAGE_YUV422P},
                            {V4L2_PIX_FMT_NV16, IMAGE_NV16},
                            {V4L2_PIX_FMT_NV61, IMAGE_NV61},

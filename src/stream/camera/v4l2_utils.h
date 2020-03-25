@@ -14,6 +14,11 @@
 #include "media_type.h"
 #include "utils.h"
 
+#ifndef V4L2_PIX_FMT_FBC2
+#define V4L2_PIX_FMT_FBC2 v4l2_fourcc('F', 'B', 'C', '2')
+#define V4L2_PIX_FMT_FBC0 v4l2_fourcc('F', 'B', 'C', '0')
+#endif
+
 namespace easymedia {
 
 __u32 GetV4L2Type(const char *v4l2type);
