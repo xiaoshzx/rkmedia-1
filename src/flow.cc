@@ -729,8 +729,8 @@ void Flow::Input::ASyncSendInputCommonBehavior(
       return;
     }
   }
-  mtx.unlock();
   cached_buffers.push_back(input);
+  mtx.unlock();
   AutoLockMutex _alm(flow->cond_mtx);
   flow->cond_mtx.notify();
 }
