@@ -2,33 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "rga.h"
+#include "rga_filter.h"
 
 #include <assert.h>
 
 #include <vector>
 
-#include <rga/RockchipRga.h>
-
 #include "buffer.h"
 #include "filter.h"
 
 namespace easymedia {
-
-class RgaFilter : public Filter {
-public:
-  RgaFilter(const char *param);
-  virtual ~RgaFilter() = default;
-  static const char *GetFilterName() { return "rkrga"; }
-  virtual int Process(std::shared_ptr<MediaBuffer> input,
-                      std::shared_ptr<MediaBuffer> &output) override;
-
-  static RockchipRga gRkRga;
-
-private:
-  std::vector<ImageRect> vec_rect;
-  int rotate;
-};
 
 RockchipRga RgaFilter::gRkRga;
 
@@ -49,6 +32,10 @@ RgaFilter::RgaFilter(const char *param) : rotate(0) {
   const std::string &v = params[KEY_BUFFER_ROTATE];
   if (!v.empty())
     rotate = std::stoi(v);
+}
+
+void RgaFilter::SetRects(std::vector<ImageRect> rects) {
+  vec_rect = std::move(rects);
 }
 
 int RgaFilter::Process(std::shared_ptr<MediaBuffer> input,
