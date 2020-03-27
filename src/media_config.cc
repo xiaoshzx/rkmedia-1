@@ -302,15 +302,23 @@ std::string get_video_encoder_config_string (
   // for jpeg
   if (img_cfg.codec_type == CODEC_TYPE_JPEG) {
     if (!strcmp(vid_cfg.rc_quality, KEY_BEST))
-      img_cfg.qp_init =10;
+      img_cfg.qp_init = 10;
     else if (!strcmp(vid_cfg.rc_quality, KEY_BETTER))
-      img_cfg.qp_init =8;
+      img_cfg.qp_init = 8;
     else if (!strcmp(vid_cfg.rc_quality, KEY_MEDIUM))
-      img_cfg.qp_init =6;
+      img_cfg.qp_init = 6;
     else if (!strcmp(vid_cfg.rc_quality, KEY_WORSE))
-      img_cfg.qp_init =3;
+      img_cfg.qp_init = 3;
     else if (!strcmp(vid_cfg.rc_quality, KEY_WORST))
-      img_cfg.qp_init =1;
+      img_cfg.qp_init = 1;
+  } else if (img_cfg.codec_type == CODEC_TYPE_H265) {
+    //defalut qp config for h265
+    img_cfg.qp_init = 26;
+    vid_cfg.max_i_qp = 46;
+    vid_cfg.min_i_qp = 24;
+    vid_cfg.qp_max = 51;
+    vid_cfg.qp_min = 10;
+    vid_cfg.qp_step = 4;
   }
 
   if (cfg.rc_mode)
