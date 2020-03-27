@@ -75,10 +75,6 @@ endif()
 if(${CMAKE_BUILD_TYPE} MATCHES "Release")
   set(CMAKE_C_VISIBILITY_PRESET hidden)
   set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-elseif(${CMAKE_BUILD_TYPE} MATCHES "Debug")
-  include(CTest)
-  enable_testing()
-  set(BUILD_TESTING 1)
 endif()
 
 # set c++11
@@ -135,6 +131,10 @@ endif()
 
 include_directories(include/easymedia)
 add_subdirectory(src)
-if(BUILD_TESTING)
+
+option(COMPILES_EXAMPLES "Enable compiles examples" OFF)
+if(COMPILES_EXAMPLES)
+  include(CTest)
+  enable_testing()
   add_subdirectory(test)
 endif()
