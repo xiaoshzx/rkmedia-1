@@ -83,7 +83,7 @@ int V4L2CaptureStream::BufferExport(enum v4l2_buf_type bt, int index,
   expbuf.type = bt;
   expbuf.index = index;
   if (v4l2_ctx->IoCtrl(VIDIOC_EXPBUF, &expbuf) == -1) {
-    LOG("VIDIOC_EXPBUF  %d failed, %m", index);
+    LOG("VIDIOC_EXPBUF  %d failed, %m\n", index);
     return -1;
   }
   *dmafd = expbuf.fd;
@@ -254,7 +254,7 @@ int V4L2CaptureStream::Open() {
         LOG("%s, ioctl(VIDIOC_QBUF): %m\n", dev);
         return -1;
       }
-      if (!use_libv4l2 && !BufferExport(capture_type, i, &dmafd)) {
+      if (!BufferExport(capture_type, i, &dmafd)) {
         MediaBuffer &mb = buffer_vec[i];
         V4L2Buffer *buffer = static_cast<V4L2Buffer *>(mb.GetUserData().get());
         buffer->dmafd = dmafd;
