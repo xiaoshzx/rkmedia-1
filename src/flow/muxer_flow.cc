@@ -6,6 +6,7 @@
 #include <sys/time.h>
 
 #include "buffer.h"
+#include "codec.h"
 #include "flow.h"
 #include "muxer.h"
 #include "muxer_flow.h"
@@ -200,8 +201,19 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
       break;
     }
 
-    if (vid_buffer->GetUserFlag() == MediaBuffer::kExtraIntra) {
-      flow->video_extra = vid_buffer;
+    if ((vid_buffer->GetUserFlag() & MediaBuffer::kIntra)) {
+      auto extra_buffer = split_h264_extrainfo(
+          (const uint8_t *)vid_buffer->GetPtr(), vid_buffer->GetValidSize(),
+          easymedia::gettimeofday());
+      flow->video_extra = extra_buffer;
+      if (extra_buffer) {
+        vid_buffer->SetPtr((uint8_t *)vid_buffer->GetPtr() +
+                                     extra_buffer->GetValidSize());
+        vid_buffer->SetValidSize(vid_buffer->GetValidSize() -
+                                     extra_buffer->GetValidSize());
+      } else {
+        LOG("Intra Frame without sps pps\n");
+      }
     }
 
     if (!recoder->Write(flow, vid_buffer)) {
