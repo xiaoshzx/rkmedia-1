@@ -316,6 +316,13 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   }
 #endif
 
+  int header_mode = MPP_ENC_HEADER_MODE_EACH_IDR;
+  ret = mpp_enc.EncodeControl(MPP_ENC_SET_HEADER_MODE, &header_mode);
+  if (ret) {
+    LOG("mpi control enc set codec cfg failed ret %d\n", ret);
+    return false;
+  }
+
   mpp_enc.GetConfig().vid_cfg = vconfig;
   mpp_enc.GetConfig().type = Type::Video;
   return true;
