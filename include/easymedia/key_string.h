@@ -10,6 +10,9 @@
 
 #define KEY_PATH "path"
 #define KEY_OPEN_MODE "mode"
+#define KEY_SAVE_MODE "save_mode"
+#define KEY_SAVE_MODE_SINGLE "single_frame"
+#define KEY_SAVE_MODE_CONTIN "continuous_frame"
 #define KEY_DEVICE "device"
 
 #define KEY_NAME "name"
@@ -124,6 +127,7 @@
 
 // muxer flow
 #define KEY_FILE_PREFIX "file_prefix"
+#define KEY_FILE_SUFFIX "file_suffix"
 #define KEY_FILE_DURATION "file_duration"
 #define KEY_FILE_INDEX "file_index"
 #define KEY_FILE_TIME "file_time"

@@ -57,6 +57,10 @@ public:
   virtual int Seek(int64_t offset, int whence) = 0;
   virtual long Tell() = 0;
 
+  virtual int NewStream(std::string new_path _UNUSED) { return -1; };
+  virtual int ReName(std::string old_path _UNUSED,
+                       std::string new_path _UNUSED) { return -1; };
+
   virtual bool Readable() { return readable; }
   virtual bool Writeable() { return writeable; }
   virtual bool Seekable() { return seekable; }
