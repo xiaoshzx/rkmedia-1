@@ -144,9 +144,13 @@ void FileReadFlow::ReadThreadRun() {
       buffer->SetValidSize(size);
     }
     if (is_image) {
-      if (!fstream->ReadImage(buffer->GetPtr(), info) && !fstream->Eof()) {
-        SetDisable();
-        break;
+      if (!fstream->ReadImage(buffer->GetPtr(), info)) {
+        if (!fstream->Eof()) {
+          SetDisable();
+          break;
+        } else {
+          continue;
+        }
       }
     }
     buffer->SetUSTimeStamp(gettimeofday());
