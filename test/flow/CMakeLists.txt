@@ -178,3 +178,19 @@ if(RKMPP_ENCODER)
   install(TARGETS video_smart_encoder_test RUNTIME DESTINATION "bin")
 endif()
 endif()#RKMPP_ENCODER_OSD
+
+#--------------------------
+# through_guard_mjpeg_test
+#--------------------------
+if(FILTER)
+if(RKMPP_ENCODER)
+if(RKGUARD)
+  set(SMART_ENCODER_TEST_SRC_FILES through_guard_jpeg_test.cc)
+  add_executable(through_guard_jpeg_test ${SMART_ENCODER_TEST_SRC_FILES})
+  target_link_libraries(through_guard_jpeg_test easymedia)
+  target_include_directories(through_guard_jpeg_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_compile_features(through_guard_jpeg_test PRIVATE cxx_std_11)
+  install(TARGETS through_guard_jpeg_test RUNTIME DESTINATION "bin")
+endif()#RKGUARD
+endif()#RKMPP_ENCODER
+endif()#FILTER

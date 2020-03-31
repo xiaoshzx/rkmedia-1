@@ -162,4 +162,7 @@
 #define KEY_NCHW "NCHW"
 #define KEY_NHWC "NHWC"
 
+// throuh_guard
+#define KEY_ALLOW_THROUGH_COUNT "allow_through_count"
+
 #endif // #ifndef EASYMEDIA_MEDIA_KEY_STRING_H_

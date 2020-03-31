@@ -65,6 +65,7 @@ endif()
 
 if(FILTER)
   add_subdirectory(rkrga)
+  add_subdirectory(guard)
   if(RKNN)
     include_directories(${RKNPU_HEADER_DIR})
     add_subdirectory(rknn)
