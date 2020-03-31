@@ -268,9 +268,12 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
   }
 
   packet_len = mpp_packet_get_length(packet);
-  packet_flag = (mpp_packet_get_flag(packet) & MPP_PACKET_FLAG_INTRA)
-                    ? MediaBuffer::kIntra
-                    : MediaBuffer::kPredicted;
+  {
+    MppMeta packet_meta = mpp_packet_get_meta(packet);
+    RK_S32 is_intra = 0;
+    mpp_meta_get_s32(packet_meta, KEY_OUTPUT_INTRA, &is_intra);
+    packet_flag = (is_intra) ? MediaBuffer::kIntra : MediaBuffer::kPredicted;
+  }
   out_eof = mpp_packet_get_eos(packet);
   pts = mpp_packet_get_pts(packet);
   if (pts <= 0)
