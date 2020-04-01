@@ -49,8 +49,6 @@ _API std::list<std::shared_ptr<MediaBuffer>>
 split_h264_separate(const uint8_t *buffer, size_t length, int64_t timestamp);
 _API std::list<std::shared_ptr<MediaBuffer>>
 split_h265_separate(const uint8_t *buffer, size_t length, int64_t timestamp);
-_API std::shared_ptr<MediaBuffer>
-split_h264_extrainfo(const uint8_t *buffer, size_t length, int64_t timestamp);
 
 } // namespace easymedia
 
