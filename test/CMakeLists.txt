@@ -21,5 +21,9 @@ endif()
 
 if(RKMPP)
 add_subdirectory(rkmpp)
+
+if(UVC)
+add_subdirectory(uvc)
 endif()
 
+endif()

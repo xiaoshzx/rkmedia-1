@@ -186,6 +186,7 @@ if(RKMPP_ENCODER)
   target_compile_features(video_smart_encoder_test PRIVATE cxx_std_11)
   install(TARGETS video_smart_encoder_test RUNTIME DESTINATION "bin")
 endif()
+
 endif()#RKMPP_ENCODER_OSD
 
 #--------------------------

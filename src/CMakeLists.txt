@@ -26,6 +26,12 @@ if(RKMPP)
   endif()
 
   add_subdirectory(rkmpp)
+
+  option(UVC "compile: uvc" OFF)
+  if(UVC)
+     add_subdirectory(uvc)
+  endif()
+
 endif()
 
 option(OGG "compile: ogg" OFF)

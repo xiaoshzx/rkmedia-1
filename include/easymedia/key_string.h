@@ -165,4 +165,10 @@
 // throuh_guard
 #define KEY_ALLOW_THROUGH_COUNT "allow_through_count"
 
+// uvc
+#define KEY_UVC_EVENT_CODE "uvc_event_code"
+#define KEY_UVC_WIDTH "uvc_width"
+#define KEY_UVC_HEIGHT "uvc_height"
+#define KEY_UVC_FORMAT "uvc_format"
+
 #endif // #ifndef EASYMEDIA_MEDIA_KEY_STRING_H_
