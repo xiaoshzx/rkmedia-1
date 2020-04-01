@@ -39,6 +39,15 @@ add_test(AllTestsInEasyMedia FlowTest)
 endif()
 
 #--------------------------
+# flow_stress_test
+#--------------------------
+add_executable(flow_stress_test flow_stress_test.cc)
+target_link_libraries(flow_stress_test easymedia)
+target_include_directories(flow_stress_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_features(flow_stress_test PRIVATE cxx_std_11)
+install(TARGETS flow_stress_test RUNTIME DESTINATION "bin")
+
+#--------------------------
 # flow_event_test
 #--------------------------
 add_definitions(-DFLOW_EVENT_TEST)
