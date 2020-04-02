@@ -188,7 +188,9 @@ void RtspConnection::addSession(struct message msg) {
   if (strcmp(msg.videoType, VIDEO_H264) == 0) {
     subsession = H264ServerMediaSubsession::createNew(*env, *server_input);
   } else if (strcmp(msg.videoType, VIDEO_H265) == 0) {
-
+#ifdef LIVE555_SERVER_H265
+    subsession = H265ServerMediaSubsession::createNew(*env, *server_input);
+#endif
   } else if (strcmp(msg.videoType, IMAGE_JPEG) == 0) {
     subsession = MJPEGServerMediaSubsession::createNew(*env, *server_input);
   } else {
