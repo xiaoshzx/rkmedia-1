@@ -38,6 +38,8 @@ enum {
   // int
   S_ALSA_VOLUME,
   G_ALSA_VOLUME,
+  // int
+  S_ALLOW_THROUGH_COUNT,
 };
 
 } // namespace easymedia

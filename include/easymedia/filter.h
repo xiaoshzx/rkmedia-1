@@ -7,6 +7,9 @@
 
 #include <memory>
 
+#include <stdarg.h>
+
+#include "control.h"
 #include "media_reflector.h"
 
 namespace easymedia {
@@ -38,6 +41,8 @@ public:
   // sync or async safe call, depends on specific filter.
   virtual int SendInput(std::shared_ptr<MediaBuffer> input);
   virtual std::shared_ptr<MediaBuffer> FetchOutput();
+
+  virtual int IoCtrl(unsigned long int request _UNUSED, ...) { return -1; }
 
   DEFINE_ERR_GETSET()
   DECLARE_PART_FINAL_EXPOSE_PRODUCT(Filter)

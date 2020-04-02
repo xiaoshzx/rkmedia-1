@@ -19,6 +19,19 @@ public:
   FilterFlow(const char *param);
   virtual ~FilterFlow() { StopAllThread(); }
   static const char *GetFlowName() { return "filter"; }
+  virtual int Control(unsigned long int request, ...) final {
+    int ret = 0;
+    if (!filters.size())
+      return -1;
+    for (auto &filter : filters) {
+      va_list vl;
+      va_start(vl, request);
+      void *arg = va_arg(vl, void *);
+      va_end(vl);
+      ret |= filter->IoCtrl(request, arg);
+    }
+    return ret;
+  }
 
 private:
   std::vector<std::shared_ptr<Filter>> filters;
