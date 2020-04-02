@@ -239,13 +239,18 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   codec_cfg.coding = code_type;
   switch (code_type) {
   case MPP_VIDEO_CodingAVC:
-    codec_cfg.h264.change =
-        MPP_ENC_H264_CFG_CHANGE_PROFILE | MPP_ENC_H264_CFG_CHANGE_ENTROPY;
+    codec_cfg.h264.change = MPP_ENC_H264_CFG_CHANGE_PROFILE |
+        MPP_ENC_H264_CFG_CHANGE_ENTROPY | MPP_ENC_H264_CFG_CHANGE_QP_LIMIT;
     codec_cfg.h264.profile = profile;
     codec_cfg.h264.level = vconfig.level;
     codec_cfg.h264.entropy_coding_mode =
         (profile == 66 || profile == 77) ? (0) : (1);
     codec_cfg.h264.cabac_init_idc = 0;
+
+    codec_cfg.h264.qp_init = img_cfg.qp_init;
+    codec_cfg.h264.qp_max_step = vconfig.qp_step;
+    codec_cfg.h264.qp_min = vconfig.qp_min;
+    codec_cfg.h264.qp_max = vconfig.qp_max;
 
     if (vconfig.trans_8x8) {
       if (profile == 100) {
@@ -479,6 +484,25 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
     }
     int region_cnt = val->GetSize() / sizeof(EncROIRegion);
     mpp_enc.RoiUpdateRegions(regions, region_cnt);
+  } else if (change & VideoEncoder::kSplitChange) {
+    if (val->GetSize() < (2 * sizeof(int))) {
+      LOG("ERROR: MPP Encoder: Incomplete split information\n");
+      return false;
+    }
+    MppEncSliceSplit split_cfg;
+    memset(&split_cfg, 0, sizeof(split_cfg));
+
+    RK_U32 split_mode = *((unsigned int *)val->GetPtr());
+    RK_U32 split_arg = *((unsigned int *)val->GetPtr() + 1);
+
+    LOGD("MPP Encoder: split_mode:%u, split_arg:%u\n", split_mode, split_arg);
+    split_cfg.change = MPP_ENC_SPLIT_CFG_CHANGE_ALL;
+    split_cfg.split_mode = split_mode;
+    split_cfg.split_arg = split_arg;
+    if (mpp_enc.EncodeControl(MPP_ENC_SET_SPLIT, &split_cfg) != 0) {
+      LOG("ERROR: MPP Encoder: set split mode failed!\n");
+      return false;
+    }
   }
 #ifdef MPP_SUPPORT_HW_OSD
   else if (change & VideoEncoder::kOSDDataChange) {

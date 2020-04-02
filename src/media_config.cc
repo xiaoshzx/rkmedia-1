@@ -311,13 +311,13 @@ std::string get_video_encoder_config_string (
       img_cfg.qp_init = 3;
     else if (!strcmp(vid_cfg.rc_quality, KEY_WORST))
       img_cfg.qp_init = 1;
-  } else if (img_cfg.codec_type == CODEC_TYPE_H265) {
-    //defalut qp config for h265
+  } else {
+    //defalut qp config for h264/h265
     img_cfg.qp_init = 26;
     vid_cfg.max_i_qp = 46;
-    vid_cfg.min_i_qp = 24;
+    vid_cfg.min_i_qp = 10;
     vid_cfg.qp_max = 51;
-    vid_cfg.qp_min = 10;
+    vid_cfg.qp_min = 1;
     vid_cfg.qp_step = 4;
   }
 
@@ -532,6 +532,21 @@ int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
   auto pbuff = std::make_shared<ParameterBuffer>(0);
   pbuff->SetPtr(rdata, rsize);
   enc_flow->Control(VideoEncoder::kROICfgChange, pbuff);
+  return 0;
+}
+
+int video_encoder_set_split(
+  std::shared_ptr<Flow> &enc_flow, unsigned int mode, unsigned int size) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  uint32_t *param = (uint32_t *)malloc(2 * sizeof(uint32_t));
+  *param = mode;
+  *(param + 1) = size;
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetPtr(param, 2 * sizeof(uint32_t));
+  enc_flow->Control(VideoEncoder::kSplitChange, pbuff);
+
   return 0;
 }
 
