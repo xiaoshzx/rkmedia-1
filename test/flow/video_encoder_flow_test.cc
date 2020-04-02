@@ -272,7 +272,7 @@ RESTART:
       split_mb_cnt = (video_width / 16) * (( video_height / 16) / 2);
       video_encoder_set_split(video_encoder_flow, split_mode, split_mb_cnt);
     } else {
-      split_mb_cnt = (video_width / 64) * (( video_height / 64) / 2)
+      split_mb_cnt = (video_width / 64) * (( video_height / 64) / 2);
       video_encoder_set_split(video_encoder_flow, split_mode, split_mb_cnt);
     }
     LOG("Split frame to 2 slice with MB cnt = %d...\n", split_mb_cnt);
