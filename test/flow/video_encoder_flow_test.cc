@@ -230,7 +230,16 @@ RESTART:
 
   flow_name = "file_write_flow";
   flow_param = "";
-  PARAM_STRING_APPEND(flow_param, KEY_PATH, output_path.c_str());
+  if (video_enc_type == IMAGE_JPEG) {
+    int pos = output_path.find_last_of(".");
+    if(pos != -1)
+      output_path = output_path.substr(0, pos);
+    PARAM_STRING_APPEND(flow_param, KEY_SAVE_MODE, KEY_SAVE_MODE_SINGLE);
+    PARAM_STRING_APPEND(flow_param, KEY_FILE_PREFIX, output_path);
+    PARAM_STRING_APPEND(flow_param, KEY_FILE_SUFFIX, ".jpg");
+  } else {
+    PARAM_STRING_APPEND(flow_param, KEY_PATH, output_path.c_str());
+  }
   PARAM_STRING_APPEND(flow_param, KEY_OPEN_MODE, "w+"); // read and close-on-exec
   printf("\n#FileWrite:\n%s\n", flow_param.c_str());
   video_save_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(

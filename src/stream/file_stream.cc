@@ -57,8 +57,29 @@ public:
     return eof ? eof : !!feof(file);
   }
 
+  virtual int NewStream(std::string new_path) {
+    Close();
+    path = new_path;
+    return Open();
+  }
+
+  virtual int ReName(std::string old_path,
+                       std::string new_path ) {
+    int ret;
+    Close();
+    ret = rename(old_path.c_str(), new_path.c_str());
+    if (ret)
+      return ret;
+    path = new_path;
+    return Open();
+  };
+
 protected:
   virtual int Open() {
+    if (open_late) {
+      open_late = 0;
+      return 0;
+    }
     if (path.empty() || open_mode.empty())
       return -1;
     file = fopen(path.c_str(), open_mode.c_str());
@@ -84,11 +105,14 @@ protected:
 private:
   std::string path;
   std::string open_mode;
+  std::string save_mode;
   FILE *file;
   bool eof;
+  int open_late;
 };
 
-FileStream::FileStream(const char *param) : file(NULL), eof(true) {
+FileStream::FileStream(const char *param)
+    : file(NULL), eof(true), open_late (0) {
   std::map<std::string, std::string> params;
   std::list<std::pair<const std::string, std::string &>> req_list;
   req_list.push_back(
@@ -96,6 +120,11 @@ FileStream::FileStream(const char *param) : file(NULL), eof(true) {
   req_list.push_back(
       std::pair<const std::string, std::string &>(KEY_OPEN_MODE, open_mode));
   int ret = parse_media_param_match(param, params, req_list);
+  save_mode = params[KEY_SAVE_MODE];
+  if (save_mode.empty())
+    save_mode = KEY_SAVE_MODE_CONTIN;
+  if (save_mode == KEY_SAVE_MODE_SINGLE)
+    open_late = 1;
   UNUSED(ret);
 }
 

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sstream>
+
 #include "buffer.h"
 #include "flow.h"
 #include "stream.h"
@@ -174,15 +176,50 @@ public:
   virtual ~FileWriteFlow();
   static const char *GetFlowName() { return "file_write_flow"; }
 
+  std::string GetSaveMode() { return save_mode; }
+  std::string GetPath() { return path; }
+  size_t GetFileIndex() { return file_index; }
+  std::string GenFilePath(time_t curtime = 0);
+
 private:
   friend bool save_buffer(Flow *f, MediaBufferVector &input_vector);
 
 private:
   std::shared_ptr<Stream> fstream;
   std::string path;
+  std::string save_mode;
+  std::string file_prefix;
+  std::string file_suffix;
+  size_t file_index;
 };
 
-FileWriteFlow::FileWriteFlow(const char *param) {
+std::string FileWriteFlow::GenFilePath(time_t curtime) {
+  std::ostringstream ostr;
+
+  if (!file_prefix.empty()) {
+    ostr << file_prefix;
+  }
+
+  if (curtime == 0)
+    curtime = time(NULL);
+
+  char time_str[128] = {0};
+  strftime(time_str, sizeof(time_str), "_%Y%m%d_%H%M%S", localtime(&curtime));
+
+  ostr << time_str;
+
+  ostr << "_" << file_index;
+  file_index++;
+
+  if (!file_suffix.empty()) {
+    ostr << file_suffix;
+  }
+
+  return ostr.str();
+}
+
+FileWriteFlow::FileWriteFlow(const char *param)
+    : file_index(0) {
   std::map<std::string, std::string> params;
   if (!parse_media_param_map(param, params)) {
     SetError(-EINVAL);
@@ -190,17 +227,30 @@ FileWriteFlow::FileWriteFlow(const char *param) {
   }
   std::string s;
   std::string value;
-  CHECK_EMPTY_SETERRNO(value, params, KEY_PATH, EINVAL)
-  path = value;
+  file_prefix = params[KEY_FILE_PREFIX];
+  if (file_prefix.empty()) {
+    LOG("FileWriteFlow will use default path\n");
+    CHECK_EMPTY_SETERRNO(value, params, KEY_PATH, EINVAL)
+    path = value;
+  } else {
+    file_suffix = params[KEY_FILE_SUFFIX];
+    path = GenFilePath();
+  }
+  save_mode = params[KEY_SAVE_MODE];
+  if (save_mode.empty())
+    save_mode = KEY_SAVE_MODE_CONTIN;
+
   CHECK_EMPTY_SETERRNO(value, params, KEY_OPEN_MODE, EINVAL)
   PARAM_STRING_APPEND(s, KEY_PATH, path);
   PARAM_STRING_APPEND(s, KEY_OPEN_MODE, value);
+  PARAM_STRING_APPEND(s, KEY_SAVE_MODE, save_mode);
   fstream = REFLECTOR(Stream)::Create<Stream>("file_write_stream", s.c_str());
   if (!fstream) {
     fprintf(stderr, "Create stream file_write_stream failed\n");
     SetError(-EINVAL);
     return;
   }
+
 
   SlotMap sm;
   sm.input_slots.push_back(0);
@@ -225,6 +275,12 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
   auto &buffer = input_vector[0];
   if (!buffer)
     return true;
+
+  if (flow->GetSaveMode() == KEY_SAVE_MODE_SINGLE) {
+    time_t curtime = buffer->GetUSTimeStamp() / 1000000LL;
+    flow->fstream->NewStream(flow->GenFilePath(curtime));
+  }
+
   return flow->fstream->Write(buffer->GetPtr(), 1, buffer->GetValidSize());
 }
 
