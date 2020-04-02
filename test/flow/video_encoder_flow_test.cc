@@ -29,7 +29,7 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
-static char optstr[] = "?:i:o:w:h:f:t:m:";
+static char optstr[] = "?:i:o:w:h:f:t:m:s:";
 
 static void print_usage(char *name) {
   printf("usage example for normal mode: \n");
@@ -38,6 +38,10 @@ static void print_usage(char *name) {
   printf("#[-t] enc type support list:\n\th264\n\th265\n\tjpeg\n");
   printf("#[-f] pix formate support list:\n\tyuyv422\n\tnv12\n");
   printf("#[-m] mode support list:\n\tnormal\n\tstressTest\n");
+  printf("#[-s] Slice split mode:\n");
+  printf("\t0: No slice is split\n");
+  printf("\t1: Slice is split by byte number\n");
+  printf("\t2: Slice is split by macroblock / ctu number\n");
 }
 
 int main(int argc, char **argv) {
@@ -49,6 +53,7 @@ int main(int argc, char **argv) {
   int video_fps = 30;
   std::string video_enc_type = VIDEO_H264;
   int test_mode = 0; //0 for normal,1 for stressTest.
+  int split_mode = 0;
 
   std::string output_path;
   std::string input_path;
@@ -96,6 +101,14 @@ int main(int argc, char **argv) {
         printf("# Stress Test\n");
         printf("======================================\n");
       }
+      break;
+    case 's':
+      if (video_enc_type == "jpeg") {
+        printf("ERROR: JPEG not support split mode!\n");
+        exit(0);
+      }
+      split_mode = atoi(optarg);
+      printf("#IN ARGS: split mode: %d\n", split_mode);
       break;
     case '?':
     default:
@@ -247,6 +260,22 @@ RESTART:
   if (!video_save_flow) {
     fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
     exit(EXIT_FAILURE);
+  }
+
+  if (split_mode == 1) {
+    int split_size = video_width * video_height / 2;
+    LOG("Split frame to slice with size = %d...\n", split_size);
+    video_encoder_set_split(video_encoder_flow, split_mode, split_size);
+  } else if (split_mode == 2) {
+    int split_mb_cnt;
+    if (video_enc_type == VIDEO_H264) {
+      split_mb_cnt = (video_width / 16) * (( video_height / 16) / 2);
+      video_encoder_set_split(video_encoder_flow, split_mode, split_mb_cnt);
+    } else {
+      split_mb_cnt = (video_width / 64) * (( video_height / 64) / 2)
+      video_encoder_set_split(video_encoder_flow, split_mode, split_mb_cnt);
+    }
+    LOG("Split frame to 2 slice with MB cnt = %d...\n", split_mb_cnt);
   }
 
   video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);

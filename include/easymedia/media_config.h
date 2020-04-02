@@ -144,6 +144,18 @@ _API int video_encoder_set_move_detection(std::shared_ptr<Flow> &enc_flow,
   std::shared_ptr<Flow> &md_flow);
 _API int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
   EncROIRegion *regions, int region_cnt);
+
+// mode: slice split mode
+// 0 - No slice is split
+// 1 - Slice is split by byte number
+// 2 - Slice is split by macroblock / ctu number
+//
+// szie: slice split size parameter
+// When split by byte number this value is the max byte number for each slice.
+// When split by macroblock / ctu number this value is the MB/CTU number
+// for each slice.
+_API int video_encoder_set_split(
+  std::shared_ptr<Flow> &enc_flow, unsigned int mode, unsigned int size);
 _API int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable);
 } // namespace easymedia
