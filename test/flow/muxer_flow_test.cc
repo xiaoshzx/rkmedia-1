@@ -156,9 +156,9 @@ int main(int argc, char** argv)
   int in_w = 1280;
   int in_h = 720;
   int fps = 25;
-  int w_align = UPALIGNTO16(in_w);
-  int h_align = UPALIGNTO16(in_h);
-  PixelFormat enc_in_fmt = PIX_FMT_YUYV422;
+  int w_align = UPALIGNTO(in_w, 8);
+  int h_align = UPALIGNTO(in_h, 8);
+  PixelFormat enc_in_fmt = PIX_FMT_NV12;
   ImageInfo info = {enc_in_fmt, in_w, in_h, w_align, h_align};
 
   SampleFormat fmt = SAMPLE_FMT_S16;
@@ -172,7 +172,7 @@ int main(int argc, char** argv)
   std::string vid_in_path = "/dev/video0";
   std::string aud_in_path = "default";
   std::string output_path;
-  std::string input_format = "image:yuyv422";
+  std::string input_format = "image:nv12";
   std::string flow_name;
   std::string flow_param;
   std::string sub_param;
@@ -238,7 +238,7 @@ int main(int argc, char** argv)
   PARAM_STRING_APPEND(sub_param, KEY_V4L2_CAP_TYPE,
                       KEY_V4L2_C_TYPE(VIDEO_CAPTURE));
   PARAM_STRING_APPEND(sub_param, KEY_V4L2_MEM_TYPE,
-                      KEY_V4L2_M_TYPE(MEMORY_MMAP));
+                      KEY_V4L2_M_TYPE(MEMORY_DMABUF));
   PARAM_STRING_APPEND_TO(sub_param, KEY_FRAMES, 8);
   PARAM_STRING_APPEND(sub_param, KEY_OUTPUTDATATYPE, input_format);
   PARAM_STRING_APPEND_TO(sub_param, KEY_BUFFER_WIDTH, in_w);
