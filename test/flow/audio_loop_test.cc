@@ -106,6 +106,34 @@ std::shared_ptr<easymedia::Flow> create_resample_flow(SampleInfo &info) {
   return flow;
 }
 
+
+std::shared_ptr<easymedia::Flow> create_audio_fifo_flow(SampleInfo &info) {
+  std::string flow_name;
+  std::string flow_param;
+  std::string sub_param;
+
+  flow_name = "filter";
+  flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "ffmpeg_audio_fifo");
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE,
+                      SampleFmtToString(info.fmt));
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE,
+                      SampleFmtToString(info.fmt));
+  sub_param = "";
+  PARAM_STRING_APPEND(sub_param, KEY_SAMPLE_FMT, SampleFmtToString(info.fmt));
+  PARAM_STRING_APPEND_TO(sub_param, KEY_CHANNELS, info.channels);
+  PARAM_STRING_APPEND_TO(sub_param, KEY_SAMPLE_RATE, info.sample_rate);
+  PARAM_STRING_APPEND_TO(sub_param, KEY_FRAMES, info.nb_samples);
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, sub_param);
+  auto flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!flow) {
+    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+    exit(EXIT_FAILURE);
+  }
+  return flow;
+}
+
 void usage(char *name) {
   LOG("\nUsage: \t%s -a default -o default -f S16 -r 16000 -c 2 -F FLTP -R 48000 -C 1\n",name);
   LOG("\tNOTICE: format: -f -F [U8 S16 S32 FLT FLTP]\n");
@@ -241,7 +269,16 @@ int main(int argc, char** argv)
     exit(EXIT_FAILURE);
   }
 
-  // 4. alsa playback flow
+  // 4. audio fifo to fixed output samples
+  sample_info.nb_samples *= 2;
+  std::shared_ptr<easymedia::Flow> audio_fifo_flow =
+      create_audio_fifo_flow(sample_info);
+  if (!audio_fifo_flow) {
+    LOG("Create flow audio_fifo_flow failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // 5. alsa playback flow
   std::shared_ptr<easymedia::Flow> audio_sink_flow =
       create_alsa_flow(output_path, sample_info, false);
   if (!audio_sink_flow) {
@@ -251,7 +288,8 @@ int main(int argc, char** argv)
   volume = 60;
   audio_sink_flow->Control(easymedia::S_ALSA_VOLUME, &volume);
 
-  audio_resample_back_flow->AddDownFlow(audio_sink_flow, 0, 0);
+  audio_fifo_flow->AddDownFlow(audio_sink_flow, 0, 0);
+  audio_resample_back_flow->AddDownFlow(audio_fifo_flow, 0, 0);
   audio_resample_flow->AddDownFlow(audio_resample_back_flow, 0, 0);
   audio_source_flow->AddDownFlow(audio_resample_flow, 0, 0);
 
@@ -261,12 +299,14 @@ int main(int argc, char** argv)
     easymedia::msleep(100);
   }
 
-  audio_resample_back_flow->RemoveDownFlow(audio_sink_flow);
+  audio_fifo_flow->RemoveDownFlow(audio_sink_flow);
+  audio_resample_back_flow->RemoveDownFlow(audio_fifo_flow);
   audio_resample_flow->RemoveDownFlow(audio_resample_back_flow);
   audio_source_flow->RemoveDownFlow(audio_resample_flow);
   audio_resample_back_flow.reset();
   audio_resample_flow.reset();
   audio_source_flow.reset();
+  audio_fifo_flow.reset();
   audio_sink_flow.reset();
 
   return 0;
