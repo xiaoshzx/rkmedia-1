@@ -79,8 +79,10 @@
   bool PRODUCT##Reflector::IsMatch(const char *identifier,                     \
                                    const char *rules) {                        \
     auto it = factories.find(identifier);                                      \
-    if (it == factories.end())                                                 \
+    if (it == factories.end()) {                                               \
+      LOG("%s is not Integrated\n", identifier);                               \
       return false;                                                            \
+    }                                                                          \
     return it->second->AcceptRules(rules);                                     \
   }                                                                            \
   void PRODUCT##Reflector::RegisterFactory(std::string identifier,             \
