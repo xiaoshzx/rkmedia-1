@@ -49,6 +49,20 @@ _API std::list<std::shared_ptr<MediaBuffer>>
 split_h264_separate(const uint8_t *buffer, size_t length, int64_t timestamp);
 _API std::list<std::shared_ptr<MediaBuffer>>
 split_h265_separate(const uint8_t *buffer, size_t length, int64_t timestamp);
+_API void *GetVpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
+  int &size, CodecType c_type);
+_API void *GetSpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
+  int &size, CodecType c_type);
+_API void *GetPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
+  int &size, CodecType c_type);
+_API void *GetSpsPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
+  int &size, CodecType c_type);
+_API void *GetVpsSpsPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
+  int &size, CodecType c_type);
+_API void *GetSeiFromBuffer(std::shared_ptr<MediaBuffer> &mb,
+  int &size, CodecType c_type);
+_API void *GetIntraFromBuffer(std::shared_ptr<MediaBuffer> &mb,
+  int &size, CodecType c_type);
 
 } // namespace easymedia
 

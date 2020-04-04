@@ -13,6 +13,8 @@
 #include <liveMedia/MediaSink.hh>
 
 #include "lock.h"
+#include "media_type.h"
+
 namespace easymedia {
 
 class MediaBuffer;
@@ -45,7 +47,7 @@ private:
 class Live555MediaInput : public Medium {
 public:
   static Live555MediaInput *createNew(UsageEnvironment &env);
-  FramedSource *videoSource();
+  FramedSource *videoSource(CodecType c_type);
   FramedSource *audioSource();
   void Start(UsageEnvironment &env);
   void Stop(UsageEnvironment &env);
@@ -109,9 +111,12 @@ public:
   VideoFramedSource(UsageEnvironment &env, Source &source);
   virtual ~VideoFramedSource();
 
+  void SetCodecType(CodecType type) {codec_type = type;}
+  CodecType GetCodecType() {return codec_type;}
 protected: // redefined virtual functions:
   virtual bool readFromList(bool flush = false);
   bool got_iframe;
+  CodecType codec_type;
 };
 
 class AudioFramedSource : public ListSource {

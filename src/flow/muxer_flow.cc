@@ -113,131 +113,6 @@ MuxerFlow::MuxerFlow(const char *param)
 
 MuxerFlow::~MuxerFlow() { StopAllThread(); }
 
-static std::shared_ptr<MediaBuffer>
-prepare_h264_intra_frame(std::shared_ptr<MediaBuffer> &buf,
-  int64_t timestamp, int offset_only) {
-  const uint8_t *p = (uint8_t *)buf->GetPtr();
-  const uint8_t *end = p + buf->GetValidSize();
-  const uint8_t *nal_start = nullptr, *nal_end = nullptr;
-  const uint8_t *sps_start = nullptr;
-
-  nal_start = find_nalu_startcode(p, end);
-  // 00 00 01 or 00 00 00 01
-  size_t start_len = (nal_start[2] == 1 ? 3 : 4);
-  for (;;) {
-    if (nal_start == end)
-      break;
-    nal_start += start_len;
-    nal_end = find_nalu_startcode(nal_start, end);
-    uint8_t nal_type = (*nal_start) & 0x1F;
-    uint32_t flag;
-    switch (nal_type) {
-    case 7: //sps
-      sps_start = nal_start - start_len;
-      nal_start = nal_end;
-      continue;
-    case 8: //pps
-      flag = MediaBuffer::kExtraIntra;
-      break;
-    default:
-      flag = 0;
-    }
-
-    // not extraIntra?
-    if (!flag || !sps_start)
-      break;
-
-    size_t size = nal_end - sps_start;
-    if (offset_only) {
-      buf->SetPtr((uint8_t *)buf->GetPtr() + size);
-      buf->SetValidSize(buf->GetValidSize() - size);
-      break; // break for loop.
-    }
-
-    auto sub_buffer = MediaBuffer::Alloc(size);
-    if (!sub_buffer) {
-      LOG_NO_MEMORY(); // fatal error
-      return nullptr;
-    }
-    memcpy(sub_buffer->GetPtr(), sps_start, size);
-    sub_buffer->SetValidSize(size);
-    sub_buffer->SetUserFlag(flag);
-    sub_buffer->SetUSTimeStamp(timestamp);
-    sub_buffer->SetType(Type::Video);
-
-    buf->SetPtr((uint8_t *)buf->GetPtr() + size);
-    buf->SetValidSize(buf->GetValidSize() - size);
-
-    return sub_buffer;
-  }
-
-  return nullptr;
-}
-
-static std::shared_ptr<MediaBuffer>
-prepare_h265_intra_frame(std::shared_ptr<MediaBuffer> &buf,
-  int64_t timestamp, int offset_only) {
-  const uint8_t *p = (uint8_t *)buf->GetPtr();
-  const uint8_t *end = p + buf->GetValidSize();
-  const uint8_t *nal_start = nullptr, *nal_end = nullptr;
-  const uint8_t *vps_start = nullptr;
-
-  nal_start = find_nalu_startcode(p, end);
-  // 00 00 01 or 00 00 00 01
-  size_t start_len = (nal_start[2] == 1 ? 3 : 4);
-  for (;;) {
-    if (nal_start == end)
-      break;
-    nal_start += start_len;
-    nal_end = find_nalu_startcode(nal_start, end);
-    uint8_t nal_type = ((*nal_start) & 0x7E) >> 1;
-    uint32_t flag;
-    switch (nal_type) {
-    case 32: //vps
-      vps_start = nal_start - start_len;
-      nal_start = nal_end;
-      continue;
-    case 33: //sps
-      nal_start = nal_end;
-      continue;
-    case 34: //pps
-      flag = MediaBuffer::kExtraIntra;
-      break;
-    default:
-      flag = 0;
-    }
-
-    // not extraIntra?
-    if (!flag || !vps_start)
-      break;
-
-    size_t size = nal_end - vps_start;
-    if (offset_only) {
-      buf->SetPtr((uint8_t *)buf->GetPtr() + size);
-      buf->SetValidSize(buf->GetValidSize() - size);
-      break; // break for loop.
-    }
-
-    auto sub_buffer = MediaBuffer::Alloc(size);
-    if (!sub_buffer) {
-      LOG_NO_MEMORY(); // fatal error
-      return nullptr;
-    }
-    memcpy(sub_buffer->GetPtr(), vps_start, size);
-    sub_buffer->SetValidSize(size);
-    sub_buffer->SetUserFlag(flag);
-    sub_buffer->SetUSTimeStamp(timestamp);
-    sub_buffer->SetType(Type::Video);
-
-    buf->SetPtr((uint8_t *)buf->GetPtr() + size);
-    buf->SetValidSize(buf->GetValidSize() - size);
-
-    return sub_buffer;
-  }
-
-  return nullptr;
-}
-
 std::shared_ptr<VideoRecorder> MuxerFlow::NewRecoder(const char *path) {
   std::string param = std::string(muxer_param);
   PARAM_STRING_APPEND(param, KEY_PATH, path);
@@ -326,26 +201,24 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
       break;
     }
 
-    if ((vid_buffer->GetUserFlag() & MediaBuffer::kIntra)) {
-      CodecType codec_t =
+    if (!flow->video_extra &&
+      (vid_buffer->GetUserFlag() & MediaBuffer::kIntra)) {
+      CodecType c_type =
         flow->vid_enc_config.vid_cfg.image_cfg.codec_type;
-      if (!flow->video_extra) {
-        if (codec_t == CODEC_TYPE_H264) {
-          flow->video_extra = prepare_h264_intra_frame(vid_buffer,
-            easymedia::gettimeofday(), 0);
-        } else if (codec_t == CODEC_TYPE_H265) {
-          flow->video_extra = prepare_h265_intra_frame(vid_buffer,
-            easymedia::gettimeofday(), 0);
-        }
+      int spspps_size = 0;
+      void *spspps_ptr =
+        GetSpsPpsFromBuffer(vid_buffer, spspps_size, c_type);
+
+      if (spspps_ptr && (spspps_size > 0)) {
+        flow->video_extra = MediaBuffer::Alloc(spspps_size);
         if (!flow->video_extra) {
-          LOG("ERROR: Muxer Flow: Intra Frame without sps pps\n");
+          LOG_NO_MEMORY();
+          break;
         }
-      } else {
-        if (codec_t == CODEC_TYPE_H264)
-          prepare_h264_intra_frame(vid_buffer, easymedia::gettimeofday(), 1);
-        else if (codec_t == CODEC_TYPE_H265)
-          prepare_h265_intra_frame(vid_buffer, easymedia::gettimeofday(), 1);
-      }
+        memcpy(flow->video_extra->GetPtr(), spspps_ptr, spspps_size);
+        flow->video_extra->SetValidSize(spspps_size);
+      } else
+        LOG("ERROR: Muxer Flow: Intra Frame without sps pps\n");
     }
 
     if (!recoder->Write(flow, vid_buffer)) {

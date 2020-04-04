@@ -8,6 +8,7 @@
 #include <liveMedia/H265VideoStreamDiscreteFramer.hh>
 
 #include "utils.h"
+#include "media_type.h"
 
 namespace easymedia {
 H265ServerMediaSubsession *
@@ -143,7 +144,7 @@ H265ServerMediaSubsession::createNewStreamSource(unsigned clientSessionId,
   estBitrate = fEstimatedKbps;
   // Create a framer for the Video Elementary Stream:
   FramedSource *source = H265VideoStreamDiscreteFramer::createNew(
-      envir(), fMediaInput.videoSource());
+      envir(), fMediaInput.videoSource(CODEC_TYPE_H265));
   LOG("H265 framedsource : %p\n", source);
   return source;
 }

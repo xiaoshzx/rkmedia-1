@@ -91,7 +91,7 @@ h264_packet_reduction(std::list<std::shared_ptr<MediaBuffer>> &mb_list) {
   LOG("h264 reduction after, num: %d \n", (int)mb_list.size());
 }
 
-FramedSource *Live555MediaInput::videoSource() {
+FramedSource *Live555MediaInput::videoSource(CodecType c_type) {
   // if (!video_source)
   Source *source = new Source();
   if (!source)
@@ -102,6 +102,7 @@ FramedSource *Live555MediaInput::videoSource() {
   }
   video_list.push_back(source);
   video_source = new VideoFramedSource(envir(), *source);
+  video_source->SetCodecType(c_type);
   return video_source;
 }
 
@@ -330,6 +331,15 @@ bool VideoFramedSource::readFromList(bool flush _UNUSED) {
 #endif
     assert(fFrameSize > 0);
     uint8_t *p = (uint8_t *)buffer->GetPtr();
+    if (buffer->GetUserFlag() & MediaBuffer::kIntra) {
+      int intra_size = 0;
+      uint8_t *intra_ptr =
+        (uint8_t *)GetIntraFromBuffer(buffer, intra_size, codec_type);
+      assert(intra_ptr);
+      assert(intra_size > 0);
+      p = intra_ptr;
+      fFrameSize = intra_size;
+    }
     assert(p[0] == 0);
     assert(p[1] == 0);
     if (p[2] == 0) {

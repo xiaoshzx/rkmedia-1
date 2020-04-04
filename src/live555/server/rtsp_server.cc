@@ -81,11 +81,11 @@ bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector) {
                                      buffer->GetValidSize(),
                                      easymedia::gettimeofday());
       }
-      for (auto &buf : spspps) {
+      // Independently send vps, sps, pps packets to live555.
+      for (auto &buf : spspps)
         rtsp_flow->server_input->PushNewVideo(buf);
-        buffer->SetPtr((uint8_t *)buffer->GetPtr() + buf->GetValidSize());
-        buffer->SetValidSize(buffer->GetValidSize() - buf->GetValidSize());
-      }
+      // The original Intr frame information is sent to live555.
+      // At this time it still contains extra information.
       rtsp_flow->server_input->PushNewVideo(buffer);
     } else if (buffer->GetType() == Type::Audio)
       rtsp_flow->server_input->PushNewAudio(buffer);
