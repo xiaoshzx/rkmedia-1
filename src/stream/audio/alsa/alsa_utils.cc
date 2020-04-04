@@ -19,7 +19,9 @@ static const struct SampleFormatEntry {
     {SAMPLE_FMT_U8P, SND_PCM_FORMAT_U8, 0},
     {SAMPLE_FMT_S16P, SND_PCM_FORMAT_S16_LE, 0},
     {SAMPLE_FMT_S32P, SND_PCM_FORMAT_S32_LE, 0},
-    {SAMPLE_FMT_FLTP, SND_PCM_FORMAT_FLOAT_LE, 0}
+    {SAMPLE_FMT_FLTP, SND_PCM_FORMAT_FLOAT_LE, 0},
+    {SAMPLE_FMT_G711A, SND_PCM_FORMAT_A_LAW, 1},
+    {SAMPLE_FMT_G711U, SND_PCM_FORMAT_MU_LAW, 1}
 };
 
 snd_pcm_format_t SampleFormatToAlsaFormat(SampleFormat fmt) {

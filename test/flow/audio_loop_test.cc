@@ -107,10 +107,14 @@ create_audio_filter_flow(SampleInfo &info, std::string filter_name) {
 }
 
 void usage(char *name) {
-  LOG("\nUsage: \t%s -a default -o default -f S16 -r 16000 -c 2 -F FLTP -R "
+  LOG("\nUsage: simple mode\t%s -a default -o  default -s 1 -f S16 -r 8000 -c "
+      "1\n",
+      name);
+  LOG("\nUsage: complex mode\t%s -a default -o default -f S16 -r 16000 -c 2 -F "
+      "FLTP -R "
       "48000 -C 1\n",
       name);
-  LOG("\tNOTICE: format: -f -F [U8 S16 S32 FLT FLTP]\n");
+  LOG("\tNOTICE: format: -f -F [U8 S16 S32 FLT U8P S16P S32P FLTP G711A G711U]\n");
   LOG("\tNOTICE: channels: -c -C [1 2]\n");
   LOG("\tNOTICE: samplerate: -r -R [8000 16000 24000 32000 441000 48000]\n");
   LOG("\tNOTICE: capture params: -f -c -r\n");
@@ -119,21 +123,31 @@ void usage(char *name) {
 }
 
 SampleFormat parseFormat(std::string args) {
+  if (!args.compare("U8"))
+    return SAMPLE_FMT_U8;
   if (!args.compare("S16"))
     return SAMPLE_FMT_S16;
   if (!args.compare("S32"))
     return SAMPLE_FMT_S32;
-  if (!args.compare("U8"))
-    return SAMPLE_FMT_U8;
   if (!args.compare("FLT"))
     return SAMPLE_FMT_FLT;
+  if (!args.compare("U8P"))
+    return SAMPLE_FMT_U8P;
+  if (!args.compare("S16P"))
+    return SAMPLE_FMT_S16P;
+  if (!args.compare("S32P"))
+    return SAMPLE_FMT_S32P;
   if (!args.compare("FLTP"))
     return SAMPLE_FMT_FLTP;
+  if (!args.compare("G711A"))
+    return SAMPLE_FMT_G711A;
+  if (!args.compare("G711U"))
+    return SAMPLE_FMT_G711U;
   else
     return SAMPLE_FMT_NONE;
 }
 
-static char optstr[] = "?a:o:f:r:c:F:R:C:";
+static char optstr[] = "?a:o:s:f:r:c:F:R:C:";
 
 int main(int argc, char **argv) {
   SampleFormat fmt = SAMPLE_FMT_S16;
@@ -143,7 +157,7 @@ int main(int argc, char **argv) {
   SampleFormat res_fmt = SAMPLE_FMT_S16;
   int res_channels = 1;
   int res_sample_rate = 8000;
-  int res_nb_samples;
+  int simple_mode = 0;
   int c;
   std::string aud_in_path = "default";
   std::string output_path = "default";
@@ -185,6 +199,9 @@ int main(int argc, char **argv) {
       if (channels < 1 || channels > 2)
         usage(argv[0]);
       break;
+    case 's':
+      simple_mode = atoi(optarg);
+      break;
     case 'F':
       res_fmt = parseFormat(optarg);
       if (res_fmt == SAMPLE_FMT_NONE)
@@ -210,13 +227,49 @@ int main(int argc, char **argv) {
       break;
     }
   }
+  if (simple_mode) {
+    const int sample_time_ms = 20; // anr only support 10/16/20ms
+    nb_samples = sample_rate * sample_time_ms / 1000;
+    SampleInfo sample_info = {fmt, channels, sample_rate, nb_samples};
 
+    LOG("Loop in simple mode: capture -> playback\n");
+
+    // 1. alsa capture flow
+    std::shared_ptr<easymedia::Flow> audio_source_flow =
+        create_alsa_flow(aud_in_path, sample_info, true);
+    if (!audio_source_flow) {
+      LOG("Create flow alsa_capture_flow failed\n");
+      exit(EXIT_FAILURE);
+    }
+
+    // 2. alsa playback flow
+    std::shared_ptr<easymedia::Flow> audio_sink_flow =
+        create_alsa_flow(output_path, sample_info, false);
+    if (!audio_sink_flow) {
+      LOG("Create flow alsa_capture_flow failed\n");
+      exit(EXIT_FAILURE);
+    }
+    audio_source_flow->AddDownFlow(audio_sink_flow, 0, 0);
+
+    signal(SIGINT, sigterm_handler);
+    while (!quit) {
+      easymedia::msleep(100);
+    }
+    audio_source_flow->RemoveDownFlow(audio_sink_flow);
+    audio_source_flow.reset();
+    audio_sink_flow.reset();
+    return 0;
+  }
+  int res_nb_samples;
   const int sample_time_ms = 20; // anr only support 10/16/20ms
-  nb_samples = sample_rate * sample_time_ms / 1000;         // 25ms
-  res_nb_samples = res_sample_rate * sample_time_ms / 1000; // 25ms
+  nb_samples = sample_rate * sample_time_ms / 1000;
+  res_nb_samples = res_sample_rate * sample_time_ms / 1000;
   SampleInfo sample_info = {fmt, channels, sample_rate, nb_samples};
   SampleInfo res_sample_info = {res_fmt, res_channels, res_sample_rate,
                                 res_nb_samples};
+
+  LOG("Loop in complex mode: capture -> anr -> resample -> resample -> fifo -> "
+      "playback\n");
 
   // 1. alsa capture flow
   std::shared_ptr<easymedia::Flow> audio_source_flow =
@@ -298,6 +351,5 @@ int main(int argc, char **argv) {
   audio_source_flow.reset();
   audio_fifo_flow.reset();
   audio_sink_flow.reset();
-
   return 0;
 }

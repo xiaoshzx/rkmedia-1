@@ -396,7 +396,7 @@ int AlsaPlayBackStream::IoCtrl(unsigned long int request, ...) {
 DEFINE_STREAM_FACTORY(AlsaPlayBackStream, Stream)
 
 const char *FACTORY(AlsaPlayBackStream)::ExpectedInputDataType() {
-  return AUDIO_PCM;
+  return ALSA_PCM;
 }
 
 const char *FACTORY(AlsaPlayBackStream)::OutPutDataType() { return nullptr; }
