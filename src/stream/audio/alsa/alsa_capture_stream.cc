@@ -268,6 +268,6 @@ const char *FACTORY(AlsaCaptureStream)::ExpectedInputDataType() {
   return nullptr;
 }
 
-const char *FACTORY(AlsaCaptureStream)::OutPutDataType() { return AUDIO_PCM; }
+const char *FACTORY(AlsaCaptureStream)::OutPutDataType() { return ALSA_PCM; }
 
 } // namespace easymedia

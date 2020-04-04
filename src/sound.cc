@@ -17,7 +17,8 @@ static const struct SampleFormatEntry {
     {SAMPLE_FMT_U8, AUDIO_PCM_U8},   {SAMPLE_FMT_S16, AUDIO_PCM_S16},
     {SAMPLE_FMT_S32, AUDIO_PCM_S32}, {SAMPLE_FMT_FLT, AUDIO_PCM_FLT},
     {SAMPLE_FMT_U8P, AUDIO_PCM_U8P},   {SAMPLE_FMT_S16P, AUDIO_PCM_S16P},
-    {SAMPLE_FMT_S32P, AUDIO_PCM_S32P}, {SAMPLE_FMT_FLTP, AUDIO_PCM_FLTP}
+    {SAMPLE_FMT_S32P, AUDIO_PCM_S32P}, {SAMPLE_FMT_FLTP, AUDIO_PCM_FLTP},
+    {SAMPLE_FMT_G711A, AUDIO_G711A}, {SAMPLE_FMT_G711U, AUDIO_G711U}
 };
 
 const char *SampleFmtToString(SampleFormat fmt) {
@@ -40,6 +41,8 @@ size_t GetSampleSize(const SampleInfo &sample_info) {
   switch (sample_info.fmt) {
   case SAMPLE_FMT_U8:
   case SAMPLE_FMT_U8P:
+  case SAMPLE_FMT_G711A:
+  case SAMPLE_FMT_G711U:
     return sample_size;
   case SAMPLE_FMT_S16:
   case SAMPLE_FMT_S16P:

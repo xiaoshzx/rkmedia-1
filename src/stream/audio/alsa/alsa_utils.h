@@ -20,6 +20,11 @@ extern "C" {
 
 #include "sound.h"
 
+#define ALSA_PCM                                                               \
+  AUDIO_PCM                                                                    \
+  TYPENEAR(AUDIO_G711A)                                                        \
+  TYPENEAR(AUDIO_G711U)
+
 snd_pcm_format_t SampleFormatToAlsaFormat(SampleFormat fmt);
 int SampleFormatToInterleaved(SampleFormat fmt);
 void ShowAlsaAvailableFormats(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
