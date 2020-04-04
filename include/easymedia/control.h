@@ -22,8 +22,10 @@ typedef struct {
 enum {
   S_FIRST_CONTROL = 10000,
   S_SUB_REQUEST, // many devices have their kernel controls
+
+  // DRM Display controls
   // ImageRect
-  S_SOURCE_RECT,
+  S_SOURCE_RECT = 10100,
   S_DESTINATION_RECT,
   S_SRC_DST_RECT,
   // ImageInfo
@@ -33,13 +35,24 @@ enum {
   // DRMPropertyArg
   S_CRTC_PROPERTY,
   S_CONNECTOR_PROPERTY,
+
+  // V4L2 controls
   // any type
-  S_STREAM_OFF,
+  S_STREAM_OFF = 10200,
+
+  // ALSA controls
   // int
-  S_ALSA_VOLUME,
+  S_ALSA_VOLUME = 10300,
   G_ALSA_VOLUME,
+
+  // Through Guard controls
   // int
-  S_ALLOW_THROUGH_COUNT,
+  S_ALLOW_THROUGH_COUNT = 10400,
+
+  // ANR controls
+  // int
+  S_ANR_ON = 10500,
+  G_ANR_ON,
 };
 
 } // namespace easymedia
