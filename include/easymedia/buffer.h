@@ -14,6 +14,7 @@
 #include "image.h"
 #include "media_type.h"
 #include "sound.h"
+#include "rknn_user.h"
 
 typedef int (*DeleteFun)(void *arg);
 
@@ -207,6 +208,7 @@ public:
   int GetVirWidth() const { return image_info.vir_width; }
   int GetVirHeight() const { return image_info.vir_height; }
   ImageInfo &GetImageInfo() { return image_info; }
+  std::list<FaceInfo> &GetFaceInfo() { return face_info; };
 
 private:
   void ResetValues() {
@@ -215,6 +217,7 @@ private:
     image_info.pix_fmt = PIX_FMT_NONE;
   }
   ImageInfo image_info;
+  std::list<FaceInfo> face_info;
 };
 
 } // namespace easymedia
