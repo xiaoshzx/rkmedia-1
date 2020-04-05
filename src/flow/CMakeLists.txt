@@ -15,14 +15,18 @@ set(EASY_MEDIA_FLOW_SOURCE_FILES
     flow/link_flow.cc
     flow/source_stream_flow.cc
     flow/muxer_flow.cc
-    flow/output_stream_flow.cc
-    flow/rockface_flow.cc)
+    flow/output_stream_flow.cc)
 
-set(EASY_MEDIA_DEPENDENT_LIBS
-   ${EASY_MEDIA_DEPENDENT_LIBS}
-   rknn_api
-   rockface
-   PARENT_SCOPE)
+if(RKNN)
+  set(EASY_MEDIA_FLOW_SOURCE_FILES ${EASY_MEDIA_FLOW_SOURCE_FILES}
+      flow/rockface_flow.cc)
+
+  set(EASY_MEDIA_DEPENDENT_LIBS
+      ${EASY_MEDIA_DEPENDENT_LIBS}
+      rknn_api
+      rockface
+      PARENT_SCOPE)
+endif()
 
 if(MOVE_DETECTION)
 set(EASY_MEDIA_FLOW_SOURCE_FILES ${EASY_MEDIA_FLOW_SOURCE_FILES}
