@@ -6,7 +6,6 @@
 
 # vi: set noexpandtab syntax=cmake:
 
-option(RKNN "compile: rknn wrapper" OFF)
 if(RKNN)
   set(EASY_MEDIA_RKNN_SOURCE_FILES rknn/rknn.cc)
   set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}

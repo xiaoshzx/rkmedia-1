@@ -114,6 +114,7 @@ option(ENCODER "compile: encoder" ON)
 option(DECODER "compile: decoder" ON)
 option(MUXER "compile: muxer" ON)
 option(DEMUXER "compile: demuxer" ON)
+option(RKNN "compile: rknn wrapper" OFF)
 
 pkg_check_modules(LIBDRM libdrm)
 if(LIBDRM_FOUND)
