@@ -67,7 +67,7 @@ RockFaceFlow::RockFaceFlow(const char *param) {
     license_path = params[KEY_PATH];
   }
 
-  if (params[KEY_PIXFMT].empty()) {
+  if (params[KEY_INPUTDATATYPE].empty()) {
     LOG("lost input pixel format!\n");
     return;
   } else {
