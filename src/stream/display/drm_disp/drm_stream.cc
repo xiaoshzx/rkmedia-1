@@ -275,6 +275,7 @@ bool DRMStream::GetAgreeableIDSet() {
     } else {
       auto dmcrtc = get_crtc_by_id(res, crtc_id);
       cur_mode = dmcrtc->mode;
+      active = (dmcrtc->buffer_id != 0);
     }
     SetModeInfo(cur_mode);
   }
