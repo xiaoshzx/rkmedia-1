@@ -6,10 +6,9 @@
 #include "flow.h"
 #include "stream.h"
 #include "utils.h"
+#include "link_config.h"
 
 namespace easymedia {
-
-enum LinkType { LINK_NONE, LINK_VIDEO, LINK_AUDIO, LINK_PICTURE };
 
 static bool process_buffer(Flow *f, MediaBufferVector &input_vector);
 
