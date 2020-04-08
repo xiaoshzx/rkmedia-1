@@ -90,6 +90,17 @@ add_definitions(-fvisibility=hidden -fvisibility-inlines-hidden)
 
 include_directories(./)
 
+if(USE_RKAIQ)
+include_directories(
+                ${PROJECT_SOURCE_DIR}/../camera_engine_rkaiq-1.0/include/uAPI
+                ${PROJECT_SOURCE_DIR}/../camera_engine_rkaiq-1.0/include/common/
+                ${PROJECT_SOURCE_DIR}/../camera_engine_rkaiq-1.0/include/iq_parser/
+                ${PROJECT_SOURCE_DIR}/../camera_engine_rkaiq-1.0/include/algos/
+                ${PROJECT_SOURCE_DIR}/../camera_engine_rkaiq-1.0/include/xcore/
+                ${PROJECT_SOURCE_DIR}/../camera_engine_rkaiq-1.0/common/
+                )
+endif()
+
 # ----------------------------------------------------------------------------
 # Build options
 # ----------------------------------------------------------------------------
