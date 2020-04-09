@@ -444,10 +444,11 @@ int MPPEncoder::get_statistics_fps() {
 
 #ifndef NDEBUG
 static void OsdDummpRegions(OsdRegionData *rdata) {
-  if (!rdata->enable)
+  if (!rdata)
     return;
 
   LOGD("#RegionData:%p:\n", rdata->buffer);
+  LOG("\t enable:%d\n", rdata->enable);
   LOG("\t region_id:%d\n", rdata->region_id);
   LOG("\t inverse:%d\n", rdata->inverse);
   LOG("\t pos_x:%d\n", rdata->pos_x);
@@ -457,11 +458,11 @@ static void OsdDummpRegions(OsdRegionData *rdata) {
 }
 
 static void OsdDummpMppOsd(MppEncOSDData *osd) {
+  LOGD("#MPP OsdData: cnt:%d buff:%p, bufSize:%zu\n",
+    osd->num_region, osd->buf, mpp_buffer_get_size(osd->buf));
   for (int i = 0; i < OSD_REGIONS_CNT; i++) {
-    if (!osd->region[i].enable)
-      continue;
-
     LOGD("#MPP OsdData[%d]:\n", i);
+    LOG("\t enable:%d\n", osd->region[i].enable);
     LOG("\t inverse:%d\n", osd->region[i].inverse);
     LOG("\t pos_x:%d\n", osd->region[i].start_mb_x * 16);
     LOG("\t pos_y:%d\n", osd->region[i].start_mb_y * 16);
@@ -472,6 +473,9 @@ static void OsdDummpMppOsd(MppEncOSDData *osd) {
 }
 
 static void SaveOsdImg(MppEncOSDData *_data, int index) {
+  if (!_data->buf)
+    return;
+
   char _path[64] = {0};
   sprintf(_path, "/tmp/osd_img%d", index);
   LOGD("MPP Encoder: save osd img to %s\n", _path);
@@ -494,15 +498,20 @@ int MPPEncoder::OsdPaletteSet(uint32_t *ptl_data) {
     return -1;
 
   LOGD("MPP Encoder: setting yuva palette...\n");
+  MppCtx ctx = mpp_ctx->ctx;
+  MppApi *mpi = mpp_ctx->mpi;
+  MppEncOSDPltCfg osd_plt_cfg;
   MppEncOSDPlt osd_plt;
 
   //TODO rgba plt to yuva plt.
   for (int k = 0; k < 256; k++)
-    osd_plt.buf[k] = *(ptl_data + k);
+    osd_plt.data[k].val = *(ptl_data + k);
 
-  MppCtx ctx = mpp_ctx->ctx;
-  MppApi *mpi = mpp_ctx->mpi;
-  int ret = mpi->control(ctx, MPP_ENC_SET_OSD_PLT_CFG, &osd_plt);
+  osd_plt_cfg.change = MPP_ENC_OSD_PLT_CFG_CHANGE_ALL;
+  osd_plt_cfg.type = MPP_ENC_OSD_PLT_TYPE_USERDEF;
+  osd_plt_cfg.plt = &osd_plt;
+
+  int ret = mpi->control(ctx, MPP_ENC_SET_OSD_PLT_CFG, &osd_plt_cfg);
   if (ret)
     LOG("ERROR: MPP Encoder: set osd plt failed ret %d\n", ret);
 
@@ -513,19 +522,27 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
   OsdRegionData *region_data) {
   uint32_t new_size = 0;
   uint32_t old_size = 0;
-  uint8_t rid = region_data->region_id - 1;
+  uint8_t rid = region_data->region_id;
   uint8_t *region_src = NULL;
   uint8_t *region_dst = NULL;
 
   if (!region_data->enable) {
+    if (osd->region[rid].enable)
+      osd->num_region -= 1;
+    assert(osd->num_region < 8);
     osd->region[rid].enable = 0;
     return 0;
   }
 
   // get buffer size to compare.
   new_size = region_data->width * region_data->height;
-  old_size =
-    osd->region[rid].num_mb_x * osd->region[rid].num_mb_y * 256;
+  // If there is enough space, reuse the previous buffer.
+  // However, the current area must be active, so as to
+  // avoid opening up too large a buffer at the beginning,
+  // and it will not be reduced later.
+  if (osd->region[rid].enable)
+    old_size =
+      osd->region[rid].num_mb_x * osd->region[rid].num_mb_y * 256;
 
   // update region info.
   osd->region[rid].enable = 1;
@@ -537,6 +554,8 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
 
   // region[rid] buffer size is enough, copy data directly.
   if (old_size >= new_size) {
+    LOGD("MPP Encoder: Region[%d] reuse old buff:%u, new_size:%u\n",
+      rid, old_size, new_size);
     region_src = region_data->buffer;
     region_dst = (uint8_t *)mpp_buffer_get_ptr(osd->buf);
     region_dst += osd->region[rid].buf_offset;
@@ -566,6 +585,8 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
       osd->region[i].start_mb_x = 0;
       osd->region[i].start_mb_y = 0;
       osd->region[i].buf_offset = 0;
+      osd->region[i].num_mb_x = 0;
+      osd->region[i].num_mb_y = 0;
     }
   }
 
@@ -583,7 +604,7 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
   }
 
   for (int i = 0; i < OSD_REGIONS_CNT; i++) {
-    if (!osd->region[rid].enable)
+    if (!osd->region[i].enable)
       continue;
 
     if (i != rid) {
@@ -601,6 +622,9 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
       region_dst += osd->region[i].buf_offset;
       current_size = new_size;
     }
+
+    assert(region_src);
+    assert(region_dst);
     memcpy(region_dst, region_src, current_size);
 #ifndef NDEBUG
     SaveOsdImg(osd, i);
@@ -620,8 +644,8 @@ int MPPEncoder::OsdRegionSet(OsdRegionData *rdata) {
     return -EINVAL;
 
   LOGD("MPP Encoder: setting osd regions...\n");
-  if ((rdata->region_id <= 0) || (rdata->region_id > OSD_REGIONS_CNT)) {
-    LOG("ERROR: MPP Encoder: invalid region id(%d), should be [1, %d].\n",
+  if ((rdata->region_id >= OSD_REGIONS_CNT)) {
+    LOG("ERROR: MPP Encoder: invalid region id(%d), should be [0, %d).\n",
       rdata->region_id, OSD_REGIONS_CNT);
     return -EINVAL;
   }
