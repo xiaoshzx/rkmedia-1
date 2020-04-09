@@ -115,6 +115,8 @@ option(DECODER "compile: decoder" ON)
 option(MUXER "compile: muxer" ON)
 option(DEMUXER "compile: demuxer" ON)
 option(RKNN "compile: rknn wrapper" OFF)
+option(ROCKFACE "compile: rockface wrapper" OFF)
+option(ROCKX "compile: rockx wrapper" OFF)
 
 pkg_check_modules(LIBDRM libdrm)
 if(LIBDRM_FOUND)

@@ -17,7 +17,7 @@ set(EASY_MEDIA_FLOW_SOURCE_FILES
     flow/muxer_flow.cc
     flow/output_stream_flow.cc)
 
-if(RKNN)
+if(ROCKFACE)
   set(EASY_MEDIA_FLOW_SOURCE_FILES ${EASY_MEDIA_FLOW_SOURCE_FILES}
       flow/rockface_flow.cc)
 
