@@ -580,7 +580,7 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
       osd->region[i].buf_offset = total_size;
       total_size +=
         osd->region[i].num_mb_x * osd->region[i].num_mb_y * 256;
-      osd->num_region++;
+      osd->num_region = i + 1;
     } else {
       osd->region[i].start_mb_x = 0;
       osd->region[i].start_mb_y = 0;
