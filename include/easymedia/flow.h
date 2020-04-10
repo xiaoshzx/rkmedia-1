@@ -54,6 +54,9 @@ using LinkCaptureHandler =
                           int type, const char *id)>::type;
 using PlayVideoHandler = std::add_pointer<void(Flow *f)>::type;
 using PlayAudioHandler = std::add_pointer<void(Flow *f)>::type;
+using UserHandler = std::add_pointer<void *>::type;
+using UserCallBack = std::add_pointer<void(void* handler,
+    int type, void *ptr, int size)>::type;
 
 class _API SlotMap {
 public:
@@ -125,6 +128,7 @@ public:
   }
   LinkCaptureHandler GetCaptureHandler() { return link_capture_handler_; }
 
+  // Add hander For rtsp flow
   void SetPlayVideoHandler(PlayVideoHandler handler) {
     play_video_handler_ = handler;
   }
@@ -133,6 +137,14 @@ public:
     play_audio_handler_ = handler;
   }
   PlayAudioHandler GetPlayAudioHandler() { return play_audio_handler_; }
+
+  // Add common hander for user
+  void SetUserCallBack(UserHandler handler, UserCallBack callback) {
+    user_handler_ = handler;
+    user_callback_ = callback;
+  }
+  UserHandler GetUserHandler() { return user_handler_; }
+  UserCallBack GetUserCallBack() { return user_callback_; }
 
   bool IsAllBuffEmpty();
 
@@ -246,6 +258,9 @@ private:
 
   PlayVideoHandler play_video_handler_;
   PlayAudioHandler play_audio_handler_;
+
+  UserHandler user_handler_;
+  UserCallBack user_callback_;
   DEFINE_ERR_GETSET()
   DECLARE_PART_FINAL_EXPOSE_PRODUCT(Flow)
 };
