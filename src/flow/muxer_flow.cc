@@ -205,18 +205,21 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
       (vid_buffer->GetUserFlag() & MediaBuffer::kIntra)) {
       CodecType c_type =
         flow->vid_enc_config.vid_cfg.image_cfg.codec_type;
-      int spspps_size = 0;
-      void *spspps_ptr =
-        GetSpsPpsFromBuffer(vid_buffer, spspps_size, c_type);
+      int extra_size = 0;
+      void *extra_ptr = NULL;
+      if (c_type == CODEC_TYPE_H264)
+        extra_ptr = GetSpsPpsFromBuffer(vid_buffer, extra_size, c_type);
+      else if (c_type == CODEC_TYPE_H265)
+        extra_ptr = GetVpsSpsPpsFromBuffer(vid_buffer, extra_size, c_type);
 
-      if (spspps_ptr && (spspps_size > 0)) {
-        flow->video_extra = MediaBuffer::Alloc(spspps_size);
+      if (extra_ptr && (extra_size > 0)) {
+        flow->video_extra = MediaBuffer::Alloc(extra_size);
         if (!flow->video_extra) {
           LOG_NO_MEMORY();
           break;
         }
-        memcpy(flow->video_extra->GetPtr(), spspps_ptr, spspps_size);
-        flow->video_extra->SetValidSize(spspps_size);
+        memcpy(flow->video_extra->GetPtr(), extra_ptr, extra_size);
+        flow->video_extra->SetValidSize(extra_size);
       } else
         LOG("ERROR: Muxer Flow: Intra Frame without sps pps\n");
     }
