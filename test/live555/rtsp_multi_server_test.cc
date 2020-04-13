@@ -115,8 +115,8 @@ create_video_enc_flow(std::string pixel_format, std::string video_enc_type,
   img_cfg.image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
   img_cfg.image_info.width = video_width;
   img_cfg.image_info.height = video_height;
-  img_cfg.image_info.vir_width = UPALIGNTO16(video_width);
-  img_cfg.image_info.vir_height = UPALIGNTO16(video_height);
+  img_cfg.image_info.vir_width = UPALIGNTO(video_width, 8);
+  img_cfg.image_info.vir_height = UPALIGNTO(video_height, 8);
   if ((video_enc_type == VIDEO_H264) || (video_enc_type == VIDEO_H265)) {
     img_cfg.qp_init = 24;
     vid_cfg.qp_step = 4;
