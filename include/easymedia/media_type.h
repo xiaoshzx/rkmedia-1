@@ -23,6 +23,8 @@ enum class Type { None = -1, Audio = 0, Image, Video, Text };
 #define IMAGE_YUV420P "image:yuv420p"
 #define IMAGE_NV12 "image:nv12"
 #define IMAGE_NV21 "image:nv21"
+#define IMAGE_FBC2 "image:fbc2"
+#define IMAGE_FBC0 "image:fbc0"
 #define IMAGE_YUV422P "image:yuv422p"
 #define IMAGE_NV16 "image:nv16"
 #define IMAGE_NV61 "image:nv61"

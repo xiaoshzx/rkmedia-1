@@ -106,12 +106,9 @@ void FileReadFlow::ReadThreadRun() {
   AutoPrintLine apl(__func__);
   size_t alloc_size = read_size;
   bool is_image = (info.pix_fmt != PIX_FMT_NONE);
-  if (alloc_size == 0) {
-    if (is_image) {
-      int num = 0, den = 0;
-      GetPixFmtNumDen(info.pix_fmt, num, den);
-      alloc_size = info.vir_width * info.vir_height * num / den;
-    }
+  if (!alloc_size && is_image) {
+    alloc_size = CalPixFmtSize(info.pix_fmt,
+      info.width, info.height, 16);
   }
   while (loop) {
     if (fstream->Eof()) {

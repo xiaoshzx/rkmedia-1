@@ -36,7 +36,7 @@ static void print_usage(char *name) {
   printf("%s -i /dev/video0 -o output.h264 -w 1920 -h 1080 "
          "-f nv12 -t h264\n", name);
   printf("#[-t] enc type support list:\n\th264\n\th265\n\tjpeg\n");
-  printf("#[-f] pix formate support list:\n\tyuyv422\n\tnv12\n");
+  printf("#[-f] pix formate support list:\n\tyuyv422\n\tnv12\n\tfbc0\n\tfbc2\n");
   printf("#[-m] mode support list:\n\tnormal\n\tstressTest\n");
   printf("#[-s] Slice split mode:\n");
   printf("\t0: No slice is split\n");
@@ -123,7 +123,8 @@ int main(int argc, char **argv) {
   }
 
   //add prefix for pixformat
-  if((pixel_format == "yuyv422") || (pixel_format == "nv12"))
+  if((pixel_format == "yuyv422") || (pixel_format == "nv12") ||
+    (pixel_format == "fbc0") || (pixel_format == "fbc2"))
     pixel_format = "image:" + pixel_format;
   else {
     printf("ERROR: image type:%s not support!\n", pixel_format.c_str());
