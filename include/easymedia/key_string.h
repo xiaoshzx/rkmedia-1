@@ -161,6 +161,9 @@
 #define KEY_TENSOR_FMT "tensor_fmt"
 #define KEY_NCHW "NCHW"
 #define KEY_NHWC "NHWC"
+#define KEY_ROCKFACE_DETECT_TRACK "detect_track"
+#define KEY_ROCKFACE_DETECT_ALIGN "detect_align"
+#define KEY_ROCKFACE_DETECT_LANDMARK "detect_landmark"
 
 // throuh_guard
 #define KEY_ALLOW_THROUGH_COUNT "allow_through_count"
