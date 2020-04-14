@@ -208,7 +208,7 @@ public:
   int GetVirWidth() const { return image_info.vir_width; }
   int GetVirHeight() const { return image_info.vir_height; }
   ImageInfo &GetImageInfo() { return image_info; }
-  std::list<FaceInfo> &GetFaceInfo() { return face_info; };
+  std::list<RknnResult> &GetRknnResult() { return nn_result; };
 
 private:
   void ResetValues() {
@@ -217,7 +217,7 @@ private:
     image_info.pix_fmt = PIX_FMT_NONE;
   }
   ImageInfo image_info;
-  std::list<FaceInfo> face_info;
+  std::list<RknnResult> nn_result;
 };
 
 } // namespace easymedia

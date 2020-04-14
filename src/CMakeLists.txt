@@ -84,6 +84,10 @@ add_definitions(-DRK_MOVE_DETECTION)
 set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} md_share)
 endif()
 
+if(ROCKFACE)
+    add_definitions(-DUSE_ROCKFACE)
+endif()
+
 set(LIBRARY_VERSION 1.0.1)
 set(LIBRARY_NAME easymedia)
 

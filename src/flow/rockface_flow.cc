@@ -117,7 +117,7 @@ bool image_process(Flow *f, MediaBufferVector &input_vector) {
     return true;
 
   auto img_buffer = std::static_pointer_cast<easymedia::ImageBuffer>(buffer);
-  auto &face_info = img_buffer->GetFaceInfo();
+  auto &nn_result = img_buffer->GetRknnResult();
 
   rockface_image_t input_image;
 
@@ -170,13 +170,14 @@ bool image_process(Flow *f, MediaBufferVector &input_vector) {
     rockface_angle_t face_angle;
     ret = rockface_angle(flow->face_handle, &face_landmark, &face_angle);
 
-    FaceInfo info = {
-        det_face->id,        det_face->box.left,   det_face->box.top,
-        det_face->box.right, det_face->box.bottom, det_face->score,
-        face_attr.age,       face_attr.gender,     face_angle.pitch,
-        face_angle.roll,     face_angle.yaw};
-
-    face_info.push_back(info);
+    RknnResult result_item;
+    memset(&result_item, 0, sizeof(RknnResult));
+    result_item.type = NNRESULT_TYPE_FACE;
+    result_item.face_info.base = *det_face;
+    result_item.face_info.attr = face_attr;
+    result_item.face_info.landmark = face_landmark;
+    result_item.face_info.angle = face_angle;
+    nn_result.push_back(result_item);
   }
 
   flow->SetOutput(img_buffer, 0);
