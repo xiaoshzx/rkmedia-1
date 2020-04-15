@@ -60,7 +60,8 @@ int RgaFilter::Process(std::shared_ptr<MediaBuffer> input,
     // the same to src
     ImageInfo info = src->GetImageInfo();
     info.pix_fmt = dst->GetPixelFormat();
-    size_t size = CalPixFmtSize(info);
+    size_t size = CalPixFmtSize(info.pix_fmt, info.vir_width,
+                                info.vir_height, 16);
     if (size == 0)
       return -EINVAL;
     auto &&mb = MediaBuffer::Alloc2(size, MediaBuffer::MemType::MEM_HARD_WARE);
@@ -181,7 +182,7 @@ int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
     LOG("Fail to RkRgaBlit, ret=%d\n", ret);
   } else {
     size_t valid_size = CalPixFmtSize(dst->GetPixelFormat(),
-      dst->GetVirWidth(), dst->GetVirHeight(), 0);
+      dst->GetVirWidth(), dst->GetVirHeight(), 16);
     dst->SetValidSize(valid_size);
     if (src->GetUSTimeStamp() > dst->GetUSTimeStamp())
       dst->SetUSTimeStamp(src->GetUSTimeStamp());
