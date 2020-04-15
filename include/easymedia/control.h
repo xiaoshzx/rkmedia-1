@@ -16,6 +16,7 @@ typedef struct {
 
 typedef struct {
   unsigned long int sub_request;
+  int size;
   void *arg;
 } SubRequest;
 
@@ -58,6 +59,8 @@ enum {
   // any type
   S_CALLBACK_HANDLER = 10600,
   G_CALLBACK_HANDLER,
+  S_DETECT_INFO,
+  G_DETECT_INFO,
 };
 
 } // namespace easymedia

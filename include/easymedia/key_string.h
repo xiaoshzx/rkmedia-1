@@ -164,6 +164,7 @@
 #define KEY_ROCKFACE_DETECT_TRACK "detect_track"
 #define KEY_ROCKFACE_DETECT_ALIGN "detect_align"
 #define KEY_ROCKFACE_DETECT_LANDMARK "detect_landmark"
+#define KEY_NEED_ASYNC_DRAW "need_async_draw"
 
 // throuh_guard
 #define KEY_ALLOW_THROUGH_COUNT "allow_through_count"

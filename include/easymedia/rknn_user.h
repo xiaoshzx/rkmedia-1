@@ -20,6 +20,8 @@ using RknnCallBack = std::add_pointer<void(void* handler,
     int type, void *ptr, int size)>::type;
 
 typedef struct {
+  int img_w;
+  int img_h;
 #ifdef USE_ROCKFACE
   rockface_det_t base;
   rockface_attribute_t attr;

@@ -5,6 +5,7 @@
 #include "buffer.h"
 #include "filter.h"
 #include "rknn_utils.h"
+#include "lock.h"
 #include "rockface/rockface.h"
 
 #define DEFAULT_LIC_PATH "/userdata/key.lic"
@@ -27,6 +28,7 @@ private:
   bool detect_align_;
   bool detect_landmark_;
   RknnCallBack callback_;
+  ReadWriteLockMutex cb_mtx_;
 };
 
 RockFaceDetect::RockFaceDetect(const char *param)
@@ -160,13 +162,23 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
 
     LOG("RockFaceDetect detect id %d\n", result_item.face_info.base.id);
 
-    if (callback_)
-      callback_(this, NNRESULT_TYPE_FACE, det_face, sizeof(rockface_det_t));
   }
 
-  if (det_array->count > 0)
-    LOG("RockFaceDetect %lld ms %lld us\n", ad.Get() / 1000, ad.Get() % 1000);
+  if (det_array->count > 0) {
+    AutoLockMutex _rw_mtx(cb_mtx_);
+    FaceInfo *infos = (FaceInfo *)malloc(det_array->count * sizeof(FaceInfo));
+    if (infos) {
+      for (int i = 0; i < det_array->count; i++) {
+        infos[i].img_w = img_buffer->GetWidth();
+        infos[i].img_h = img_buffer->GetHeight();
+        infos[i].base = det_array->face[i];
+      }
+      callback_(this, NNRESULT_TYPE_FACE, infos, det_array->count);
 
+      free(infos);
+    }
+    LOG("RockFaceDetect %lld ms %lld us\n", ad.Get() / 1000, ad.Get() % 1000);
+  }
   output = input;
 
   return 0;
@@ -183,14 +195,16 @@ int RockFaceDetect::IoCtrl(unsigned long int request, ...) {
 
   int ret = 0;
   switch (request) {
-  case S_CALLBACK_HANDLER:
-    callback_ = (RknnCallBack)arg;
-    break;
-  case G_CALLBACK_HANDLER:
-    arg = (void *)callback_;
-    break;
+  case S_CALLBACK_HANDLER: {
+      AutoLockMutex _rw_mtx(cb_mtx_);
+      callback_ = (RknnCallBack)arg;
+    } break;
+  case G_CALLBACK_HANDLER: {
+      AutoLockMutex _rw_mtx(cb_mtx_);
+      arg = (void *)callback_;
+    } break;
   default:
-    ret = -1;
+      ret = -1;
     break;
   }
   return ret;

@@ -77,8 +77,8 @@ public:
   virtual bool Write(std::shared_ptr<MediaBuffer>) { return false; }
   // The IoCtrl must be called in the same thread of Read()/Write()
   virtual int IoCtrl(unsigned long int request _UNUSED, ...) { return -1; }
-  virtual int SubIoCtrl(unsigned long int request _UNUSED, void *arg) {
-    SubRequest subreq = {request, arg};
+  virtual int SubIoCtrl(unsigned long int request _UNUSED, void *arg, int size = 0) {
+    SubRequest subreq = {request, size, arg};
     return IoCtrl(S_SUB_REQUEST, &subreq);
   }
 

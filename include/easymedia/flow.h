@@ -96,8 +96,8 @@ public:
 
   // The Control must be called in the same thread to that create flow
   virtual int Control(unsigned long int request _UNUSED, ...) { return -1; }
-  virtual int SubControl(unsigned long int request, void *arg) {
-    SubRequest subreq = {request, arg};
+  virtual int SubControl(unsigned long int request, void *arg, int size = 0) {
+    SubRequest subreq = {request, size, arg};
     return Control(S_SUB_REQUEST, &subreq);
   }
 
