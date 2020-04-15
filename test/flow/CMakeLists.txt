@@ -164,6 +164,18 @@ target_compile_features(audio_loop_test PRIVATE cxx_std_11)
 install(TARGETS audio_loop_test RUNTIME DESTINATION "bin")
 endif()#ALSA_PLAYBACK AND ALSA_CAPTURE
 
+if(ALSA_CAPTURE AND AEC)
+#--------------------------
+# audio_process_test
+#--------------------------
+set(AUDIO_PROCESS_TEST_SRC_FILES audio_process_test.cc)
+add_executable(audio_process_test ${AUDIO_PROCESS_TEST_SRC_FILES})
+target_link_libraries(audio_process_test easymedia)
+target_include_directories(audio_process_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_features(audio_process_test PRIVATE cxx_std_11)
+install(TARGETS audio_process_test RUNTIME DESTINATION "bin")
+endif()#ALSA_CAPTURE AND AEC
+
 if(MOVE_DETECTION)
 #--------------------------
 # move_detection_flow_test
