@@ -424,8 +424,8 @@ void MediaBuffer::BeginCPUAccess(bool readonly) {
     sync.flags = DMA_BUF_SYNC_RW| DMA_BUF_SYNC_START;
 
   int ret = ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
-  if (!ret)
-    LOG("%s: ret %d\n", __func__, ret);
+  if (ret < 0)
+    LOG("%s: %s\n", __func__, strerror(errno));
 }
 
 void MediaBuffer::EndCPUAccess(bool readonly) {
@@ -440,8 +440,8 @@ void MediaBuffer::EndCPUAccess(bool readonly) {
     sync.flags = DMA_BUF_SYNC_RW| DMA_BUF_SYNC_END;
 
   int ret = ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
-  if (!ret)
-    LOG("%s: ret %d\n", __func__, ret);
+  if (ret < 0)
+    LOG("%s: %s\n", __func__, strerror(errno));
 }
 
 } // namespace easymedia
