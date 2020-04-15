@@ -28,4 +28,11 @@ if(ROCKFACE)
 endif()
 
 if(ROCKX)
+  set(EASY_MEDIA_ROCKX_SOURCE_FILES rknn/rockx_bodydetect.cc)
+  set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
+                              ${EASY_MEDIA_ROCKX_SOURCE_FILES} PARENT_SCOPE)
+  set(EASY_MEDIA_DEPENDENT_LIBS
+      ${EASY_MEDIA_DEPENDENT_LIBS}
+      rockx
+      PARENT_SCOPE)
 endif()

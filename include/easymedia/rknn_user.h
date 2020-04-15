@@ -8,6 +8,9 @@
 #ifdef USE_ROCKFACE
 #include "rockface/rockface.h"
 #endif
+#ifdef USE_ROCKX
+#include <rockx/rockx.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,6 +29,12 @@ typedef struct {
 #endif
 } FaceInfo;
 
+typedef struct {
+#ifdef USE_ROCKX
+  rockx_object_t object;
+#endif
+} BodyInfo;
+
 typedef enum {
   NNRESULT_TYPE_NONE = -1,
   NNRESULT_TYPE_FACE = 0,
@@ -36,6 +45,7 @@ typedef enum {
 typedef struct {
   RknnResultType type;
   union {
+    BodyInfo body_info;
     FaceInfo face_info;
   };
 } RknnResult;
