@@ -129,7 +129,21 @@ int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
   if (src_info.fd < 0)
     src_info.virAddr = src->GetPtr();
   src_info.mmuFlag = 1;
-  src_info.rotation = rotate;
+  switch (rotate) {
+    case 90:
+      src_info.rotation = HAL_TRANSFORM_ROT_90;
+      break;
+    case 180:
+      src_info.rotation = HAL_TRANSFORM_ROT_180;
+      break;
+    case 270:
+      src_info.rotation = HAL_TRANSFORM_ROT_270;
+      break;
+    default:
+      LOG("WARN: rotate is not valid! use default:0");
+      src_info.rotation = 0;
+      break;
+  }
   if (src_rect)
     rga_set_rect(&src_info.rect, src_rect->x, src_rect->y, src_rect->w,
                  src_rect->h, src->GetVirWidth(), src->GetVirHeight(),
