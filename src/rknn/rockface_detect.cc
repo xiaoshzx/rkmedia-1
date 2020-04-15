@@ -49,9 +49,11 @@ private:
   bool detect_track_;
   bool detect_align_;
   bool detect_landmark_;
+  RknnCallBack callback_;
 };
 
-RockFaceDetect::RockFaceDetect(const char *param) {
+RockFaceDetect::RockFaceDetect(const char *param)
+    : callback_(nullptr) {
   std::map<std::string, std::string> params;
   if (!parse_media_param_map(param, params)) {
     SetError(-EINVAL);
@@ -178,10 +180,15 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
 
     result_item.face_info.base = *det_face;
     nn_result.push_back(result_item);
+
     LOG("RockFaceDetect detect id %d\n", result_item.face_info.base.id);
+
+    if (callback_)
+      callback_(this, NNRESULT_TYPE_FACE, det_face, sizeof(rockface_det_t));
   }
 
-  LOG("RockFaceDetect %lld ms %lld us\n", ad.Get() / 1000, ad.Get() % 1000);
+  if (det_array->count > 0)
+    LOG("RockFaceDetect %lld ms %lld us\n", ad.Get() / 1000, ad.Get() % 1000);
 
   output = input;
 
@@ -199,6 +206,12 @@ int RockFaceDetect::IoCtrl(unsigned long int request, ...) {
 
   int ret = 0;
   switch (request) {
+  case S_CALLBACK_HANDLER:
+    callback_ = (RknnCallBack)arg;
+    break;
+  case G_CALLBACK_HANDLER:
+    arg = (void *)callback_;
+    break;
   default:
     ret = -1;
     break;

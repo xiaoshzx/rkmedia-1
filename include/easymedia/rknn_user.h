@@ -13,6 +13,9 @@
 extern "C" {
 #endif
 
+using RknnCallBack = std::add_pointer<void(void* handler,
+    int type, void *ptr, int size)>::type;
+
 typedef struct {
 #ifdef USE_ROCKFACE
   rockface_det_t base;

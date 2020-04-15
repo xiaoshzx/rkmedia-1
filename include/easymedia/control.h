@@ -53,6 +53,11 @@ enum {
   // int
   S_ANR_ON = 10500,
   G_ANR_ON,
+
+  // RKNN controls
+  // any type
+  S_CALLBACK_HANDLER = 10600,
+  G_CALLBACK_HANDLER,
 };
 
 } // namespace easymedia
