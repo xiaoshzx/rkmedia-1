@@ -19,8 +19,8 @@ if (ANR)
 
   set(EASY_MEDIA_DEPENDENT_LIBS
        ${EASY_MEDIA_DEPENDENT_LIBS}
-       voice_anr
-       voice_common
+       rkap_anr
+       rkap_common
        PARENT_SCOPE)
 
 endif()

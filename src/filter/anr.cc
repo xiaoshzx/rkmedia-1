@@ -6,7 +6,7 @@
 #include "filter.h"
 #include <assert.h>
 extern "C" {
-#include <ANR/anr_provider.h>
+#include <rkap_anr.h>
 }
 
 #define DEBUG_FILE 0
@@ -33,7 +33,7 @@ private:
   std::string param_path;
 
   bool anr_on;
-  APHandleType anr_handle;
+  ap_handle_t anr_handle;
 
 #if DEBUG_FILE
   std::ofstream infile;
@@ -74,12 +74,16 @@ ANRFilter::ANRFilter(const char *param) : anr_on(true), anr_handle(nullptr) {
   LOG("ANR: frame time %d\n", frame_time);
   assert(frame_time == 10 || frame_time == 16 || frame_time == 20);
 
-  ANRProcessState state;
-  state.anr_enabled = 1;
-  state.sampling_rate = sample_rate; // 8k~48k
-  state.frame_size = nb_samples;     // only 10ms|16ms|20ms
+  ap_anr_state_t state;
+  /* set parameter */
+  state.anr_basic_info.enabled = 1;
+  state.anr_basic_info.sampling_rate = sample_rate; //8k-48k
+  state.anr_basic_info.frame_size = nb_samples; // only 10ms|16ms|20ms;
+  state.Gmin = -30;
+  state.post_add_gain = 0;
+  state.factor = 0.98f;
 
-  anr_handle = ANR_Init(&state);
+  anr_handle = ap_anr_init(&state);
   assert(anr_handle);
 
 #if DEBUG_FILE
@@ -98,7 +102,7 @@ ANRFilter::ANRFilter(const char *param) : anr_on(true), anr_handle(nullptr) {
 }
 
 ANRFilter::~ANRFilter() {
-  ANR_Destroy(anr_handle);
+  ap_anr_destroy(anr_handle);
 #if DEBUG_FILE
   infile.close();
   outfile.close();
@@ -125,7 +129,7 @@ int ANRFilter::Process(std::shared_ptr<MediaBuffer> input,
     auto dst = std::make_shared<easymedia::SampleBuffer>(
         MediaBuffer::Alloc2(size), dst_info);
     assert(dst);
-    ANR_Process(anr_handle, (short int *)src->GetPtr(),
+    ap_anr_process(anr_handle, (short int *)src->GetPtr(),
                 (short int *)dst->GetPtr());
 
 #if DEBUG_FILE
