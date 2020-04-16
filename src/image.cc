@@ -21,6 +21,7 @@ void GetPixFmtNumDen(const PixelFormat &fmt, int &num, int &den) {
   case PIX_FMT_YUV420P:
   case PIX_FMT_NV12:
   case PIX_FMT_NV21:
+  case PIX_FMT_FBC0:
     num = 3;
     den = 2;
     break;
@@ -31,6 +32,7 @@ void GetPixFmtNumDen(const PixelFormat &fmt, int &num, int &den) {
   case PIX_FMT_UYVY422:
   case PIX_FMT_RGB565:
   case PIX_FMT_BGR565:
+  case PIX_FMT_FBC2:
     num = 2;
     break;
   case PIX_FMT_RGB888:
@@ -49,11 +51,23 @@ void GetPixFmtNumDen(const PixelFormat &fmt, int &num, int &den) {
 int CalPixFmtSize(const PixelFormat &fmt, const int width, const int height, int align) {
   int num = 0;
   int den = 0;
+  int extra_hdr_size = 0;
+  int pix_fmt_size = 0;
   GetPixFmtNumDen(fmt, num, den);
+  // fbc image: fbc hdr + fbc body.
+  // fbc w,h must be 16 align, and body offset must be 4k align
+  if (fmt == PIX_FMT_FBC0 || fmt == PIX_FMT_FBC2) {
+    align = 16;
+    extra_hdr_size = UPALIGNTO(width, align) * UPALIGNTO(height, align) / 16;
+    extra_hdr_size = UPALIGNTO(extra_hdr_size, 4096);
+  }
   // mpp always require buffer align by align value
   if (align > 0)
-    return UPALIGNTO(width, align) * UPALIGNTO(height, align) * num / den;
-  return width * height * num / den;
+    pix_fmt_size = UPALIGNTO(width, align) * UPALIGNTO(height, align) * num / den;
+  else
+    pix_fmt_size = width * height * num / den;
+
+  return (extra_hdr_size + pix_fmt_size);
 }
 
 static const struct PixFmtStringEntry {
@@ -67,7 +81,8 @@ static const struct PixFmtStringEntry {
     {PIX_FMT_RGB332, IMAGE_RGB332},     {PIX_FMT_RGB565, IMAGE_RGB565},
     {PIX_FMT_BGR565, IMAGE_BGR565},     {PIX_FMT_RGB888, IMAGE_RGB888},
     {PIX_FMT_BGR888, IMAGE_BGR888},     {PIX_FMT_ARGB8888, IMAGE_ARGB8888},
-    {PIX_FMT_ABGR8888, IMAGE_ABGR8888},
+    {PIX_FMT_ABGR8888, IMAGE_ABGR8888}, {PIX_FMT_FBC0, IMAGE_FBC0},
+    {PIX_FMT_FBC0, IMAGE_FBC2}
 };
 
 PixelFormat StringToPixFmt(const char *type) {

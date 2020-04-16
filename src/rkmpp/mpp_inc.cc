@@ -30,7 +30,9 @@ MppFrameFormat ConvertToMppPixFmt(const PixelFormat &fmt) {
       [PIX_FMT_RGB888] = MPP_FMT_RGB888,
       [PIX_FMT_BGR888] = MPP_FMT_BGR888,
       [PIX_FMT_ARGB8888] = MPP_FMT_ARGB8888,
-      [PIX_FMT_ABGR8888] = MPP_FMT_ABGR8888};
+      [PIX_FMT_ABGR8888] = MPP_FMT_ABGR8888,
+      [PIX_FMT_FBC0] = (MppFrameFormat)(MPP_FMT_YUV420SP | MPP_FRAME_FBC_AFBC_V1),
+      [PIX_FMT_FBC2] = (MppFrameFormat)(MPP_FMT_YUV422SP | MPP_FRAME_FBC_AFBC_V1)};
   if (fmt >= 0 && fmt < PIX_FMT_NB)
     return mpp_fmts[fmt];
   return (MppFrameFormat)-1;
@@ -89,6 +91,8 @@ public:
     types.append(TYPENEAR(IMAGE_BGR888));
     types.append(TYPENEAR(IMAGE_ARGB8888));
     types.append(TYPENEAR(IMAGE_ABGR8888));
+    types.append(TYPENEAR(IMAGE_FBC0));
+    types.append(TYPENEAR(IMAGE_FBC2));
   }
 };
 static _MPP_SUPPORT_TYPES priv_types;
