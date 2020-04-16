@@ -85,6 +85,10 @@ if(ROCKFACE)
     add_definitions(-DUSE_ROCKFACE)
 endif()
 
+if(ROCKX)
+  add_definitions(-DUSE_ROCKX)
+endif()
+
 set(LIBRARY_VERSION 1.0.1)
 set(LIBRARY_NAME easymedia)
 
