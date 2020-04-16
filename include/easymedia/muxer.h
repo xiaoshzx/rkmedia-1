@@ -29,6 +29,8 @@ DECLARE_REFLECTOR(Muxer)
 
 class MediaBuffer;
 class Encoder;
+typedef int (*write_callback_func)(void *, uint8_t *, int);
+
 class _API Muxer {
 public:
   Muxer(const char *param);
@@ -49,6 +51,13 @@ public:
     io_output = output;
     return true;
   }
+
+  virtual bool SetWriteCallback(void *handler, write_callback_func callback) {
+    m_handler = handler;
+    m_write_callback_func = callback;
+    return true;
+  }
+
   virtual std::shared_ptr<MediaBuffer> WriteHeader(int stream_no) = 0;
   // orig_data:
   //    If nullptr, means flush for prepare ending close.
@@ -57,6 +66,8 @@ public:
 
 protected:
   std::shared_ptr<Stream> io_output;
+  void *m_handler;
+  write_callback_func m_write_callback_func;
   DECLARE_PART_FINAL_EXPOSE_PRODUCT(Muxer)
 };
 

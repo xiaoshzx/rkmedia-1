@@ -22,6 +22,7 @@ namespace easymedia {
 class VideoRecorder;
 
 static bool save_buffer(Flow *f, MediaBufferVector &input_vector);
+static int muxer_buffer_callback(void *handler, uint8_t *buf, int buf_size);
 
 class MuxerFlow : public Flow {
   friend VideoRecorder;
@@ -34,12 +35,14 @@ public:
 private:
   std::shared_ptr<VideoRecorder> NewRecoder(const char *path);
   friend bool save_buffer(Flow *f, MediaBufferVector &input_vector);
+  friend int muxer_buffer_callback(void *handler, uint8_t *buf, int buf_size);
 
 private:
   std::shared_ptr<MediaBuffer> video_extra;
   std::string muxer_param;
   std::string file_prefix;
   std::string file_path;
+  std::string output_format; // ffmpeg customio output format.
   std::shared_ptr<VideoRecorder> video_recorder;
   MediaConfig vid_enc_config;
   MediaConfig aud_enc_config;
@@ -54,7 +57,7 @@ private:
 
 class VideoRecorder {
 public:
-  VideoRecorder(const char *param);
+  VideoRecorder(const char *param, Flow *f);
   ~VideoRecorder();
 
   bool Write(MuxerFlow *f, std::shared_ptr<MediaBuffer> buffer);
@@ -64,8 +67,8 @@ private:
   int vid_stream_id;
   int aud_stream_id;
   void ClearStream();
+  Flow *muxer_flow;
 };
-
 } // namespace easymedia
 
 #endif

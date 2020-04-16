@@ -65,7 +65,11 @@ FFMPEGMuxer::FFMPEGMuxer(const char *param)
 FFMPEGMuxer::~FFMPEGMuxer() {
   if (!context)
     return;
-  if (context->pb)
+  if (m_handler != nullptr) {
+    // customIO, may not free opaque, it comes from outside.
+    av_free(context->pb->buffer);
+    av_free(context->pb);
+  } else if (context->pb)
     avio_closep(&context->pb);
   avformat_free_context(context);
 }
@@ -73,14 +77,13 @@ FFMPEGMuxer::~FFMPEGMuxer() {
 bool FFMPEGMuxer::Init() {
   if (!empty)
     return false;
-  if (path.empty()) {
-    LOG("missing path\n");
+  if (path.empty() && oformat.empty()) {
+    LOG("you must set path or output format.\n");
     return false;
   }
   AVFormatContext *c = NULL;
-  auto ret = avformat_alloc_output_context2(&c, NULL,
-                                            oformat.empty() ? NULL : oformat.c_str(),
-                                            path.c_str());
+  auto ret = avformat_alloc_output_context2(
+      &c, NULL, oformat.empty() ? NULL : oformat.c_str(), path.c_str());
   if (!c) {
     fprintf(stderr,
             "avformat_alloc_output_context2 failed for url %s, ret: %d\n",
@@ -102,9 +105,8 @@ static bool _convert_to_avcodecparam(AVFormatContext *c, const MediaConfig *mc,
     const ImageConfig &ic = (type == Type::Image) ? mc->img_cfg : vc.image_cfg;
 
     par->codec_type = AVMEDIA_TYPE_VIDEO;
-    par->codec_id = (type == Type::Image)
-                        ? AV_CODEC_ID_RAWVIDEO
-                        : CodecTypeToAVCodecID(ic.codec_type);
+    par->codec_id = (type == Type::Image) ? AV_CODEC_ID_RAWVIDEO
+                                          : CodecTypeToAVCodecID(ic.codec_type);
     if (par->codec_id == AV_CODEC_ID_NONE)
       return false;
     auto av_fmt = PixFmtToAVPixFmt(ic.image_info.pix_fmt);
@@ -229,6 +231,24 @@ std::shared_ptr<MediaBuffer> FFMPEGMuxer::WriteHeader(int stream_no) {
   av_dump_format(context, stream_no, url, 1);
 #endif
   int ret;
+  // custom IO
+  if (m_handler != nullptr) {
+    AVIOContext *avio_ctx_;
+    unsigned char *avio_ctx_buf_;
+    int avio_ctx_buf_size_ = 102400;
+    if (oformat == MUXER_MPEG_TS) {
+      // TRANSPORT_PACKET_SIZE = 188
+      avio_ctx_buf_size_ = 188 * 1000;
+    }
+    avio_ctx_buf_ = (unsigned char *)av_malloc(avio_ctx_buf_size_);
+    int write_flag = 1;
+    avio_ctx_ =
+        avio_alloc_context(avio_ctx_buf_, avio_ctx_buf_size_, write_flag,
+                           m_handler, NULL, m_write_callback_func, NULL);
+    context->pb = avio_ctx_;
+    context->oformat->flags = AVFMT_NOFILE;
+  }
+
   if (!(context->oformat->flags & AVFMT_NOFILE)) {
     ret = avio_open(&context->pb, url, AVIO_FLAG_WRITE);
     if (ret < 0) {

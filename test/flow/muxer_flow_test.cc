@@ -2,26 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "assert.h"
+#include "signal.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "unistd.h"
-#include "assert.h"
-#include "signal.h"
 
 #include <iostream>
-#include <string>
 #include <memory>
+#include <string>
 
-#include "easymedia/key_string.h"
-#include "easymedia/media_type.h"
-#include "easymedia/utils.h"
-#include "easymedia/reflector.h"
 #include "easymedia/buffer.h"
-#include "easymedia/image.h"
-#include "easymedia/flow.h"
-#include "easymedia/stream.h"
-#include "easymedia/media_config.h"
 #include "easymedia/control.h"
+#include "easymedia/flow.h"
+#include "easymedia/image.h"
+#include "easymedia/key_string.h"
+#include "easymedia/media_config.h"
+#include "easymedia/media_type.h"
+#include "easymedia/reflector.h"
+#include "easymedia/stream.h"
+#include "easymedia/utils.h"
 
 std::string CodecToString(CodecType type) {
   switch (type) {
@@ -37,6 +37,10 @@ std::string CodecToString(CodecType type) {
     return AUDIO_G711U;
   case CODEC_TYPE_G726:
     return AUDIO_G726;
+  case CODEC_TYPE_H264:
+    return VIDEO_H264;
+  case CODEC_TYPE_H265:
+    return VIDEO_H265;
   default:
     return "";
   }
@@ -144,35 +148,40 @@ CodecType parseCodec(std::string args) {
 }
 
 void usage(char *name) {
-  LOG("\nUsage: \t%s -a default -c AAC -v /dev/video0 -o /tmp/out.mp4\n",name);
+  LOG("\nUsage: \t%s -a default -w 1280 -h 720 -c AAC -v /dev/video0 -o "
+      "/tmp/out.mp4\n",
+      name);
+  LOG("\n(customIO): \t%s -a default -w 1280 -h 720 -c AAC -v /dev/video0 "
+      "-t mpeg -o /tmp/out.mpeg\n",
+      name);
   LOG("\tNOTICE: audio codec : -c [AAC MP2 G711A G711U G726]\n");
   exit(EXIT_FAILURE);
 }
 
-static char optstr[] = "?a:v:o:c:";
+static char optstr[] = "?a:v:o:c:w:h:t:";
 
-int main(int argc, char** argv)
-{
+int main(int argc, char **argv) {
   int in_w = 1280;
   int in_h = 720;
-  int fps = 25;
-  int w_align = UPALIGNTO(in_w, 8);
-  int h_align = UPALIGNTO(in_h, 8);
+  int fps = 30;
+  int w_virtual = UPALIGNTO(in_w, 8);
+  int h_virtual = UPALIGNTO(in_h, 8);
+
   PixelFormat enc_in_fmt = PIX_FMT_NV12;
-  ImageInfo info = {enc_in_fmt, in_w, in_h, w_align, h_align};
 
   SampleFormat fmt = SAMPLE_FMT_S16;
   int channels = 1;
   int sample_rate = 8000;
   int nb_samples = 1024;
   CodecType codec = CODEC_TYPE_AAC;
+  CodecType video_codec = CODEC_TYPE_H264;
   int bitrate = 32000;
   float quality = 1.0; // 0.0 - 1.0
 
   std::string vid_in_path = "/dev/video0";
   std::string aud_in_path = "default";
   std::string output_path;
-  std::string input_format = "image:nv12";
+  std::string input_format = IMAGE_NV12;
   std::string flow_name;
   std::string flow_param;
   std::string sub_param;
@@ -180,6 +189,7 @@ int main(int argc, char** argv)
   std::string audio_enc_param;
   std::string muxer_param;
   std::string stream_name;
+  std::string output_type;
   int c;
 
   easymedia::REFLECTOR(Stream)::DumpFactories();
@@ -188,6 +198,14 @@ int main(int argc, char** argv)
   opterr = 1;
   while ((c = getopt(argc, argv, optstr)) != -1) {
     switch (c) {
+    case 'h':
+      in_h = atoi(optarg);
+      h_virtual = UPALIGNTO(in_h, 8);
+      break;
+    case 'w':
+      in_w = atoi(optarg);
+      w_virtual = UPALIGNTO(in_w, 8);
+      break;
     case 'a':
       aud_in_path = optarg;
       LOG("audio device path: %s\n", aud_in_path.c_str());
@@ -195,6 +213,10 @@ int main(int argc, char** argv)
     case 'v':
       vid_in_path = optarg;
       LOG("video device path: %s\n", vid_in_path.c_str());
+      break;
+    case 't':
+      output_type = optarg;
+      LOG("use customIO, output type is %s.\n", output_type.c_str());
       break;
     case 'o':
       output_path = optarg;
@@ -213,7 +235,9 @@ int main(int argc, char** argv)
     }
   }
 
-  if (vid_in_path.empty() || output_path.empty())
+  ImageInfo info = {enc_in_fmt, in_w, in_h, w_virtual, h_virtual};
+
+  if (vid_in_path.empty() || (output_path.empty() && output_type.empty()))
     exit(EXIT_FAILURE);
 
   if (vid_in_path.empty() || aud_in_path.empty()) {
@@ -233,6 +257,7 @@ int main(int argc, char** argv)
   stream_name = "v4l2_capture_stream";
 
   PARAM_STRING_APPEND(flow_param, KEY_NAME, stream_name);
+
   PARAM_STRING_APPEND_TO(sub_param, KEY_USE_LIBV4L2, 1);
   PARAM_STRING_APPEND(sub_param, KEY_DEVICE, vid_in_path);
   PARAM_STRING_APPEND(sub_param, KEY_V4L2_CAP_TYPE,
@@ -256,9 +281,12 @@ int main(int argc, char** argv)
   flow_name = "video_enc";
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, input_format);
-  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, VIDEO_H264);
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE,
+                      CodecToString(video_codec));
   PARAM_STRING_APPEND_TO(flow_param, KEY_NEED_EXTRA_MERGE, 1);
+
   MediaConfig video_enc_config;
+  memset(&video_enc_config, 0, sizeof(video_enc_config));
   VideoConfig &vid_cfg = video_enc_config.vid_cfg;
   ImageConfig &img_cfg = vid_cfg.image_cfg;
   img_cfg.image_info = info;
@@ -279,7 +307,8 @@ int main(int argc, char** argv)
   vid_cfg.rc_quality = KEY_BEST;
   vid_cfg.rc_mode = KEY_CBR;
 
-  video_enc_param.append(easymedia::to_param_string(video_enc_config, VIDEO_H264));
+  video_enc_param.append(
+      easymedia::to_param_string(video_enc_config, CodecToString(video_codec)));
   auto video_enc_flow = create_flow(flow_name, flow_param, video_enc_param);
 
   if (!video_enc_flow) {
@@ -328,16 +357,23 @@ int main(int argc, char** argv)
   flow_param = "";
   flow_name = "muxer_flow";
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "muxer_flow");
-  PARAM_STRING_APPEND_TO(flow_param, KEY_FILE_DURATION, 30);
-  PARAM_STRING_APPEND_TO(flow_param, KEY_FILE_TIME, 1);
-  PARAM_STRING_APPEND_TO(flow_param, KEY_FILE_INDEX, 18);
-  // PARAM_STRING_APPEND(flow_param, KEY_FILE_PREFIX, "/tmp/RKMEDIA");
-  PARAM_STRING_APPEND(flow_param, KEY_PATH, output_path);
-  // PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, "flv");
-  video_enc_config.vid_cfg.image_cfg.codec_type = CODEC_TYPE_H264;
-  muxer_param.append(easymedia::to_param_string(video_enc_config, VIDEO_H264));
+  if (!output_type.empty()) {
+    PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, output_type);
+    LOG("FFmpeg use customIO.\n");
+  } else if (!output_path.empty()) {
+    PARAM_STRING_APPEND_TO(flow_param, KEY_FILE_DURATION, 30);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_FILE_TIME, 1);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_FILE_INDEX, 18);
+    // PARAM_STRING_APPEND(flow_param, KEY_FILE_PREFIX, "/tmp/RKMEDIA");
+    PARAM_STRING_APPEND(flow_param, KEY_PATH, output_path);
+  }
 
-  auto &&param = easymedia::JoinFlowParam(flow_param, 2, audio_enc_param, muxer_param);
+  video_enc_config.vid_cfg.image_cfg.codec_type = video_codec;
+  muxer_param.append(
+      easymedia::to_param_string(video_enc_config, CodecToString(video_codec)));
+
+  auto &&param =
+      easymedia::JoinFlowParam(flow_param, 2, audio_enc_param, muxer_param);
   auto muxer_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
       flow_name.c_str(), param.c_str());
   if (!muxer_flow) {
@@ -346,10 +382,29 @@ int main(int argc, char** argv)
     LOG("%s flow ready!\n", flow_name.c_str());
   }
 
+  std::shared_ptr<easymedia::Flow> video_save_flow;
+  if (!output_type.empty()) {
+    flow_name = "file_write_flow";
+    flow_param = "";
+    PARAM_STRING_APPEND(flow_param, KEY_PATH, output_path.c_str());
+    PARAM_STRING_APPEND(flow_param, KEY_OPEN_MODE,
+                        "w+"); // read and close-on-exec
+    printf("\n#FileWrite:\n%s\n", flow_param.c_str());
+    video_save_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+        flow_name.c_str(), flow_param.c_str());
+    if (!video_save_flow) {
+      fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+      exit(EXIT_FAILURE);
+    }
+  }
+
   video_enc_flow->AddDownFlow(muxer_flow, 0, 0);
   audio_enc_flow->AddDownFlow(muxer_flow, 0, 1);
   video_source_flow->AddDownFlow(video_enc_flow, 0, 0);
   audio_source_flow->AddDownFlow(audio_enc_flow, 0, 0);
+  if (!output_type.empty()) {
+    muxer_flow->AddDownFlow(video_save_flow, 0, 0);
+  }
 
   signal(SIGINT, sigterm_handler);
 
@@ -375,6 +430,7 @@ std::shared_ptr<easymedia::Flow> create_flow(const std::string &flow_name,
                                              const std::string &flow_param,
                                              const std::string &elem_param) {
   auto &&param = easymedia::JoinFlowParam(flow_param, 1, elem_param);
+  printf("\n#%s flow param:\n%s\n", flow_name.c_str(), param.c_str());
   auto ret = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
       flow_name.c_str(), param.c_str());
   if (!ret)
