@@ -17,17 +17,6 @@ set(EASY_MEDIA_FLOW_SOURCE_FILES
     flow/muxer_flow.cc
     flow/output_stream_flow.cc)
 
-if(ROCKFACE)
-  set(EASY_MEDIA_FLOW_SOURCE_FILES ${EASY_MEDIA_FLOW_SOURCE_FILES}
-      flow/rockface_flow.cc)
-
-  set(EASY_MEDIA_DEPENDENT_LIBS
-      ${EASY_MEDIA_DEPENDENT_LIBS}
-      rknn_api
-      rockface
-      PARENT_SCOPE)
-endif()
-
 if(MOVE_DETECTION)
 set(EASY_MEDIA_FLOW_SOURCE_FILES ${EASY_MEDIA_FLOW_SOURCE_FILES}
                                  flow/move_detection_flow.cc)
