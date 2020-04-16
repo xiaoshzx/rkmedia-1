@@ -132,6 +132,7 @@ int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
   switch (rotate) {
     case 0:
       src_info.rotation = 0;
+      break;
     case 90:
       src_info.rotation = HAL_TRANSFORM_ROT_90;
       break;
