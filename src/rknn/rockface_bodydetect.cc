@@ -17,7 +17,7 @@ class BodyDetect : public Filter {
 public:
   BodyDetect(const char *param);
   virtual ~BodyDetect();
-  static const char *GetFilterName() { return "rockx_bodydetect"; }
+  static const char *GetFilterName() { return "rockface_bodydetect"; }
   virtual int Process(std::shared_ptr<MediaBuffer> input,
                       std::shared_ptr<MediaBuffer> &output) override;
   virtual int IoCtrl(unsigned long int request, ...) override;
