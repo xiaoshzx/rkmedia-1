@@ -6,7 +6,7 @@
 
 # vi: set noexpandtab syntax=cmake:
 
-set(EASY_MEDIA_NN_SOURCE_FILES)
+set(EASY_MEDIA_NN_SOURCE_FILES rknn/rknn_utils.cc)
 set(EASY_MEDIA_NN_DEPENDENT_LIBS)
 
 if(RKNN)
@@ -17,18 +17,15 @@ if(RKNN)
                                      rknn_runtim)
 endif()
 
-if(ROCKX)
-  set(EASY_MEDIA_NN_SOURCE_FILES ${EASY_MEDIA_NN_SOURCE_FILES}
-                                   rknn/rockx_bodydetect.cc)
-  set(EASY_MEDIA_NN_DEPENDENT_LIBS ${EASY_MEDIA_NN_DEPENDENT_LIBS}
-                                     rockx)
-endif()
-
 if(ROCKFACE)
   set(EASY_MEDIA_NN_SOURCE_FILES ${EASY_MEDIA_NN_SOURCE_FILES}
-                                   rknn/rockface_detect.cc)
+                                   rknn/rockface_detect.cc
+                                   rknn/rockface_bodydetect.cc)
   set(EASY_MEDIA_NN_DEPENDENT_LIBS ${EASY_MEDIA_NN_DEPENDENT_LIBS}
                                      rknn_api rockface)
+endif()
+
+if(ROCKX)
 endif()
 
 set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
