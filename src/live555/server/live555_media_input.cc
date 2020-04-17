@@ -117,14 +117,23 @@ FramedSource *Live555MediaInput::videoSource(CodecType c_type) {
   Source *source = new Source();
   if (!source)
     return nullptr;
-  if (!source->Init(h264_packet_reduction)) {
+  ListReductionPtr func;
+  if (c_type == CODEC_TYPE_JPEG)
+    func = common_reduction;
+  else
+    func = h264_packet_reduction;
+  if (!source->Init(func)) {
     delete source;
     return nullptr;
   }
   video_list.push_back(source);
-  VideoFramedSource *video_source = new VideoFramedSource(envir(), *source);
-  video_source->SetCodecType(c_type);
-  return video_source;
+  if (c_type == CODEC_TYPE_JPEG) {
+    return new CommonFramedSource(envir(), *source);
+  } else {
+    VideoFramedSource *video_source = new VideoFramedSource(envir(), *source);
+    video_source->SetCodecType(c_type);
+    return video_source;
+  }
 }
 
 FramedSource *Live555MediaInput::audioSource() {
