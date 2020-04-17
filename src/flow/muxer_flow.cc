@@ -21,6 +21,35 @@
 
 namespace easymedia {
 
+#if DEBUG_MUXER_OUTPUT_BUFFER
+static unsigned sg_buffer_size = 0;
+static int64_t sg_last_time = 0;
+static unsigned sg_buffer_count = 0;
+#endif
+static int muxer_buffer_callback(void *handler, uint8_t *buf, int buf_size) {
+  MuxerFlow *f = (MuxerFlow *)handler;
+  auto media_buffer = MediaBuffer::Alloc(buf_size);
+  memcpy(media_buffer->GetPtr(), buf, buf_size);
+  f->GetInputSize();
+  media_buffer->SetValidSize(buf_size);
+  media_buffer->SetUSTimeStamp(easymedia::gettimeofday());
+  f->SetOutput(media_buffer, 0);
+#if DEBUG_MUXER_OUTPUT_BUFFER
+  int64_t cur_time = easymedia::gettimeofday();
+  sg_buffer_size += buf_size;
+  sg_buffer_count++;
+  if ((cur_time - sg_last_time) / 1000 > 1000) {
+    LOG("MUXER:: one second output buffer size = %u, count = %u, last_size = "
+        "%u, \n",
+        sg_buffer_size, sg_buffer_count, buf_size);
+    sg_buffer_size = 0;
+    sg_last_time = cur_time;
+    sg_buffer_count = 0;
+  }
+#endif
+  return buf_size;
+}
+
 MuxerFlow::MuxerFlow(const char *param)
     : video_recorder(nullptr), video_in(false), audio_in(false),
       file_duration(-1), file_index(-1), file_time_en(false) {
@@ -58,15 +87,19 @@ MuxerFlow::MuxerFlow(const char *param)
   std::string index_str = params[KEY_FILE_INDEX];
   if (!index_str.empty()) {
     file_index = std::stoi(index_str);
-    LOG("Muxer will record video start with index %" PRId64"\n", file_index);
+    LOG("Muxer will record video start with index %" PRId64 "\n", file_index);
   }
 
   std::string &duration_str = params[KEY_FILE_DURATION];
   if (!duration_str.empty()) {
     file_duration = std::stoi(duration_str);
-    LOG("Muxer will save video file per %" PRId64"sec\n", file_duration);
+    LOG("Muxer will save video file per %" PRId64 "sec\n", file_duration);
   }
 
+  output_format = params[KEY_OUTPUTDATATYPE];
+  if (!output_format.empty()) {
+    LOG("Muxer will use CustomeIO.\n");
+  }
   for (auto param_str : separate_list) {
     MediaConfig enc_config;
     std::map<std::string, std::string> enc_params;
@@ -97,6 +130,8 @@ MuxerFlow::MuxerFlow(const char *param)
   SlotMap sm;
   sm.input_slots.push_back(0);
   sm.input_slots.push_back(1);
+  if (!output_format.empty())
+    sm.output_slots.push_back(0);
   sm.thread_model = Model::ASYNCCOMMON;
   sm.mode_when_full = InputMode::DROPFRONT;
   sm.input_maxcachenum.push_back(10);
@@ -115,8 +150,15 @@ MuxerFlow::~MuxerFlow() { StopAllThread(); }
 
 std::shared_ptr<VideoRecorder> MuxerFlow::NewRecoder(const char *path) {
   std::string param = std::string(muxer_param);
-  PARAM_STRING_APPEND(param, KEY_PATH, path);
-  auto vrecorder = std::make_shared<VideoRecorder>(param.c_str());
+  std::shared_ptr<VideoRecorder> vrecorder = nullptr;
+  if (!output_format.empty()) {
+    PARAM_STRING_APPEND(param, KEY_OUTPUTDATATYPE, output_format.c_str());
+    vrecorder = std::make_shared<VideoRecorder>(param.c_str(), this);
+    LOG("use customio, output foramt is %s.\n", output_format.c_str());
+  } else {
+    PARAM_STRING_APPEND(param, KEY_PATH, path);
+    vrecorder = std::make_shared<VideoRecorder>(param.c_str(), nullptr);
+  }
 
   if (!vrecorder) {
     LOG("Create video recoder failed, path:[%s]\n", path);
@@ -165,7 +207,6 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
   MuxerFlow *flow = static_cast<MuxerFlow *>(f);
   auto &&recoder = flow->video_recorder;
   int64_t duration_us = flow->file_duration;
-
   if (recoder == nullptr) {
     recoder = flow->NewRecoder(flow->GenFilePath().c_str());
     flow->last_ts = 0;
@@ -202,9 +243,8 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
     }
 
     if (!flow->video_extra &&
-      (vid_buffer->GetUserFlag() & MediaBuffer::kIntra)) {
-      CodecType c_type =
-        flow->vid_enc_config.vid_cfg.image_cfg.codec_type;
+        (vid_buffer->GetUserFlag() & MediaBuffer::kIntra)) {
+      CodecType c_type = flow->vid_enc_config.vid_cfg.image_cfg.codec_type;
       int extra_size = 0;
       void *extra_ptr = NULL;
       if (c_type == CODEC_TYPE_H264)
@@ -250,15 +290,16 @@ DEFINE_FLOW_FACTORY(MuxerFlow, Flow)
 const char *FACTORY(MuxerFlow)::ExpectedInputDataType() { return nullptr; }
 const char *FACTORY(MuxerFlow)::OutPutDataType() { return ""; }
 
-VideoRecorder::VideoRecorder(const char *param)
-    : vid_stream_id(-1), aud_stream_id(-1) {
-  muxer = easymedia::REFLECTOR(Muxer)::Create<easymedia::Muxer>(
-      "ffmpeg", param);
-
+VideoRecorder::VideoRecorder(const char *param, Flow *f)
+    : vid_stream_id(-1), aud_stream_id(-1), muxer_flow(f) {
+  muxer =
+      easymedia::REFLECTOR(Muxer)::Create<easymedia::Muxer>("ffmpeg", param);
   if (!muxer) {
     LOG("Create muxer ffmpeg failed\n");
     exit(EXIT_FAILURE);
   }
+  if (muxer_flow != nullptr)
+    muxer->SetWriteCallback(muxer_flow, &muxer_buffer_callback);
 }
 
 VideoRecorder::~VideoRecorder() {
@@ -281,7 +322,6 @@ void VideoRecorder::ClearStream() {
 
 bool VideoRecorder::Write(MuxerFlow *f, std::shared_ptr<MediaBuffer> buffer) {
   MuxerFlow *flow = static_cast<MuxerFlow *>(f);
-
   if (flow->video_in && flow->video_extra && vid_stream_id == -1) {
     if (!muxer->NewMuxerStream(flow->vid_enc_config, flow->video_extra,
                                vid_stream_id)) {
