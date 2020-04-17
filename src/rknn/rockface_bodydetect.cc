@@ -2,37 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <rockx/rockx.h>
+#include <rockface/rockface.h>
+
 
 #include "buffer.h"
 #include "filter.h"
+#include "lock.h"
+#include "rknn_utils.h"
+#include "rknn_user.h"
 
 namespace easymedia {
-
-static const struct PixelFmtEntry {
-  rockx_pixel_format fmt;
-  const char *fmt_str;
-} pixel_fmt_string_map[] = {
-  {ROCKX_PIXEL_FORMAT_GRAY8, "image:gray8"},
-  {ROCKX_PIXEL_FORMAT_RGB888, IMAGE_RGB888},
-  {ROCKX_PIXEL_FORMAT_BGR888, IMAGE_BGR888},
-  {ROCKX_PIXEL_FORMAT_RGBA8888, IMAGE_ARGB8888},
-  {ROCKX_PIXEL_FORMAT_BGRA8888, IMAGE_ABGR8888},
-  {ROCKX_PIXEL_FORMAT_YUV420P_YU12, IMAGE_YUV420P},
-  {ROCKX_PIXEL_FORMAT_YUV420P_YV12, "image:yv12"},
-  {ROCKX_PIXEL_FORMAT_YUV420SP_NV12, IMAGE_NV12},
-  {ROCKX_PIXEL_FORMAT_YUV420SP_NV21, IMAGE_NV21},
-  {ROCKX_PIXEL_FORMAT_YUV422P_YU16, IMAGE_UYVY422},
-  {ROCKX_PIXEL_FORMAT_YUV422P_YV16, "image:yv16"},
-  {ROCKX_PIXEL_FORMAT_YUV422SP_NV16, IMAGE_NV16},
-  {ROCKX_PIXEL_FORMAT_YUV422SP_NV61, IMAGE_NV61},
-  {ROCKX_PIXEL_FORMAT_GRAY16, "image:gray16"}
-};
-
-static rockx_pixel_format StrToRockxPixelFMT(const char *fmt_str) {
-  FIND_ENTRY_TARGET_BY_STRCMP(fmt_str, pixel_fmt_string_map, fmt_str, fmt)
-  return ROCKX_PIXEL_FORMAT_MAX;
-}
 
 class BodyDetect : public Filter {
 public:
@@ -44,13 +23,14 @@ public:
   virtual int IoCtrl(unsigned long int request, ...) override;
 
 protected:
-  bool RoiFilter(rockx_object_t* objects, int width, int height);
+  bool RoiFilter(rockface_det_t* objects, int width, int height);
 
 private:
   ImageRect roi_rect_;
   std::string input_type_;
-  rockx_handle_t body_handle_;
+  rockface_handle_t body_handle_;
   RknnCallBack callback_;
+  ReadWriteLockMutex cb_mtx_;
 };
 
 BodyDetect::BodyDetect(const char *param)
@@ -72,60 +52,70 @@ BodyDetect::BodyDetect(const char *param)
     return;
   }
   roi_rect_ = rects[0];
-  rockx_ret_t ret =
-      rockx_create(&body_handle_, ROCKX_MODULE_OBJECT_DETECTION, nullptr, 0);
-  if (ret != ROCKX_RET_SUCCESS) {
-    LOG("create body handle failed, ret = %d\n", ret);
-    return;
+  body_handle_ = rockface_create_handle();
+  if (body_handle_) {
+    rockface_ret_t ret;
+    ret = rockface_init_person_detector(body_handle_);
+    if (ret != ROCKFACE_RET_SUCCESS) {
+      LOG("rockface_init_person_detector failed, ret = %d\n", ret);
+      return;
+    }
   }
 }
 
 BodyDetect::~BodyDetect() {
   if (body_handle_)
-    rockx_destroy(body_handle_);
+    rockface_release_handle(body_handle_);
 }
 
 int BodyDetect::Process(std::shared_ptr<MediaBuffer> input,
                         std::shared_ptr<MediaBuffer> &output) {
   auto input_buffer = std::static_pointer_cast<easymedia::ImageBuffer>(input);
 
-  rockx_image_t input_img;
+  rockface_image_t input_img;
   input_img.width = input_buffer->GetWidth();
   input_img.height = input_buffer->GetHeight();
-  input_img.pixel_format = StrToRockxPixelFMT(input_type_.c_str());
+  input_img.pixel_format = StrToRockFacePixelFMT(input_type_.c_str());
   input_img.data = (uint8_t *)input_buffer->GetPtr();
 
-  rockx_ret_t ret;
-  rockx_object_array_t body_array;
-  memset(&body_array, 0, sizeof(rockx_object_array_t));
+  rockface_ret_t ret;
+  rockface_det_person_array_t body_array;
+  memset(&body_array, 0, sizeof(rockface_det_person_array_t));
 
   AutoDuration ad;
-  ret = rockx_object_detect(body_handle_, &input_img, &body_array, nullptr);
-  if (ret != ROCKX_RET_SUCCESS) {
-    LOG("rockx_object_detect failed.\n");
+  ret = rockface_person_detect(body_handle_, &input_img, &body_array);
+  if (ret != ROCKFACE_RET_SUCCESS) {
+    LOG("rockface_person_detect failed.\n");
     return -1;
   }
-  LOG("rockx_object_detect %lldus\n", ad.Get());
+  LOG("rockface_person_detect %lldus\n", ad.Get());
 
   RknnResult result_item;
   memset(&result_item, 0, sizeof(RknnResult));
   result_item.type = NNRESULT_TYPE_BODY;
   auto &nn_result = input_buffer->GetRknnResult();
 
-  for (int i = 0; i < body_array.count; i++) {
-    rockx_object_t *object = &body_array.object[i];
-    if (!RoiFilter(object, input_img.width, input_img.height))
+  int count = body_array.count;
+  BodyInfo body_infos[count];
+  for (int i = 0; i < count; i++) {
+    rockface_det_t *body = &body_array.person[i];
+    if (!RoiFilter(body, input_img.width, input_img.height))
       continue;
 
+    body_infos[i].img_w = input_img.width;
+    body_infos[i].img_h = input_img.height;
     LOG("body[%d], position:[%d, %d, %d, %d]\n", i,
-        object->box.left, object->box.top,
-        object->box.right, object->box.bottom);
+        body->box.left, body->box.top,
+        body->box.right, body->box.bottom);
 
-    memcpy(&result_item.body_info.object, object, sizeof(rockx_object_t));
+    memcpy(&body_infos[i].base, body, sizeof(rockface_det_t));
+    memcpy(&result_item.body_info.base, body, sizeof(rockface_det_t));
     nn_result.push_back(result_item);
+  }
 
-    if (callback_)
-      callback_(this, NNRESULT_TYPE_FACE, object, sizeof(rockx_object_t));
+  if (count > 0 && callback_) {
+    AutoLockMutex _rw_mtx(cb_mtx_);
+    callback_(this, NNRESULT_TYPE_BODY, body_infos, count);
   }
   output = input;
   return 0;
@@ -142,12 +132,14 @@ int BodyDetect::IoCtrl(unsigned long int request, ...) {
 
   int ret = 0;
   switch (request) {
-  case S_CALLBACK_HANDLER:
+  case S_CALLBACK_HANDLER: {
+    AutoLockMutex _rw_mtx(cb_mtx_);
     callback_ = (RknnCallBack)arg;
-    break;
-  case G_CALLBACK_HANDLER:
+  } break;
+  case G_CALLBACK_HANDLER: {
+    AutoLockMutex _rw_mtx(cb_mtx_);
     arg = (void *)callback_;
-    break;
+  } break;
   default:
     ret = -1;
     break;
@@ -155,15 +147,14 @@ int BodyDetect::IoCtrl(unsigned long int request, ...) {
   return ret;
 }
 
-bool BodyDetect::RoiFilter(rockx_object_t* object, int width, int height) {
-  // the cls_ids is 1 for the human body.
-  if (object->cls_idx != 1)
+bool BodyDetect::RoiFilter(rockface_det_t* body, int width, int height) {
+  if (!body)
     return false;
 
-  int left = object->box.left;
-  int top = object->box.top;
-  int right = object->box.right;
-  int bottom = object->box.bottom;
+  int left = body->box.left;
+  int top = body->box.top;
+  int right = body->box.right;
+  int bottom = body->box.bottom;
 
   float factor_w = 0.2;
   float factor_h = 0.1;

@@ -30,8 +30,10 @@ typedef struct {
 } FaceInfo;
 
 typedef struct {
-#ifdef USE_ROCKX
-  rockx_object_t object;
+  int img_w;
+  int img_h;
+#ifdef USE_ROCKFACE
+  rockface_det_t base;
 #endif
 } BodyInfo;
 
