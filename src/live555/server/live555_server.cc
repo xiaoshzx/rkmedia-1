@@ -40,6 +40,7 @@
 
 #include <assert.h>
 #include <fcntl.h>
+#include <sys/prctl.h>
 #include <unistd.h>
 
 namespace easymedia {
@@ -96,6 +97,7 @@ err:
 void RtspConnection::service_session_run() {
   AutoPrintLine apl(__func__);
   LOG("================ service_session_run =================\n");
+  prctl(PR_SET_NAME, "live555_server");
   env->taskScheduler().turnOnBackgroundReadHandling(
       msg_fd[0], (TaskScheduler::BackgroundHandlerProc *)&incomingMsgHandler,
       this);
