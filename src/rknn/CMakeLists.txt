@@ -27,6 +27,9 @@ if(ROCKFACE)
 endif()
 
 if(ROCKX)
+    set(EASY_MEDIA_ROCKX_SOURCE_FILES rknn/rockx_filter.cc)
+    set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
+                                ${EASY_MEDIA_ROCKX_SOURCE_FILES})
 endif()
 
 set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}

@@ -166,6 +166,9 @@
 #define KEY_ROCKFACE_DETECT_LANDMARK "detect_landmark"
 #define KEY_NEED_ASYNC_DRAW "need_async_draw"
 
+//rockx
+#define KEY_ROCKX_MODEL "rockx_model"
+
 // throuh_guard
 #define KEY_ALLOW_THROUGH_COUNT "allow_through_count"
 

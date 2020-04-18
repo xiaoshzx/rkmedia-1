@@ -36,4 +36,31 @@ rockface_pixel_format StrToRockFacePixelFMT(const char *fmt_str) {
 }
 #endif // USE_ROCKFACE
 
+#ifdef USE_ROCKX
+static const struct PixelFmtEntry {
+  rockx_pixel_format fmt;
+  const char *fmt_str;
+} pixel_fmt_string_map[] = {
+  {ROCKX_PIXEL_FORMAT_GRAY8, "image:gray8"},
+  {ROCKX_PIXEL_FORMAT_RGB888, IMAGE_RGB888},
+  {ROCKX_PIXEL_FORMAT_BGR888, IMAGE_BGR888},
+  {ROCKX_PIXEL_FORMAT_RGBA8888, IMAGE_ARGB8888},
+  {ROCKX_PIXEL_FORMAT_BGRA8888, IMAGE_ABGR8888},
+  {ROCKX_PIXEL_FORMAT_YUV420P_YU12, IMAGE_YUV420P},
+  {ROCKX_PIXEL_FORMAT_YUV420P_YV12, "image:yv12"},
+  {ROCKX_PIXEL_FORMAT_YUV420SP_NV12, IMAGE_NV12},
+  {ROCKX_PIXEL_FORMAT_YUV420SP_NV21, IMAGE_NV21},
+  {ROCKX_PIXEL_FORMAT_YUV422P_YU16, IMAGE_UYVY422},
+  {ROCKX_PIXEL_FORMAT_YUV422P_YV16, "image:yv16"},
+  {ROCKX_PIXEL_FORMAT_YUV422SP_NV16, IMAGE_NV16},
+  {ROCKX_PIXEL_FORMAT_YUV422SP_NV61, IMAGE_NV61},
+  {ROCKX_PIXEL_FORMAT_GRAY16, "image:gray16"}
+};
+
+rockx_pixel_format StrToRockxPixelFMT(const char *fmt_str) {
+  FIND_ENTRY_TARGET_BY_STRCMP(fmt_str, pixel_fmt_string_map, fmt_str, fmt)
+  return ROCKX_PIXEL_FORMAT_MAX;
+}
+#endif // USE_ROCKX
+
 } // namespace easymedia
