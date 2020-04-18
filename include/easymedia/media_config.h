@@ -115,6 +115,8 @@ extern const char *rc_quality_strings[7];
 extern const char *rc_mode_strings[2];
 bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
                              MediaConfig &mc);
+_API std::vector<EncROIRegion> StringToRoiRegions(
+  const std::string &str_regions);
 _API std::string to_param_string(const ImageConfig &img_cfg);
 _API std::string to_param_string(const VideoConfig &vid_cfg);
 _API std::string to_param_string(const AudioConfig &aud_cfg);
@@ -144,6 +146,8 @@ _API int video_encoder_set_move_detection(std::shared_ptr<Flow> &enc_flow,
   std::shared_ptr<Flow> &md_flow);
 _API int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
   EncROIRegion *regions, int region_cnt);
+_API int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
+  std::string roi_param);
 
 // mode: slice split mode
 // 0 - No slice is split

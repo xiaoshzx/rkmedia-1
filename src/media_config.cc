@@ -118,6 +118,59 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
   return true;
 }
 
+// roi_regions:(x,x,x,x,x,x,x,x,x)(x,x,x,x,x,x,x,x,x)...
+std::vector<EncROIRegion> StringToRoiRegions(const std::string &str_regions) {
+  std::vector<EncROIRegion> ret;
+  const char *start = nullptr;
+  if (str_regions.empty())
+    return std::move(ret);
+
+  start = str_regions.c_str();
+  while (start) {
+    EncROIRegion region = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+    start = strstr(start, "(");
+    if (!start)
+      break;
+    const char *end = strstr(start, ")");
+    if (!end) {
+      LOG("ERROR: RoiRegions string is invalid! end error! Value:%s\n",
+        str_regions.c_str());
+      break;
+    }
+
+    int commas_cnt = 0;
+    const char *commas_str = start;
+    while (commas_str && (commas_str < end)) {
+      commas_str = strstr(commas_str, ",");
+      if (!commas_str)
+        break;
+      else if (commas_str < end)
+        commas_cnt++;
+      commas_str++;
+    }
+
+    if (commas_cnt != 8) {
+      LOG("ERROR: RoiRegions string is invalid! Value:%s\n",
+        str_regions.c_str());
+      break;
+    }
+
+    int r = sscanf(start, "(%d,%d,%d,%d,%d,%d,%d,%d,%d)",
+      (int *)&region.x, (int *)&region.y, (int *)&region.w, (int *)&region.h,
+      (int *)&region.intra, (int *)&region.quality, (int *)&region.qp_area_idx,
+      (int *)&region.area_map_en, (int *)&region.abs_qp_en);
+    if (r != 9) {
+      LOG("ERROR: Fail to sscanf(ret=%d) : %m\n", r);
+      ret.clear();
+      return std::move(ret);
+    }
+    ret.push_back(std::move(region));
+    start = end;
+  }
+
+  return std::move(ret);
+}
+
 std::string to_param_string(const ImageConfig &img_cfg) {
   std::string ret = to_param_string(img_cfg.image_info);
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_INIT, img_cfg.qp_init);
@@ -529,6 +582,32 @@ int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
     rdata = (void *)malloc(rsize);
     memcpy(rdata, (void *)regions, rsize);
   }
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetPtr(rdata, rsize);
+  enc_flow->Control(VideoEncoder::kROICfgChange, pbuff);
+  return 0;
+}
+
+int video_encoder_set_roi_regions(
+  std::shared_ptr<Flow> &enc_flow, std::string roi_param) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  auto regions = StringToRoiRegions(roi_param);
+  int region_cnt = regions.size();
+  if (!region_cnt)
+    return -EINVAL;
+
+  EncROIRegion *rdata = NULL;
+  int rsize = sizeof(EncROIRegion) * region_cnt;
+  rdata = (EncROIRegion *)malloc(rsize);
+  if (!rdata)
+    return -EINVAL;
+
+  int i = 0;
+  for(auto iter : regions)
+    memcpy((void *)&rdata[i++], (void *)&iter, sizeof(EncROIRegion));
+
   auto pbuff = std::make_shared<ParameterBuffer>(0);
   pbuff->SetPtr(rdata, rsize);
   enc_flow->Control(VideoEncoder::kROICfgChange, pbuff);

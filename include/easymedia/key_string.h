@@ -52,6 +52,8 @@
 #define KEY_H265_MIN_I_QP "h265_min_i_qp"
 #define KEY_H264_TRANS_8x8 "h264_trans_8x8"
 
+#define KEY_ROI_REGIONS "roi_regions"
+
 #define KEY_WORST "worst"
 #define KEY_WORSE "worse"
 #define KEY_MEDIUM "medium"

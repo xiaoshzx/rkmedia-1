@@ -49,7 +49,6 @@ int main(int argc, char **argv) {
   int vir_width, vir_height;
   std::string pixel_format;
   int video_fps = 30;
-  unsigned int bpsmax = video_width * video_height;
   std::string video_enc_type = VIDEO_H264;
 
   std::string output_path;
@@ -197,44 +196,20 @@ int main(int argc, char **argv) {
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, video_enc_type);
 
-  MediaConfig enc_config;
-  memset(&enc_config, 0, sizeof(enc_config));
-  VideoConfig &vid_cfg = enc_config.vid_cfg;
-  ImageConfig &img_cfg = vid_cfg.image_cfg;
-  img_cfg.image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
-  img_cfg.image_info.width = video_width;
-  img_cfg.image_info.height = video_height;
-  img_cfg.image_info.vir_width = vir_width;
-  img_cfg.image_info.vir_height = vir_height;
-  if ((video_enc_type == VIDEO_H264)) {
-    img_cfg.qp_init = 24;
-    vid_cfg.qp_step = 4;
-    vid_cfg.qp_min = 12;
-    vid_cfg.qp_max = 48;
-    vid_cfg.bit_rate = bpsmax;
-    vid_cfg.frame_rate = video_fps;
-    vid_cfg.level = 40;
-    vid_cfg.gop_size = video_fps;
-    vid_cfg.profile = 100;
-    // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
-    vid_cfg.rc_quality = KEY_MEDIUM;
-    vid_cfg.rc_mode = KEY_CBR;
-  } else if (video_enc_type == VIDEO_H265) {
-    img_cfg.qp_init = -1;
-    vid_cfg.max_i_qp = 46;
-    vid_cfg.min_i_qp = 24;
-    vid_cfg.qp_min = 10;
-    vid_cfg.qp_max = 51;
-    vid_cfg.bit_rate = bpsmax;
-    vid_cfg.frame_rate = video_fps;
-    vid_cfg.gop_size = video_fps * 2;
-    // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
-    vid_cfg.rc_quality = KEY_MEDIUM;
-    vid_cfg.rc_mode = KEY_CBR;
-  }
-
-  enc_param = "";
-  enc_param.append(easymedia::to_param_string(enc_config, video_enc_type));
+  VideoEncoderCfg vcfg;
+  memset(&vcfg, 0, sizeof(vcfg));
+  vcfg.type = (char *)video_enc_type.c_str();
+  vcfg.fps = video_fps;
+  vcfg.max_bps = video_width * video_height * video_fps / 14;
+  ImageInfo image_info;
+  image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
+  image_info.width = video_width;
+  image_info.height = video_height;
+  image_info.vir_width = vir_width;
+  image_info.vir_height = vir_height;
+  enc_param = easymedia::get_video_encoder_config_string(image_info, vcfg);
+  PARAM_STRING_APPEND(enc_param, KEY_ROI_REGIONS,
+  "(0,0,256,256,0,18,0,1,1)(256,256,512,512,0,18,0,1,1)(512,512,768,768,0,18,0,1,1)");
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   printf("\n#VideoEncoder flow param:\n%s\n", flow_param.c_str());
   video_encoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
@@ -256,6 +231,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+#if 0
   int region_width = UPALIGNTO16(video_width / ROI_REGION_CNT);
   int region_height = UPALIGNTO16(video_height / ROI_REGION_CNT);
   if ((region_width * ROI_REGION_CNT) > video_width)
@@ -277,7 +253,8 @@ int main(int argc, char **argv) {
       i, region_data[i].x, region_data[i].y, region_data[i].w, region_data[i].h,
       region_data[i].abs_qp_en, region_data[i].intra, region_data[i].quality);
   }
-  video_encoder_set_roi_regions(video_encoder_flow, region_data, ROI_REGION_CNT);
+  easymedia::video_encoder_set_roi_regions(video_encoder_flow, region_data, ROI_REGION_CNT);
+#endif
 
   video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);
   video_read_flow->AddDownFlow(video_encoder_flow, 0, 0);

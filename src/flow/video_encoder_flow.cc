@@ -109,6 +109,59 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
   return ret;
 }
 
+// roi_regions:(x,x,x,x,x,x,x,x,x)(x,x,x,x,x,x,x,x,x)...
+std::vector<EncROIRegion> StringToRoiRegions(const std::string &str_regions) {
+  std::vector<EncROIRegion> ret;
+  const char *start = nullptr;
+  if (str_regions.empty())
+    return std::move(ret);
+
+  start = str_regions.c_str();
+  while (start) {
+    EncROIRegion region = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+    start = strstr(start, "(");
+    if (!start)
+      break;
+    const char *end = strstr(start, ")");
+    if (!end) {
+      LOG("ERROR: RoiRegions string is invalid! end error! Value:%s\n",
+        str_regions.c_str());
+      break;
+    }
+
+    int commas_cnt = 0;
+    const char *commas_str = start;
+    while (commas_str && (commas_str < end)) {
+      commas_str = strstr(commas_str, ",");
+      if (!commas_str)
+        break;
+      else if (commas_str < end)
+        commas_cnt++;
+      commas_str++;
+    }
+
+    if (commas_cnt != 8) {
+      LOG("ERROR: RoiRegions string is invalid! Value:%s\n",
+        str_regions.c_str());
+      break;
+    }
+
+    int r = sscanf(start, "(%d,%d,%d,%d,%d,%d,%d,%d,%d)",
+      (int *)&region.x, (int *)&region.y, (int *)&region.w, (int *)&region.h,
+      (int *)&region.intra, (int *)&region.quality, (int *)&region.qp_area_idx,
+      (int *)&region.area_map_en, (int *)&region.abs_qp_en);
+    if (r != 9) {
+      LOG("ERROR: Fail to sscanf(ret=%d) : %m\n", r);
+      ret.clear();
+      return std::move(ret);
+    }
+    ret.push_back(std::move(region));
+    start = end;
+  }
+
+  return std::move(ret);
+}
+
 VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
     extra_merge(false)
 #ifdef  RK_MOVE_DETECTION
@@ -171,6 +224,37 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
     LOG("Fail to init config, %s\n", ccodec_name);
     SetError(-EINVAL);
     return;
+  }
+
+  std::string roi_region_str = enc_params[KEY_ROI_REGIONS];
+  if (!roi_region_str.empty()) {
+    int roi_regions_cnt = 0;
+    std::vector<EncROIRegion> roi_regions;
+    roi_regions = StringToRoiRegions(roi_region_str);
+    roi_regions_cnt = roi_regions.size();
+    if (roi_regions_cnt) {
+      EncROIRegion *regions =
+        (EncROIRegion *) malloc(roi_regions_cnt * sizeof(EncROIRegion));
+      for (int i = 0; i < roi_regions_cnt; i++) {
+        (regions + i)->x = roi_regions[i].x;
+        (regions + i)->y = roi_regions[i].y;
+        (regions + i)->w = roi_regions[i].w;
+        (regions + i)->h = roi_regions[i].h;
+        (regions + i)->intra = roi_regions[i].intra;
+        (regions + i)->quality = roi_regions[i].quality;
+        (regions + i)->qp_area_idx = roi_regions[i].qp_area_idx;
+        (regions + i)->area_map_en = roi_regions[i].area_map_en;
+        (regions + i)->abs_qp_en = roi_regions[i].abs_qp_en;
+        LOGD("VEnc Flow: Roi Regions[%d]: (%d,%d,%d,%d,%d,%d,%d,%d,%d)\n",
+          i, roi_regions[i].x, roi_regions[i].y, roi_regions[i].w, roi_regions[i].h,
+          roi_regions[i].intra, roi_regions[i].quality, roi_regions[i].qp_area_idx,
+          roi_regions[i].area_map_en, roi_regions[i].abs_qp_en);
+      }
+
+      auto pbuff = std::make_shared<ParameterBuffer>(0);
+      pbuff->SetPtr(regions, roi_regions_cnt * sizeof(EncROIRegion));
+      encoder->RequestChange(VideoEncoder::kROICfgChange, pbuff);
+    }
   }
 
   void *extra_data = nullptr;
