@@ -137,7 +137,11 @@ void RtspConnection::incomingMsgHandler(RtspConnection *rtsp, int) {
 
 void RtspConnection::incomingMsgHandler1() {
   struct message msg;
-  read(msg_fd[0], &msg, sizeof(msg));
+  ssize_t count = read(msg_fd[0], &msg, sizeof(msg));
+  if (count < 0) {
+    LOG("incomingMsgHandler1 read failed\n");
+    return;
+  }
   switch (msg.cmd_type) {
   case CMD_TYPE::NewSession:
     addSession(msg);
@@ -233,7 +237,10 @@ void RtspConnection::sendMessage(struct message msg) {
   lock_msg.lock();
   mtx.lock();
   flag = true;
-  write(msg_fd[1], (void *)&msg, sizeof(msg));
+  ssize_t count = write(msg_fd[1], (void *)&msg, sizeof(msg));
+  if (count < 0) {
+    LOG("%s: write filed %s\n", __func__, strerror(errno));
+  }
   LOG("%s: before mtx.wait.\n", __func__);
   while (flag) {
     mtx.wait();

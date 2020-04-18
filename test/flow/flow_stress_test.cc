@@ -1053,13 +1053,14 @@ int multi_pipe_test() {
   p1_io21.reset();
   p1_sink.reset();
 
+  int ret = 0;
+
   LOG("## DUMP file md5:\n");
-  system("md5sum /data/flowInData");
-  system("md5sum /data/flowOut0");
-  system("md5sum /data/flowOut1");
+  ret = system("md5sum /data/flowInData");
+  ret = system("md5sum /data/flowOut0");
+  ret = system("md5sum /data/flowOut1");
 
   //compare sink and src data
-  int ret = 0;
   if (file_compare("/data/flowInData", "/data/flowOut0") ||
     file_compare("/data/flowInData", "/data/flowOut1"))
     ret = -1;
@@ -1239,15 +1240,16 @@ int dynamic_pipe_test() {
   //waite for file sync.
   easymedia::msleep(100);
 
+  int ret = 0;
+
   LOG("## DUMP file md5:\n");
-  system("md5sum /data/flowInData");
-  system("md5sum /data/flowOut0");
-  system("md5sum /data/flowOut2");
+  ret = system("md5sum /data/flowInData");
+  ret = system("md5sum /data/flowOut0");
+  ret = system("md5sum /data/flowOut2");
 
   // flowOut0 should be equal flowInData
   // flowOut1 should be part of flowInData
   // flowOut2 should be equal flowInData
-  int ret = 0;
   if (file_compare("/data/flowInData", "/data/flowOut0") ||
     file_compare("/data/flowInData", "/data/flowOut2"))
     ret = -1;
