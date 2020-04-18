@@ -18,8 +18,8 @@ namespace easymedia {
 // A common "FramedSource" subclass, used for reading from a cached buffer list:
 
 Live555MediaInput::Live555MediaInput(UsageEnvironment &env)
-    : Medium(env), connecting(false), video_source(nullptr),
-      audio_source(nullptr), video_callback(nullptr), audio_callback(nullptr) {}
+    : Medium(env), connecting(false), video_callback(nullptr),
+      audio_callback(nullptr) {}
 
 Live555MediaInput::~Live555MediaInput() {
   LOG_FILE_FUNC_LINE();
@@ -33,6 +33,15 @@ Live555MediaInput::~Live555MediaInput() {
   });
 
   audio_list.remove_if([](Source *s) {
+    if (s->GetReadFd() < 0) {
+      delete s;
+      return true;
+    } else {
+      return false;
+    }
+  });
+
+  muxer_list.remove_if([](Source *s) {
     if (s->GetReadFd() < 0) {
       delete s;
       return true;
@@ -59,16 +68,28 @@ Live555MediaInput *Live555MediaInput::createNew(UsageEnvironment &env) {
 }
 
 #define MAX_CACHE_NUMBER 60
-static void common_reduction(std::list<std::shared_ptr<MediaBuffer>> &mb_list) {
-  if (mb_list.size() > MAX_CACHE_NUMBER) {
-    for (int i = 0; i < MAX_CACHE_NUMBER / 2; i++)
+static void common_reduction(void *userdata,
+                             std::list<std::shared_ptr<MediaBuffer>> &mb_list) {
+  Source *source = (Source *)userdata;
+  if (mb_list.size() > source->GetCachedBufSize()) {
+    for (unsigned i = 0; i < source->GetCachedBufSize() / 2; i++) {
       mb_list.pop_front();
+      if (source) {
+        int j = 0;
+        ssize_t read_size = (ssize_t)sizeof(j);
+        ssize_t ret = read(source->GetReadFd(), &j, sizeof(j));
+        if (ret != read_size) {
+          LOG("%s:%d, read from pipe error, %m\n", __func__, __LINE__);
+        }
+      }
+    }
     LOG("call common_reduction.\n");
   }
 }
 
 static void
-h264_packet_reduction(std::list<std::shared_ptr<MediaBuffer>> &mb_list) {
+h264_packet_reduction(void *userdata _UNUSED,
+                      std::list<std::shared_ptr<MediaBuffer>> &mb_list) {
   if (mb_list.size() < MAX_CACHE_NUMBER)
     return;
   // only remain one I frame
@@ -101,7 +122,7 @@ FramedSource *Live555MediaInput::videoSource(CodecType c_type) {
     return nullptr;
   }
   video_list.push_back(source);
-  video_source = new VideoFramedSource(envir(), *source);
+  VideoFramedSource *video_source = new VideoFramedSource(envir(), *source);
   video_source->SetCodecType(c_type);
   return video_source;
 }
@@ -115,10 +136,22 @@ FramedSource *Live555MediaInput::audioSource() {
     return nullptr;
   }
   audio_list.push_back(source);
-  audio_source = new AudioFramedSource(envir(), *source);
+  ListSource *audio_source = new CommonFramedSource(envir(), *source);
   return audio_source;
 }
 
+FramedSource *Live555MediaInput::muxerSource() {
+  Source *source = new Source();
+  if (!source)
+    return nullptr;
+  if (!source->Init(common_reduction)) {
+    delete source;
+    return nullptr;
+  }
+  muxer_list.push_back(source);
+  ListSource *muxer_source = new CommonFramedSource(envir(), *source);
+  return muxer_source;
+}
 #if 0
 static void printErr(UsageEnvironment& env, char const* str = NULL) {
   if (str != NULL)
@@ -130,10 +163,6 @@ static void printErr(UsageEnvironment& env, char const* str = NULL) {
 void Live555MediaInput::PushNewVideo(std::shared_ptr<MediaBuffer> &buffer) {
   if (!buffer)
     return;
-  /*
-  if ((connecting && video_source != nullptr) ||
-      (buffer->GetUserFlag() & MediaBuffer::kExtraIntra))
-    vs->Push(buffer);*/
   video_list.remove_if([](Source *s) {
     if (s->GetReadFd() < 0) {
       delete s;
@@ -155,10 +184,6 @@ void Live555MediaInput::PushNewVideo(std::shared_ptr<MediaBuffer> &buffer) {
 void Live555MediaInput::PushNewAudio(std::shared_ptr<MediaBuffer> &buffer) {
   if (!buffer)
     return;
-  /*
-  if (connecting && audio_source != nullptr)
-    as->Push(buffer);
-    */
   audio_list.remove_if([](Source *s) {
     if (s->GetReadFd() < 0) {
       delete s;
@@ -176,6 +201,26 @@ void Live555MediaInput::PushNewAudio(std::shared_ptr<MediaBuffer> &buffer) {
   }
 }
 
+void Live555MediaInput::PushNewMuxer(std::shared_ptr<MediaBuffer> &buffer) {
+  if (!buffer)
+    return;
+  muxer_list.remove_if([](Source *s) {
+    if (s->GetReadFd() < 0) {
+      delete s;
+      return true;
+    } else {
+      return false;
+    }
+  });
+  for (auto muxer : muxer_list) {
+    if (muxer) {
+      if (muxer->GetReadFd() >= 0) {
+        muxer->SetCachedBufSize(buffer->GetValidSize());
+        muxer->Push(buffer);
+      }
+    }
+  }
+}
 void Live555MediaInput::SetStartVideoStreamCallback(
     const StartStreamCallback &cb) {
   AutoLockMutex _alm(video_callback_mtx);
@@ -195,7 +240,7 @@ StartStreamCallback Live555MediaInput::GetStartAudioStreamCallback() {
   return audio_callback;
 }
 
-Source::Source() : reduction(nullptr) {
+Source::Source() : reduction(nullptr), m_cached_buffers_size(MAX_CACHE_NUMBER) {
   wakeFds[0] = wakeFds[1] = -1;
   LOG("Source :: %p.\n", this);
 }
@@ -235,7 +280,7 @@ bool Source::Init(ListReductionPtr func) {
 void Source::Push(std::shared_ptr<MediaBuffer> &buffer) {
   AutoLockMutex _alm(mtx);
   if (reduction)
-    reduction(cached_buffers);
+    reduction(this, cached_buffers);
   cached_buffers.push_back(buffer);
   // mtx.notify();
   int i = 0;
@@ -251,6 +296,11 @@ std::shared_ptr<MediaBuffer> Source::Pop() {
   return std::move(buffer);
 }
 
+void Source::SetCachedBufSize(size_t one_buf_size) {
+  // max: 5 M/s
+  if (one_buf_size > 0)
+    m_cached_buffers_size = 1024 * 1024 * 5 / one_buf_size;
+}
 void ListSource::doGetNextFrame() {
   assert(fSource.GetReadFd() >= 0);
   // Await the next incoming data on our FID:
@@ -334,7 +384,7 @@ bool VideoFramedSource::readFromList(bool flush _UNUSED) {
     if (buffer->GetUserFlag() & MediaBuffer::kIntra) {
       int intra_size = 0;
       uint8_t *intra_ptr =
-        (uint8_t *)GetIntraFromBuffer(buffer, intra_size, codec_type);
+          (uint8_t *)GetIntraFromBuffer(buffer, intra_size, codec_type);
       assert(intra_ptr);
       assert(intra_size > 0);
       p = intra_ptr;
@@ -368,17 +418,21 @@ err:
   return false;
 }
 
-AudioFramedSource::AudioFramedSource(UsageEnvironment &env, Source &source)
+CommonFramedSource::CommonFramedSource(UsageEnvironment &env, Source &source)
     : ListSource(env, source) {
   // fReadFd = input.as->GetReadFd();
 }
 
-AudioFramedSource::~AudioFramedSource() {
+CommonFramedSource::~CommonFramedSource() {
   LOG_FILE_FUNC_LINE();
   // fInput.audio_source = NULL;
 }
 
-bool AudioFramedSource::readFromList(bool flush _UNUSED) {
+#ifdef DEBUG_FRAME
+static unsigned sg_fFramesize = 0;
+static long sg_lastTvsec = 0;
+#endif
+bool CommonFramedSource::readFromList(bool flush _UNUSED) {
 #ifdef DEBUG_SEND
   fprintf(stderr, "$$$$ %s, %d\n", __func__, __LINE__);
 #endif
@@ -399,10 +453,20 @@ bool AudioFramedSource::readFromList(bool flush _UNUSED) {
     p = (uint8_t *)buffer->GetPtr();
     fPresentationTime = buffer->GetTimeVal();
 #ifdef DEBUG_SEND
-    fprintf(stderr, "audio frame time: %ld, %ld.\n", fPresentationTime.tv_sec,
+    fprintf(stderr, "common frame time: %ld, %ld.\n", fPresentationTime.tv_sec,
             fPresentationTime.tv_usec);
 #endif
     fFrameSize = buffer->GetValidSize();
+#ifdef DEBUG_FRAME
+    sg_fFramesize += fFrameSize;
+    struct timeval t_now;
+    gettimeofday(&t_now, NULL);
+    if (sg_lastTvsec != t_now.tv_sec) {
+      sg_lastTvsec = t_now.tv_sec;
+      envir() << "RTSP::audio frame in one sec is: " << sg_fFramesize << "\n";
+      sg_fFramesize = 0;
+    }
+#endif
 #ifdef DEBUG_SEND
     envir() << "audio frame size: " << fFrameSize << "\n";
 #endif
@@ -422,67 +486,6 @@ bool AudioFramedSource::readFromList(bool flush _UNUSED) {
 err:
   fFrameSize = 0;
   fNumTruncatedBytes = 0;
-
-#if 0
-  assert(fFileNo > 0);
-#ifdef DEBUG_SEND
-  fprintf(stderr, "$$$$ %s, %d\n", __func__, __LINE__);
-#endif
-  do {
-    // Note the timestamp and size:
-    ssize_t read_size = (ssize_t)sizeof(struct timeval);
-    ssize_t ret = read(fFileNo, &fPresentationTime, read_size);
-    if (ret != read_size) {
-      envir() << __LINE__ << "read from pipe error: " << errno << "\n";
-      break;
-    }
-#ifdef DEBUG_SEND
-    envir() << "audio read pipe frame time: " << (int)fPresentationTime.tv_sec
-            << "s, " << (int)fPresentationTime.tv_usec << "us. \n";
-#endif
-    assert(sizeof(fFrameSize) >= sizeof(unsigned int));
-    read_size = sizeof(unsigned int);
-    ret = read(fFileNo, &fFrameSize, read_size);
-    if (ret != read_size) {
-      envir() << __LINE__ << "read from pipe error: " << errno << "\n";
-      break;
-    }
-    assert(fFrameSize > 0);
-#ifdef DEBUG_SEND
-    envir() << "audio read pipe size: " << fFrameSize << "\n";
-#endif
-    if (flush) {
-      char tmp[512];
-      while (fFrameSize > 0) {
-        read_size = std::min(sizeof(tmp), fFrameSize);
-        ret = read(fFileNo, tmp, read_size);
-        if (ret != read_size && errno != EAGAIN) {
-          envir() << __LINE__ << "read from pipe error: " << errno << "\n";
-          break;
-        }
-        fFrameSize -= ret;
-      }
-      break;
-    }
-    if (fFrameSize > fMaxSize) {
-      fNumTruncatedBytes = fFrameSize - fMaxSize;
-      fFrameSize = fMaxSize;
-    } else {
-      fNumTruncatedBytes = 0;
-    }
-    ret = read(fFileNo, fTo, fFrameSize);
-    if ((unsigned)ret != fFrameSize) {
-      envir() << __LINE__ << "read from pipe error: " << errno << "\n";
-      break;
-    }
-#ifdef DEBUG_SEND
-    fprintf(stderr, "$$$$ %s, %d\n", __func__, __LINE__);
-#endif
-    return true;
-  } while (0);
-  fFrameSize = 0;
-  fNumTruncatedBytes = 0;
-#endif
   return false;
 }
 

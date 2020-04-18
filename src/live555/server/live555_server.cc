@@ -201,7 +201,7 @@ void RtspConnection::addSession(struct message msg) {
   if (subsession)
     sms->addSubsession(subsession);
 
-  // audio
+  // audio or muxer MUXER_MPEG_TS
   if (strcmp(msg.audioType, AUDIO_AAC) == 0) {
     subsession = AACServerMediaSubsession::createNew(
         *env, *server_input, msg.sample_rate, msg.channels, msg.profile);
@@ -209,7 +209,9 @@ void RtspConnection::addSession(struct message msg) {
     subsession = MP2ServerMediaSubsession::createNew(*env, *server_input);
   } else if (strcmp(msg.audioType, AUDIO_G711A) == 0 ||
              strcmp(msg.audioType, AUDIO_G711U) == 0 ||
-             strcmp(msg.audioType, AUDIO_G726) == 0) {
+             strcmp(msg.audioType, AUDIO_G726) == 0 ||
+             strcmp(msg.audioType, MUXER_MPEG_TS) == 0 ||
+             strcmp(msg.audioType, MUXER_MPEG_PS) == 0) {
     subsession = SIMPLEServerMediaSubsession::createNew(
         *env, *server_input, msg.sample_rate, msg.channels, msg.audioType,
         msg.bitrate);

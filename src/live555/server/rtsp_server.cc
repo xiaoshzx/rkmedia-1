@@ -91,8 +91,10 @@ bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector) {
       rtsp_flow->server_input->PushNewAudio(buffer);
     else if (buffer->GetType() == Type::Video)
       rtsp_flow->server_input->PushNewVideo(buffer);
-    else
-      LOG("#ERROR: Unknown buffer type(%d)\n", (int)buffer->GetType());
+    else {
+      // muxer buffer
+      rtsp_flow->server_input->PushNewMuxer(buffer);
+    }
   }
 
   return true;
@@ -143,7 +145,8 @@ RtspServerFlow::RtspServerFlow(const char *param) {
         video_type = type;
       } else if (type == AUDIO_AAC || type == AUDIO_G711A ||
                  type == AUDIO_G711U || type == AUDIO_G726 ||
-                 type == AUDIO_MP2) {
+                 type == AUDIO_MP2 || type == MUXER_MPEG_TS ||
+                 type == MUXER_MPEG_PS) {
         audio_type = type;
       }
       sm.input_slots.push_back(in_idx);

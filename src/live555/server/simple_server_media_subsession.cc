@@ -4,7 +4,9 @@
 
 #include "simple_server_media_subsession.hh"
 #include "SimpleRTPSink.hh"
-
+#ifndef _MPEG2_TRANSPORT_STREAM_FRAMER_HH
+#include "MPEG2TransportStreamFramer.hh"
+#endif
 #include "media_type.h"
 #include "utils.h"
 
@@ -35,6 +37,11 @@ SIMPLEServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/,
                                                    unsigned &estBitrate) {
   LOG_FILE_FUNC_LINE();
   estBitrate = (fbitrate + 500) / 1000; // kbps
+  if (fAudioFormat == MUXER_MPEG_TS || fAudioFormat == MUXER_MPEG_PS) {
+    setVideoRTPSinkBufferSize();
+    return fMediaInput.muxerSource();
+  }
+  setAudioRTPSinkBufferSize();
   return fMediaInput.audioSource();
 }
 
@@ -71,6 +78,20 @@ RTPSink *SIMPLEServerMediaSubsession::createNewRTPSink(
     } else {
       return nullptr;
     }
+  } else if (fAudioFormat == MUXER_MPEG_TS) {
+    SimpleRTPSink *rtpsink =
+        SimpleRTPSink::createNew(envir(), rtpGroupsock, 33, 90000, "video",
+                                 "MP2T", 1, True, False /*no 'M' bit*/);
+    // maxPacketSize < MTU
+    // 12 bytes is the size of the RTP header
+    // 188 TRANSPORT_PACKET_SIZE
+    unsigned maxPacketSize = 12 + 188 * 7;
+    rtpsink->setPacketSizes(1000, maxPacketSize);
+    return rtpsink;
+  } else if (fAudioFormat == MUXER_MPEG_PS) {
+    return SimpleRTPSink::createNew(envir(), rtpGroupsock, payloadFormatCode,
+                                    90000, "video", "MP2P", 1, True,
+                                    False /*no 'M' bit*/);
   } else {
     return nullptr;
   }
