@@ -952,9 +952,12 @@ struct resources *DRMDevice::get_resources() {
     struct connector *sconnector = &res->connectors[i];
     drmModeConnector *conn = sconnector->connector;
 
-    asprintf(&sconnector->name, "%s-%u",
+    int ret = asprintf(&sconnector->name, "%s-%u",
              lookup_drm_connector_type_name(conn->connector_type),
              conn->connector_type_id);
+    if (ret < 0) {
+      LOG("asprintf failed\n");
+    }
   }
 
 #define get_properties(_res, __res, type, Type)                                \

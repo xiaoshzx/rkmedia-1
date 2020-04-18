@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
   assert(input_file_fd >= 0);
   unlink(output_path.c_str());
   int output_file_fd =
-      open(output_path.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC);
+      open(output_path.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC, 0664);
   assert(output_file_fd >= 0);
 
   PixelFormat fmt = PIX_FMT_NONE;
@@ -253,7 +253,10 @@ int main(int argc, char **argv) {
           (int)extra_data_size);
   if (extra_data && extra_data_size > 0) {
     // if there is extra data, write it first
-    write(output_file_fd, extra_data, extra_data_size);
+    ssize_t count = write(output_file_fd, extra_data, extra_data_size);
+    if (count < 0) {
+      LOG("write extra data failed\n");
+    }
   }
 
   size_t len = CalPixFmtSize(fmt, info.vir_width, info.vir_height);
@@ -282,7 +285,10 @@ int main(int argc, char **argv) {
                 ? "I frame"
                 : "P frame",
             (int)out_len);
-    write(output_file_fd, dst_buffer->GetPtr(), out_len);
+    ssize_t count = write(output_file_fd, dst_buffer->GetPtr(), out_len);
+    if (count < 0) {
+      LOG("write dst buffer, failed\n");
+    }
   }
 
   close(input_file_fd);

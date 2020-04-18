@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
     assert(!alsa_device.empty());
   } else {
     unlink(output_path.c_str());
-    output_file_fd = open(output_path.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC);
+    output_file_fd = open(output_path.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC, 0664);
     assert(output_file_fd >= 0);
   }
 
@@ -155,8 +155,12 @@ int main(int argc, char **argv) {
       out_stream->Write(
           buffer->GetPtr(), sample_buffer->GetSampleSize(),
           sample_buffer->GetSamples()); // TODO: check the ret value
-    if (output_file_fd >= 0)
-      write(output_file_fd, buffer->GetPtr(), buffer->GetValidSize());
+    if (output_file_fd >= 0) {
+      ssize_t count = write(output_file_fd, buffer->GetPtr(), buffer->GetValidSize());
+      if (count < 0) {
+        LOG("write file failed!\n");
+      }
+    }
   }
 
   out_stream.reset();

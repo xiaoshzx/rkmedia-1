@@ -37,9 +37,12 @@ static void dump_output(const std::shared_ptr<easymedia::MediaBuffer> &out) {
     fprintf(stderr, "got one frame, format: %s <%dx%d>in<%dx%d>\n",
             PixFmtToString(info.pix_fmt), info.width, info.height,
             info.vir_width, info.vir_height);
-    write(output_file_fd, out_image->GetPtr(),
+    ssize_t count = write(output_file_fd, out_image->GetPtr(),
           CalPixFmtSize(out_image->GetPixelFormat(), out_image->GetVirWidth(),
                         out_image->GetVirHeight()));
+    if (count < 0) {
+      LOG("dump_output: write output_file_fd failed\n");
+    }
   }
 }
 
@@ -219,7 +222,7 @@ int main(int argc, char **argv) {
   if (!output_file_path.empty()) {
     unlink(output_file_path.c_str());
     output_file_fd =
-        open(output_file_path.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC);
+        open(output_file_path.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC, 0664);
     assert(output_file_fd >= 0);
   }
   if (only_sync_mode) {

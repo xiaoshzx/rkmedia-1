@@ -239,7 +239,10 @@ void Source::Push(std::shared_ptr<MediaBuffer> &buffer) {
   cached_buffers.push_back(buffer);
   // mtx.notify();
   int i = 0;
-  write(wakeFds[1], &i, sizeof(i));
+  ssize_t count = write(wakeFds[1], &i, sizeof(i));
+  if (count < 0) {
+    LOG("write failed: %s\n", strerror(errno));
+  }
 }
 
 std::shared_ptr<MediaBuffer> Source::Pop() {
