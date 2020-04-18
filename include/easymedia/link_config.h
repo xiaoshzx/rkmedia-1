@@ -7,7 +7,7 @@
 
 namespace easymedia {
 
-enum LinkType { LINK_NONE, LINK_VIDEO, LINK_AUDIO, LINK_PICTURE };
+enum LinkType { LINK_NONE, LINK_VIDEO, LINK_AUDIO, LINK_PICTURE, LINK_NNDATA };
 
 typedef struct linkvideo {
   void * buffer_ptr;
@@ -28,6 +28,13 @@ typedef struct linkpicture {
   int type;
   const char *id;
 }linkpicture_s;
+
+typedef struct linknndata {
+  int size;
+  time_t timestamp;
+  const char* nn_model_name;
+  RknnResult* rknn_result;
+}linknndata_s;
 
 typedef struct linkcommon {
   int linktype;

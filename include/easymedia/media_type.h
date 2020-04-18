@@ -78,6 +78,7 @@ enum class Type { None = -1, Audio = 0, Image, Video, Text };
 
 #define STREAM_FILE "stream:file"
 
+#define NN_MODEL_PREFIX "nn_model:"
 #define NN_FLOAT32 "nn:float32"
 #define NN_FLOAT16 "nn:float16"
 #define NN_INT8 "nn:int8"
