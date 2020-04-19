@@ -19,8 +19,8 @@ if (ANR)
 
   set(EASY_MEDIA_DEPENDENT_LIBS
        ${EASY_MEDIA_DEPENDENT_LIBS}
-       rkap_anr
-       rkap_common
+       RKAP_ANR
+       RKAP_Common
        PARENT_SCOPE)
 
 endif()
