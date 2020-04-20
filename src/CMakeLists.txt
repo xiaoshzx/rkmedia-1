@@ -87,6 +87,8 @@ endif()
 
 if(ROCKX)
   add_definitions(-DUSE_ROCKX)
+  include_directories(${ROCKX_HEADER_DIR})
+  set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} rockx)
 endif()
 
 set(LIBRARY_VERSION 1.0.1)

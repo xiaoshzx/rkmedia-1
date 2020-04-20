@@ -29,11 +29,20 @@ typedef struct {
   rockface_angle_t angle;
   rockface_feature_t feature;
 #endif
+#ifdef USE_ROCKX
+  rockx_object_t object;
+#endif
 } FaceInfo;
 
 typedef struct {
   int img_w;
   int img_h;
+#ifdef USE_ROCKX
+  rockx_face_landmark_t object;
+#endif
+} LandmarkInfo;
+
+typedef struct {
 #ifdef USE_ROCKFACE
   rockface_det_t base;
 #endif
@@ -44,6 +53,7 @@ typedef enum {
   NNRESULT_TYPE_FACE = 0,
   NNRESULT_TYPE_BODY,
   NNRESULT_TYPE_FINGER,
+  NNRESULT_TYPE_LANDMARK,
 } RknnResultType;
 
 typedef struct {
@@ -51,6 +61,7 @@ typedef struct {
   union {
     BodyInfo body_info;
     FaceInfo face_info;
+    LandmarkInfo landmark_info;
   };
 } RknnResult;
 
