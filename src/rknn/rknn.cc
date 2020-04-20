@@ -5,7 +5,7 @@
 #include "buffer.h"
 #include "filter.h"
 
-#include <rknn_runtime.h>
+#include <rknn/rknn_runtime.h>
 
 namespace easymedia {
 
