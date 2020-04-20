@@ -14,7 +14,7 @@ if(RKNN)
   set(EASY_MEDIA_NN_SOURCE_FILES ${EASY_MEDIA_NN_SOURCE_FILES}
                                    rknn/rknn.cc)
   set(EASY_MEDIA_NN_DEPENDENT_LIBS ${EASY_MEDIA_NN_DEPENDENT_LIBS}
-                                     rknn_runtim)
+                                     rknn_runtime)
 endif()
 
 if(ROCKFACE)
