@@ -43,6 +43,8 @@ typedef struct {
 } LandmarkInfo;
 
 typedef struct {
+  int img_w;
+  int img_h;
 #ifdef USE_ROCKFACE
   rockface_det_t base;
 #endif
