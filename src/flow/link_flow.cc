@@ -22,6 +22,7 @@ private:
 
 private:
   LinkType link_type_;
+  std::string extra_data;
 };
 
 LinkFlow::LinkFlow(const char *param)
@@ -60,6 +61,10 @@ LinkFlow::LinkFlow(const char *param)
     link_type_ = LINK_AUDIO;
   } else if (type.find(IMAGE_PREFIX) != std::string::npos) {
     link_type_ = LINK_PICTURE;
+  } else if (type.find(NN_MODEL_PREFIX) != std::string::npos) {
+    link_type_ = LINK_NNDATA;
+    int position = type.find(":",0);
+    extra_data = type.substr(position+1, type.length());
   }
 }
 
@@ -86,6 +91,35 @@ bool process_buffer(Flow *f, MediaBufferVector &input_vector) {
     if (link_audio_handler)
       link_audio_handler((unsigned char *)buffer->GetPtr(), buffer->GetValidSize(),
                          timestamp);
+  } else if (flow->link_type_ == LINK_NNDATA){
+    auto user_callback = flow->GetUserCallBack();
+    auto timestamp = easymedia::gettimeofday() / 1000;
+    if (user_callback){
+      if(buffer){
+        auto input_buffer = std::static_pointer_cast<easymedia::ImageBuffer>(buffer);
+        static linknndata_s link_nn_data;
+        auto  &rknn_result = input_buffer->GetRknnResult();
+        int size = rknn_result.size();
+        RknnResult *infos = (RknnResult *)malloc(size * sizeof(RknnResult));
+        if (infos) {
+          int i = 0;
+          for(auto &iter : rknn_result) {
+              infos[i].type = NNRESULT_TYPE_FACE;
+              infos[i].face_info = iter.face_info;
+              i++;
+          }
+        }
+        link_nn_data.rknn_result = infos;
+        link_nn_data.size = size;
+        link_nn_data.nn_model_name = (flow->extra_data).c_str();
+        link_nn_data.timestamp = timestamp;
+        user_callback(nullptr, LINK_NNDATA ,&link_nn_data, 1);
+        if(infos)
+          free(infos);
+      }else{
+        return true;
+      }
+    }
   }
 
   return 0;
