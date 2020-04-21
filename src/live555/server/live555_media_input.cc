@@ -382,6 +382,7 @@ bool VideoFramedSource::readFromList(bool flush _UNUSED) {
         goto err;
     }
     fPresentationTime = buffer->GetTimeVal();
+    fPresentationTime.tv_sec += 1;
 // gettimeofday(&fPresentationTime, NULL);
 #ifdef DEBUG_SEND
     fprintf(stderr, "video frame time: %ld, %ld.\n", fPresentationTime.tv_sec,
@@ -464,6 +465,7 @@ bool CommonFramedSource::readFromList(bool flush _UNUSED) {
   if (buffer) {
     p = (uint8_t *)buffer->GetPtr();
     fPresentationTime = buffer->GetTimeVal();
+    fPresentationTime.tv_sec += 1;
 #ifdef DEBUG_SEND
     fprintf(stderr, "common frame time: %ld, %ld.\n", fPresentationTime.tv_sec,
             fPresentationTime.tv_usec);
