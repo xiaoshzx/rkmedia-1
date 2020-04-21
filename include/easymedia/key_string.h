@@ -167,6 +167,7 @@
 #define KEY_ROCKFACE_DETECT_ALIGN "detect_align"
 #define KEY_ROCKFACE_DETECT_LANDMARK "detect_landmark"
 #define KEY_NEED_ASYNC_DRAW "need_async_draw"
+#define KEY_FRAME_INTERVAL "frame_interval"
 
 //rockx
 #define KEY_ROCKX_MODEL "rockx_model"

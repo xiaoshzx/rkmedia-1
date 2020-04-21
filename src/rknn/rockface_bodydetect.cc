@@ -26,6 +26,7 @@ protected:
   bool RoiFilter(rockface_det_t* objects, int width, int height);
 
 private:
+  int interval_;
   ImageRect roi_rect_;
   std::string input_type_;
   rockface_handle_t body_handle_;
@@ -45,6 +46,9 @@ BodyDetect::BodyDetect(const char *param)
     LOG("bodydetect lost input type.\n");
     return;
   }
+  const std::string &interval = params[KEY_FRAME_INTERVAL];
+  if (!interval.empty())
+    interval_ = std::stoi(interval);
   auto &&rects = StringToImageRect(params[KEY_BUFFER_RECT]);
   if (rects.empty()) {
     LOG("missing rects\n");
@@ -70,8 +74,11 @@ BodyDetect::~BodyDetect() {
 
 int BodyDetect::Process(std::shared_ptr<MediaBuffer> input,
                         std::shared_ptr<MediaBuffer> &output) {
-  auto input_buffer = std::static_pointer_cast<easymedia::ImageBuffer>(input);
+  static int frame_index = 0;
+  if (frame_index++ < interval_)
+    return 0;
 
+  auto input_buffer = std::static_pointer_cast<easymedia::ImageBuffer>(input);
   rockface_image_t input_img;
   input_img.width = input_buffer->GetWidth();
   input_img.height = input_buffer->GetHeight();
@@ -86,7 +93,7 @@ int BodyDetect::Process(std::shared_ptr<MediaBuffer> input,
   ret = rockface_person_detect(body_handle_, &input_img, &body_array);
   if (ret != ROCKFACE_RET_SUCCESS) {
     LOG("rockface_person_detect failed.\n");
-    return -1;
+    return 0;
   }
   LOG("rockface_person_detect %lldus\n", ad.Get());
 
@@ -117,7 +124,7 @@ int BodyDetect::Process(std::shared_ptr<MediaBuffer> input,
     AutoLockMutex _rw_mtx(cb_mtx_);
     callback_(this, NNRESULT_TYPE_BODY, result, count);
   }
-
+  frame_index = 0;
   output = input;
   return 0;
 }
