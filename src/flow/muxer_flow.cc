@@ -69,8 +69,12 @@ MuxerFlow::MuxerFlow(const char *param)
   }
 
   file_path = params[KEY_PATH];
-  if (file_path.empty()) {
+  if (!file_path.empty()) {
     LOG("Muxer will use internal path\n");
+    is_use_customio = false;
+  } else {
+    is_use_customio = true;
+    LOG("Muxer:: file_path is null, will use CustomeIO.\n");
   }
 
   file_prefix = params[KEY_FILE_PREFIX];
@@ -97,8 +101,9 @@ MuxerFlow::MuxerFlow(const char *param)
   }
 
   output_format = params[KEY_OUTPUTDATATYPE];
-  if (!output_format.empty()) {
-    LOG("Muxer will use CustomeIO.\n");
+  if (output_format.empty() && is_use_customio) {
+    LOG("Muxer:: output_data_type is null, no use customio.\n");
+    is_use_customio = false;
   }
   for (auto param_str : separate_list) {
     MediaConfig enc_config;
@@ -130,7 +135,7 @@ MuxerFlow::MuxerFlow(const char *param)
   SlotMap sm;
   sm.input_slots.push_back(0);
   sm.input_slots.push_back(1);
-  if (!output_format.empty())
+  if (is_use_customio)
     sm.output_slots.push_back(0);
   sm.thread_model = Model::ASYNCCOMMON;
   sm.mode_when_full = InputMode::DROPFRONT;
@@ -151,12 +156,12 @@ MuxerFlow::~MuxerFlow() { StopAllThread(); }
 std::shared_ptr<VideoRecorder> MuxerFlow::NewRecoder(const char *path) {
   std::string param = std::string(muxer_param);
   std::shared_ptr<VideoRecorder> vrecorder = nullptr;
-  if (!output_format.empty()) {
-    PARAM_STRING_APPEND(param, KEY_OUTPUTDATATYPE, output_format.c_str());
+  PARAM_STRING_APPEND(param, KEY_OUTPUTDATATYPE, output_format.c_str());
+  PARAM_STRING_APPEND(param, KEY_PATH, path);
+  if (is_use_customio) {
     vrecorder = std::make_shared<VideoRecorder>(param.c_str(), this);
     LOG("use customio, output foramt is %s.\n", output_format.c_str());
   } else {
-    PARAM_STRING_APPEND(param, KEY_PATH, path);
     vrecorder = std::make_shared<VideoRecorder>(param.c_str(), nullptr);
   }
 
