@@ -52,6 +52,7 @@ private:
   int64_t file_index;
   int64_t last_ts;
   bool file_time_en;
+  bool is_use_customio;
   std::string GenFilePath();
 };
 
