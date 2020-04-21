@@ -57,10 +57,13 @@ enum {
 
   // RKNN controls
   // any type
-  S_CALLBACK_HANDLER = 10600,
-  G_CALLBACK_HANDLER,
-  S_DETECT_INFO,
-  G_DETECT_INFO,
+  S_NN_CALLBACK = 10600,
+  G_NN_CALLBACK,
+  S_NN_HANDLER,
+  G_NN_HANDLER,
+  S_NN_INFO,
+  G_NN_INFO,
+
 };
 
 } // namespace easymedia

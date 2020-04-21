@@ -31,6 +31,8 @@ _API void LOGD(const char *format, ...);
 
 #define UPALIGNTO16(value) UPALIGNTO(value, 16)
 
+#define DOWNALIGNTO16(value) (UPALIGNTO(value, 16) - 16)
+
 #define ARRAY_ELEMS(a) (sizeof(a) / sizeof((a)[0]))
 
 #define MATH_LOG2(x) (31 - __builtin_clz((x) | 1))
@@ -41,6 +43,9 @@ _API void LOGD(const char *format, ...);
 
 #define DUMP_FOURCC(f)                                                         \
   f & 0xFF, (f >> 8) & 0xFF, (f >> 16) & 0xFF, (f >> 24) & 0xFF
+
+#define VALUE_MAX(A, B) ((A) > (B) ? (A) : (B))
+#define VALUE_MIN(A, B) ((A) < (B) ? (A) : (B))
 
 template <typename T, typename TBase> class IsDerived {
 public:

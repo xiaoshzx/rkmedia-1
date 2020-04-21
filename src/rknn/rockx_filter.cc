@@ -174,10 +174,10 @@ int ROCKXFilter::IoCtrl(unsigned long int request, ...) {
 
   int ret = 0;
   switch (request) {
-  case S_CALLBACK_HANDLER:
+  case S_NN_CALLBACK:
     callback_ = (RknnCallBack)arg;
     break;
-  case G_CALLBACK_HANDLER:
+  case G_NN_CALLBACK:
     arg = (void *)callback_;
     break;
   default:

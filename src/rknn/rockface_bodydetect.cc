@@ -132,11 +132,11 @@ int BodyDetect::IoCtrl(unsigned long int request, ...) {
 
   int ret = 0;
   switch (request) {
-  case S_CALLBACK_HANDLER: {
+  case S_NN_CALLBACK: {
     AutoLockMutex _rw_mtx(cb_mtx_);
     callback_ = (RknnCallBack)arg;
   } break;
-  case G_CALLBACK_HANDLER: {
+  case G_NN_CALLBACK: {
     AutoLockMutex _rw_mtx(cb_mtx_);
     arg = (void *)callback_;
   } break;

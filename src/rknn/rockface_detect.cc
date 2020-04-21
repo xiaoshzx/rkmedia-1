@@ -164,17 +164,19 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
 
   }
 
-  if (det_array->count > 0) {
-    AutoLockMutex _rw_mtx(cb_mtx_);
-    FaceInfo *infos = (FaceInfo *)malloc(det_array->count * sizeof(FaceInfo));
+  if (nn_result.size()) {
+    RknnResult *infos = (RknnResult *)malloc(nn_result.size() * sizeof(RknnResult));
     if (infos) {
-      for (int i = 0; i < det_array->count; i++) {
-        infos[i].img_w = img_buffer->GetWidth();
-        infos[i].img_h = img_buffer->GetHeight();
-        infos[i].base = det_array->face[i];
+      int i = 0;
+      for (auto &iter : nn_result) {
+        AutoLockMutex _rw_mtx(cb_mtx_);
+        infos[i].face_info.img_w = img_buffer->GetWidth();
+        infos[i].face_info.img_h = img_buffer->GetHeight();
+        infos[i].face_info.base = iter.face_info.base;
+        infos[i].type = NNRESULT_TYPE_FACE;
+        i++;
       }
-      callback_(this, NNRESULT_TYPE_FACE, infos, det_array->count);
-
+      callback_(this, NNRESULT_TYPE_FACE, infos, nn_result.size());
       free(infos);
     }
     LOG("RockFaceDetect %lld ms %lld us\n", ad.Get() / 1000, ad.Get() % 1000);
@@ -195,11 +197,11 @@ int RockFaceDetect::IoCtrl(unsigned long int request, ...) {
 
   int ret = 0;
   switch (request) {
-  case S_CALLBACK_HANDLER: {
+  case S_NN_CALLBACK: {
       AutoLockMutex _rw_mtx(cb_mtx_);
       callback_ = (RknnCallBack)arg;
     } break;
-  case G_CALLBACK_HANDLER: {
+  case G_NN_CALLBACK: {
       AutoLockMutex _rw_mtx(cb_mtx_);
       arg = (void *)callback_;
     } break;
