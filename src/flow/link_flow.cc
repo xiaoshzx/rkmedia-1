@@ -4,9 +4,9 @@
 
 #include "buffer.h"
 #include "flow.h"
+#include "link_config.h"
 #include "stream.h"
 #include "utils.h"
-#include "link_config.h"
 
 namespace easymedia {
 
@@ -17,6 +17,7 @@ public:
   LinkFlow(const char *param);
   virtual ~LinkFlow();
   static const char *GetFlowName() { return "link_flow"; }
+
 private:
   friend bool process_buffer(Flow *f, MediaBufferVector &input_vector);
 
@@ -25,8 +26,7 @@ private:
   std::string extra_data;
 };
 
-LinkFlow::LinkFlow(const char *param)
-{
+LinkFlow::LinkFlow(const char *param) {
   std::map<std::string, std::string> params;
   if (!parse_media_param_map(param, params)) {
     SetError(-EINVAL);
@@ -63,14 +63,12 @@ LinkFlow::LinkFlow(const char *param)
     link_type_ = LINK_PICTURE;
   } else if (type.find(NN_MODEL_PREFIX) != std::string::npos) {
     link_type_ = LINK_NNDATA;
-    int position = type.find(":",0);
-    extra_data = type.substr(position+1, type.length());
+    int position = type.find(":", 0);
+    extra_data = type.substr(position + 1, type.length());
   }
 }
 
-LinkFlow::~LinkFlow() {
-  StopAllThread();
-}
+LinkFlow::~LinkFlow() { StopAllThread(); }
 
 bool process_buffer(Flow *f, MediaBufferVector &input_vector) {
   LinkFlow *flow = static_cast<LinkFlow *>(f);
@@ -89,34 +87,34 @@ bool process_buffer(Flow *f, MediaBufferVector &input_vector) {
     auto link_audio_handler = flow->GetAudioHandler();
     auto timestamp = easymedia::gettimeofday() / 1000;
     if (link_audio_handler)
-      link_audio_handler((unsigned char *)buffer->GetPtr(), buffer->GetValidSize(),
-                         timestamp);
-  } else if (flow->link_type_ == LINK_NNDATA){
+      link_audio_handler((unsigned char *)buffer->GetPtr(),
+                         buffer->GetValidSize(), timestamp);
+  } else if (flow->link_type_ == LINK_NNDATA) {
     auto user_callback = flow->GetUserCallBack();
     auto timestamp = easymedia::gettimeofday() / 1000;
-    if (user_callback){
-      if(buffer){
-        auto input_buffer = std::static_pointer_cast<easymedia::ImageBuffer>(buffer);
+    if (user_callback) {
+      if (buffer) {
+        auto input_buffer =
+            std::static_pointer_cast<easymedia::ImageBuffer>(buffer);
         static linknndata_s link_nn_data;
-        auto  &rknn_result = input_buffer->GetRknnResult();
+        auto &rknn_result = input_buffer->GetRknnResult();
         int size = rknn_result.size();
         RknnResult *infos = (RknnResult *)malloc(size * sizeof(RknnResult));
         if (infos) {
           int i = 0;
-          for(auto &iter : rknn_result) {
-              infos[i].type = NNRESULT_TYPE_FACE;
-              infos[i].face_info = iter.face_info;
-              i++;
+          for (auto &iter : rknn_result) {
+            memcpy(&infos[i], &iter, sizeof(RknnResult));
+            i++;
           }
         }
         link_nn_data.rknn_result = infos;
         link_nn_data.size = size;
         link_nn_data.nn_model_name = (flow->extra_data).c_str();
         link_nn_data.timestamp = timestamp;
-        user_callback(nullptr, LINK_NNDATA ,&link_nn_data, 1);
-        if(infos)
+        user_callback(nullptr, LINK_NNDATA, &link_nn_data, 1);
+        if (infos)
           free(infos);
-      }else{
+      } else {
         return true;
       }
     }
@@ -130,4 +128,3 @@ const char *FACTORY(LinkFlow)::ExpectedInputDataType() { return nullptr; }
 const char *FACTORY(LinkFlow)::OutPutDataType() { return ""; }
 
 } // namespace easymedia
-

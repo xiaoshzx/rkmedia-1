@@ -50,7 +50,16 @@ typedef struct {
 #ifdef USE_ROCKFACE
   rockface_det_t base;
 #endif
+#ifdef USE_ROCKX
+  rockx_keypoints_t object;
+#endif
 } BodyInfo;
+
+typedef struct {
+#ifdef USE_ROCKX
+  rockx_keypoints_t object;
+#endif
+} FingerInfo;
 
 typedef enum {
   NNRESULT_TYPE_NONE = -1,
@@ -68,6 +77,7 @@ typedef struct {
     BodyInfo body_info;
     FaceInfo face_info;
     LandmarkInfo landmark_info;
+    FingerInfo finger_info;
   };
 } RknnResult;
 
