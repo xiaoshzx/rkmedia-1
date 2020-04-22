@@ -6,9 +6,11 @@
 #include <vector>
 
 #include "buffer.h"
-#include "mediactl/mediactl.h"
+#include "utils.h"
 #include "v4l2_stream.h"
-#include "rk_aiq_user_api_sysctl.h"
+
+#include "rkaiq/common/mediactl/mediactl.h"
+#include "rkaiq/uAPI/rk_aiq_user_api_sysctl.h"
 #define RKAIQ_FILE_PATH_LEN 64
 #define RKAIQ_CAMS_NUM_MAX 2
 #define RKAIQ_FLASH_NUM_MAX 2
