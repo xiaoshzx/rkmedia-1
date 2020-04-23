@@ -109,59 +109,6 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
   return ret;
 }
 
-// roi_regions:(x,x,x,x,x,x,x,x,x)(x,x,x,x,x,x,x,x,x)...
-std::vector<EncROIRegion> StringToRoiRegions(const std::string &str_regions) {
-  std::vector<EncROIRegion> ret;
-  const char *start = nullptr;
-  if (str_regions.empty())
-    return std::move(ret);
-
-  start = str_regions.c_str();
-  while (start) {
-    EncROIRegion region = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-    start = strstr(start, "(");
-    if (!start)
-      break;
-    const char *end = strstr(start, ")");
-    if (!end) {
-      LOG("ERROR: RoiRegions string is invalid! end error! Value:%s\n",
-        str_regions.c_str());
-      break;
-    }
-
-    int commas_cnt = 0;
-    const char *commas_str = start;
-    while (commas_str && (commas_str < end)) {
-      commas_str = strstr(commas_str, ",");
-      if (!commas_str)
-        break;
-      else if (commas_str < end)
-        commas_cnt++;
-      commas_str++;
-    }
-
-    if (commas_cnt != 8) {
-      LOG("ERROR: RoiRegions string is invalid! Value:%s\n",
-        str_regions.c_str());
-      break;
-    }
-
-    int r = sscanf(start, "(%d,%d,%d,%d,%d,%d,%d,%d,%d)",
-      (int *)&region.x, (int *)&region.y, (int *)&region.w, (int *)&region.h,
-      (int *)&region.intra, (int *)&region.quality, (int *)&region.qp_area_idx,
-      (int *)&region.area_map_en, (int *)&region.abs_qp_en);
-    if (r != 9) {
-      LOG("ERROR: Fail to sscanf(ret=%d) : %m\n", r);
-      ret.clear();
-      return std::move(ret);
-    }
-    ret.push_back(std::move(region));
-    start = end;
-  }
-
-  return std::move(ret);
-}
-
 VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
     extra_merge(false)
 #ifdef  RK_MOVE_DETECTION
