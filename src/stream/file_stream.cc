@@ -48,6 +48,13 @@ public:
     CHECK_FILE(file)
     return fwrite(ptr, size, nmemb, file);
   }
+  virtual size_t WriteAndClose(const void *ptr, size_t size, size_t nmemb) final {
+    if (!Writeable())
+      return -1;
+    CHECK_FILE(file)
+    fwrite(ptr, size, nmemb, file);
+    return Close();
+  }
 
   virtual bool Eof() final {
     if (!file) {
