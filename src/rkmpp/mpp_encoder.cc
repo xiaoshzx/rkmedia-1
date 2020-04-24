@@ -224,7 +224,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
     return -EINVAL;
 
   // all changes must set before encode and among the same thread
-  if (HasChangeReq()) {
+  while (HasChangeReq()) {
     auto change = PeekChange();
     if (change.first && !CheckConfigChange(change))
       return -1;
