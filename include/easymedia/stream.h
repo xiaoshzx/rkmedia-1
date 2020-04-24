@@ -58,6 +58,8 @@ public:
   virtual long Tell() = 0;
 
   virtual int NewStream(std::string new_path _UNUSED) { return -1; };
+  virtual size_t WriteAndClose(const void *ptr  _UNUSED,
+                    size_t size  _UNUSED, size_t nmemb _UNUSED) { return -1; };
   virtual int ReName(std::string old_path _UNUSED,
                        std::string new_path _UNUSED) { return -1; };
 
