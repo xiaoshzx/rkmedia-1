@@ -19,7 +19,7 @@
 #include "buffer.h"
 #include "stream.h"
 
-static char optstr[] = "?i:o:d:w:h:f:";
+static char optstr[] = "?i:o:d:w:h:f:c:";
 
 int main(int argc, char **argv) {
   int c;
@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
   std::string input_format;
   std::string output_format;
   bool display = false;
+  int dump_frm = 100;
 
   opterr = 1;
   while ((c = getopt(argc, argv, optstr)) != -1) {
@@ -60,6 +61,10 @@ int main(int argc, char **argv) {
       printf("input format: %s\n", input_format.c_str());
       printf("output format: %s\n", output_format.c_str());
     } break;
+    case 'c':
+      dump_frm = atoi(optarg);
+      printf("dump frame count: %d\n", dump_frm);
+      break;
     case '?':
     default:
       printf("usage example: \n");
@@ -101,7 +106,6 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  int dump_frm = 0;
   std::shared_ptr<easymedia::Stream> output;
   if (!output_path.empty()) {
     // test dump
@@ -111,7 +115,6 @@ int main(int argc, char **argv) {
     PARAM_STRING_APPEND(param, KEY_OPEN_MODE, "we");
     output = easymedia::REFLECTOR(Stream)::Create<easymedia::Stream>(
         stream_name.c_str(), param.c_str());
-    dump_frm = 10;
   } else {
     fprintf(stderr, "TODO: display to screen");
     exit(EXIT_FAILURE);
