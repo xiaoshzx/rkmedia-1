@@ -35,7 +35,10 @@ RTPSink *MP2ServerMediaSubsession::createNewRTPSink(
     LOG("inputSource is not ready, can not create new rtp sink\n");
     return NULL;
   }
-  return MPEG1or2AudioRTPSink::createNew(envir(), rtpGroupsock);
+  setAudioRTPSinkBufferSize();
+  RTPSink *rtpsink = MPEG1or2AudioRTPSink::createNew(envir(), rtpGroupsock);
+  setVideoRTPSinkBufferSize();
+  return rtpsink;
 }
 
 // std::mutex MP2ServerMediaSubsession::kMutex;
