@@ -7,16 +7,59 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <getopt.h>
 
 #include <algorithm>
 #include <sstream>
 
-#ifndef NDEBUG
+enum {
+  LOG_LEVEL_INFO,
+  LOG_LEVEL_DBG,
+};
+
+enum {
+  LOG_METHOD_MINILOG,
+  LOG_METHOD_PRINT
+};
+
+static int rkmedia_log_method = LOG_METHOD_PRINT;
+static int rkmedia_log_level = LOG_LEVEL_INFO;
+
+_API void LOG_INIT() {
+  __minilog_log_init("RKMEDIA", NULL, false, false, "RKMEDIA", "1.1");
+  rkmedia_log_method = LOG_METHOD_MINILOG;
+  char *ptr = getenv("RKMEDIA_LOG_METHOD");
+  if (ptr && strstr(ptr, "MINILOG")) {
+    fprintf(stderr, "##RKMEDIA Method: MINILOG\n");
+    rkmedia_log_method = LOG_METHOD_MINILOG;
+  } else {
+    fprintf(stderr, "##RKMEDIA Method: PRINT\n");
+    rkmedia_log_method = LOG_METHOD_PRINT;
+  }
+
+  ptr = getenv("RKMEDIA_LOG_LEVEL");
+  if (ptr && strstr(ptr, "DBG")) {
+    fprintf(stderr, "##RKMEDIA Log level: DBG\n");
+    rkmedia_log_level = LOG_LEVEL_DBG;
+  } else {
+    fprintf(stderr, "##RKMEDIA Log level: INFO\n");
+    rkmedia_log_level = LOG_LEVEL_INFO;
+  }
+}
+
 static void LogPrintf(const char *prefix, const char *fmt, va_list vl) {
   char line[1024];
-  fprintf(stderr, "%s", (char *)prefix);
-  vsnprintf(line, sizeof(line), fmt, vl);
-  fprintf(stderr, "%s", line);
+  if (rkmedia_log_level >= LOG_LEVEL_DBG) {
+    if (rkmedia_log_method == LOG_METHOD_PRINT) {
+      fprintf(stderr, "%s", (char *)prefix);
+      vsnprintf(line, sizeof(line), fmt, vl);
+      fprintf(stderr, "%s", line);
+    } else {
+      //minilog_debug("%s", (char *)prefix);
+      vsnprintf(line, sizeof(line), fmt, vl);
+      minilog_debug("%s%s", (char *)prefix, line);
+    }
+  }
 }
 
 void LOGD(const char *format, ...) {
@@ -25,7 +68,47 @@ void LOGD(const char *format, ...) {
   LogPrintf("Debug - ", format, vl);
   va_end(vl);
 }
-#endif // #ifndef NDEBUG
+
+void LOG(const char *format, ...) {
+  do {
+    va_list vl;
+    va_start(vl, format);
+    char line[1024];
+    vsnprintf(line, sizeof(line), format, vl);
+    if (rkmedia_log_method == LOG_METHOD_PRINT)
+      fprintf(stderr, "%s", line);
+    else
+      minilog_info("%s", line);
+    va_end(vl);
+  } while (0);
+}
+
+void LOG_NO_MEMORY() {
+  do {
+    if (rkmedia_log_method == LOG_METHOD_PRINT)
+      fprintf(stderr, "No memory %s: %d\n", __FUNCTION__, __LINE__);
+    else
+      minilog_info("No memory %s: %d\n", __FUNCTION__, __LINE__);
+  } while (0);
+}
+
+void LOG_FILE_FUNC_LINE() {
+  do {
+    if (rkmedia_log_method == LOG_METHOD_PRINT)
+      fprintf(stderr, "%s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
+    else
+      minilog_info("%s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
+  } while (0);
+}
+
+void LOG_TODO() {
+  do {
+    if (rkmedia_log_method == LOG_METHOD_PRINT)
+      fprintf(stderr, "TODO, %s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
+    else
+      minilog_debug("TODO, %s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
+  } while (0);
+}
 
 namespace easymedia {
 

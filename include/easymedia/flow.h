@@ -8,6 +8,7 @@
 #include "lock.h"
 #include "message.h"
 #include "reflector.h"
+#include "utils.h"
 
 #include <stdarg.h>
 

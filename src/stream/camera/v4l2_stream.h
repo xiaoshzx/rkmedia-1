@@ -31,9 +31,7 @@ private:
   v4l2_io vio;
   std::mutex mtx;
   volatile bool started;
-#ifndef NDEBUG
   std::string path;
-#endif
 };
 
 class V4L2MediaCtl {

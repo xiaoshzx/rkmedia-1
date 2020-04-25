@@ -13,11 +13,7 @@ namespace easymedia {
 
 V4L2Context::V4L2Context(enum v4l2_buf_type cap_type, v4l2_io io_func,
                          char *nodename)
-    : fd(-1), capture_type(cap_type), vio(io_func), started(false)
-#ifndef NDEBUG
-      ,
-      path(nodename)
-#endif
+    : fd(-1), capture_type(cap_type), vio(io_func), started(false), path(nodename)
 {
   char *dev = nodename;
   fd = v4l2_open(dev, O_RDWR | O_CLOEXEC, 0);

@@ -5,27 +5,20 @@
 #ifndef EASYMEDIA_UTILS_H_
 #define EASYMEDIA_UTILS_H_
 
+#include "minilogger/log.h"
+
 #define _UNUSED __attribute__((unused))
 #define UNUSED(x) (void)x
 
 #define _LOCAL __attribute__((visibility("hidden")))
 #define _API __attribute__((visibility("default")))
 
-#define LOG(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
-#ifndef NDEBUG
+_API void LOG_INIT();
 _API void LOGD(const char *format, ...);
-#else
-#define LOGD(...)
-#endif
-
-#define LOG_NO_MEMORY()                                                        \
-  fprintf(stderr, "No memory %s: %d\n", __FUNCTION__, __LINE__)
-
-#define LOG_FILE_FUNC_LINE()                                                   \
-  fprintf(stderr, "%s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__)
-
-#define LOG_TODO()                                                             \
-  fprintf(stderr, "TODO, %s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__)
+_API void LOG(const char *format, ...);
+_API void LOG_NO_MEMORY();
+_API void LOG_FILE_FUNC_LINE();
+_API void LOG_TODO();
 
 #define UPALIGNTO(value, align) ((value + align - 1) & (~(align - 1)))
 

@@ -53,14 +53,14 @@ private:
   MediaBufferVector in_vector;
   decltype(&FlowCoroutine::SyncFetchInput) fetch_input_func;
   decltype(&FlowCoroutine::SendBufferDown) send_down_func;
-#ifndef NDEBUG
+//#ifndef NDEBUG
 public:
   void SetMarkName(std::string s) { name = s; }
   void SetExpectProcessTime(int time) { expect_process_time = time; }
 
   std::string name;
   int expect_process_time; // ms
-#endif
+//#endif
 };
 
 FlowCoroutine::FlowCoroutine(Flow *f, Model sync_model, FunctionProcess func,

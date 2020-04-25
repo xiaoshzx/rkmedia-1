@@ -160,9 +160,9 @@ public:
 
 private:
   int fd;
-#ifndef NDEBUG
+//#ifndef NDEBUG
   std::string path;
-#endif
+//#endif
 };
 #else
 class DRMDevice {
