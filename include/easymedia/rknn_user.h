@@ -72,6 +72,7 @@ typedef enum {
 typedef struct {
   int img_w;
   int img_h;
+  int64_t timeval;
   RknnResultType type;
   union {
     BodyInfo body_info;

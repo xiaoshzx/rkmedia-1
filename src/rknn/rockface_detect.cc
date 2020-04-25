@@ -160,28 +160,29 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
     result_item.face_info.base = *det_face;
     nn_result.push_back(result_item);
 
-    LOG("RockFaceDetect detect id %d\n", result_item.face_info.base.id);
+    LOGD("RockFaceDetect detect id %d\n", result_item.face_info.base.id);
 
   }
 
   if (nn_result.size()) {
-    RknnResult *infos = (RknnResult *)malloc(nn_result.size() * sizeof(RknnResult));
+    RknnResult infos[nn_result.size()];
     if (infos) {
       int i = 0;
       for (auto &iter : nn_result) {
-        AutoLockMutex _rw_mtx(cb_mtx_);
+        infos[i].timeval = img_buffer->GetAtomicClock();
         infos[i].img_w = img_buffer->GetWidth();
         infos[i].img_h = img_buffer->GetHeight();
         infos[i].face_info.base = iter.face_info.base;
         infos[i].type = NNRESULT_TYPE_FACE;
         i++;
       }
+      AutoLockMutex _rw_mtx(cb_mtx_);
       callback_(this, NNRESULT_TYPE_FACE, infos, nn_result.size());
-      free(infos);
     }
-    LOG("RockFaceDetect %lld ms %lld us\n", ad.Get() / 1000, ad.Get() % 1000);
+    LOGD("RockFaceDetect %lld ms %lld us\n", ad.Get() / 1000, ad.Get() % 1000);
   }
   output = input;
+
 
   return 0;
 }

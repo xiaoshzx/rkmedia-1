@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <queue>
+
 #include "buffer.h"
 #include "encoder.h"
 #include "filter.h"
@@ -34,21 +36,20 @@ public:
               std::list<RknnResult> &nn_result);
 
   void DoHwDrawRect(OsdRegionData *region_data, int enable = 1);
-  void DoHwDraw(std::shared_ptr<ImageBuffer> &buffer,
-                std::list<RknnResult> &nn_result);
+  void DoHwDraw(std::list<RknnResult> &nn_result);
 
 private:
   bool need_async_draw_;
-  std::list<FaceInfo> face_infos_;
-  ReadWriteLockMutex face_det_mtx_;
+  bool need_hw_draw_;
+  int draw_rect_thick_;
+  std::queue<std::list<RknnResult>> nn_results_list_;
+  ReadWriteLockMutex draw_mtx_;
   RknnHandler handler_;
-  int empty_detect_cnt_;
-  int allow_empty_cnt_;
 };
 
 DrawFilter::DrawFilter(const char *param)
-    : need_async_draw_(false), handler_(nullptr), empty_detect_cnt_(0),
-      allow_empty_cnt_(3) {
+    : need_async_draw_(false), need_hw_draw_(false), draw_rect_thick_(2),
+      handler_(nullptr) {
   std::map<std::string, std::string> params;
   if (!parse_media_param_map(param, params)) {
     SetError(-EINVAL);
@@ -60,11 +61,20 @@ DrawFilter::DrawFilter(const char *param)
   } else {
     need_async_draw_ = atoi(params[KEY_NEED_ASYNC_DRAW].c_str());
   }
+
+  if (params[KEY_NEED_HW_DRAW].empty()) {
+    need_hw_draw_ = false;
+  } else {
+    need_hw_draw_ = atoi(params[KEY_NEED_HW_DRAW].c_str());
+  }
+
+  if (!params[KEY_DRAW_RECT_THICK].empty()) {
+    draw_rect_thick_ = atoi(params[KEY_DRAW_RECT_THICK].c_str());
+  }
 }
 
 void DrawFilter::DoDrawRect(std::shared_ptr<ImageBuffer> &buffer, Rect &rect) {
-  int thick = 4;
-  draw_rect(buffer, rect, thick);
+  draw_rect(buffer, rect, draw_rect_thick_);
 }
 
 void DrawFilter::DoHwDrawRect(OsdRegionData *region_data, int enable) {
@@ -94,53 +104,29 @@ void DrawFilter::DoHwDrawRect(OsdRegionData *region_data, int enable) {
   }
 }
 
-void DrawFilter::DoHwDraw(std::shared_ptr<ImageBuffer> &buffer,
-                          std::list<RknnResult> &nn_result) {
-  int thick = 4;
+void DrawFilter::DoHwDraw(std::list<RknnResult> &nn_result) {
   int color_index = 0x23;
   OsdRegionData osd_region_data;
   memset(&osd_region_data, 0, sizeof(OsdRegionData));
   osd_region_data.enable = 1;
   osd_region_data.region_id = 7;
-  if (!need_async_draw_) {
-    face_infos_.clear();
-    for (auto iter : nn_result)
-      face_infos_.push_back(iter.face_info);
-  }
-
-  int size = face_infos_.size();
-  if (size <= 0) {
-    if (empty_detect_cnt_ >= allow_empty_cnt_)
-      DoHwDrawRect(&osd_region_data, 0);
-    if (empty_detect_cnt_ < allow_empty_cnt_)
-      empty_detect_cnt_++;
-    return;
-  }
-  empty_detect_cnt_ = 0;
 
   std::vector<Rect> rects;
-
-  if (buffer->GetWidth() == 1080)
-    thick *= 2;
-  else if (buffer->GetWidth() > 1080)
-    thick *= 4;
-
-  for (int i = 0; i < size; i++) {
+  for (auto info : nn_result) {
     Rect rect;
-    auto face_det = face_infos_.front();
-    face_infos_.pop_front();
-    rect.left = UPALIGNTO16(face_det.base.box.left);
-    rect.right = DOWNALIGNTO16(face_det.base.box.right);
-    rect.top = UPALIGNTO16(face_det.base.box.top);
-    rect.bottom = DOWNALIGNTO16(face_det.base.box.bottom);
+    rockface_det_t face_det = info.face_info.base;
+    rect.left = UPALIGNTO16(face_det.box.left);
+    rect.right = DOWNALIGNTO16(face_det.box.right);
+    rect.top = UPALIGNTO16(face_det.box.top);
+    rect.bottom = DOWNALIGNTO16(face_det.box.bottom);
     rects.push_back(rect);
   }
   Rect combine = combine_rect(rects);
-  for (int i = 0; i < size; i++) {
-    rects[i].left = rects[i].left - combine.left;
-    rects[i].right = rects[i].right - combine.left;
-    rects[i].top = rects[i].top - combine.top;
-    rects[i].bottom = rects[i].bottom - combine.top;
+  for (auto &rect : rects) {
+    rect.left = rect.left - combine.left;
+    rect.right = rect.right - combine.left;
+    rect.top = rect.top - combine.top;
+    rect.bottom = rect.bottom - combine.top;
   }
 
   osd_region_data.pos_x = combine.left;
@@ -159,9 +145,9 @@ void DrawFilter::DoHwDraw(std::shared_ptr<ImageBuffer> &buffer,
     return;
   }
   memset(osd_region_data.buffer, 0xFF, buffer_size);
-  for (int i = 0; i < size; i++) {
-    hw_draw_rect(osd_region_data.buffer, osd_region_data.width, rects[i], thick,
-                 color_index);
+  for (auto &rect : rects) {
+    hw_draw_rect(osd_region_data.buffer, osd_region_data.width, rect,
+                 draw_rect_thick_, color_index);
   }
   DoHwDrawRect(&osd_region_data);
 
@@ -172,24 +158,11 @@ void DrawFilter::DoHwDraw(std::shared_ptr<ImageBuffer> &buffer,
 
 void DrawFilter::DoDraw(std::shared_ptr<ImageBuffer> &buffer,
                         std::list<RknnResult> &nn_result) {
-  if (!need_async_draw_) {
-    for (auto info : nn_result) {
-      if (info.type == NNRESULT_TYPE_FACE) {
-        rockface_det_t face_det = info.face_info.base;
-        Rect rect = {face_det.box.left, face_det.box.top, face_det.box.right,
-                     face_det.box.bottom};
-        DoDrawRect(buffer, rect);
-      }
-    }
-  } else {
-    int cnt = face_infos_.size();
-    for (int i = 0; i < cnt; i++) {
-      auto face_info = face_infos_.front();
-      face_infos_.pop_front();
-      Rect rect = {face_info.base.box.left, face_info.base.box.top,
-                   face_info.base.box.right, face_info.base.box.bottom};
-      DoDrawRect(buffer, rect);
-    }
+  for (auto info : nn_result) {
+    rockface_det_t face_det = info.face_info.base;
+    Rect rect = {face_det.box.left, face_det.box.top, face_det.box.right,
+                 face_det.box.bottom};
+    DoDrawRect(buffer, rect);
   }
 }
 
@@ -202,16 +175,29 @@ int DrawFilter::Process(std::shared_ptr<MediaBuffer> input,
 
   output = input;
   auto src = std::static_pointer_cast<easymedia::ImageBuffer>(input);
-  auto &nn_result = src->GetRknnResult();
   auto dst = std::static_pointer_cast<easymedia::ImageBuffer>(output);
 
+  if (nn_results_list_.empty())
+    return 0;
+
+  while (nn_results_list_.size() >= 2) {
+    AutoLockMutex rw_mtx(draw_mtx_);
+    nn_results_list_.pop();
+  }
+  auto nn_result = nn_results_list_.front();
+  int duartion_ms =
+      abs((nn_result.front().timeval - src->GetAtomicClock()) / 1000);
+  if (duartion_ms > 133) {
+    AutoLockMutex rw_mtx(draw_mtx_);
+    nn_results_list_.pop();
+    return 0;
+  }
+
   input->BeginCPUAccess(false);
-  AutoLockMutex rw_mtx(face_det_mtx_);
-  if (handler_)
-    DoHwDraw(dst, nn_result);
+  if (handler_ && need_hw_draw_)
+    DoHwDraw(nn_result);
   else
     DoDraw(dst, nn_result);
-
   input->EndCPUAccess(false);
 
   return 0;
@@ -226,27 +212,27 @@ int DrawFilter::IoCtrl(unsigned long int request, ...) {
   int ret = 0;
   switch (request) {
   case S_NN_HANDLER: {
-    AutoLockMutex rw_mtx(face_det_mtx_);
+    AutoLockMutex rw_mtx(draw_mtx_);
     handler_ = (RknnHandler)arg;
   } break;
   case G_NN_HANDLER: {
-    AutoLockMutex rw_mtx(face_det_mtx_);
+    AutoLockMutex rw_mtx(draw_mtx_);
     arg = (void *)handler_;
   } break;
 
   case S_SUB_REQUEST: {
-    AutoLockMutex rw_mtx(face_det_mtx_);
     SubRequest *req = (SubRequest *)arg;
-    if (S_NN_INFO == req->sub_request && need_async_draw_) {
+    if (S_NN_INFO == req->sub_request) {
       int size = req->size;
-      FaceInfo *infos = (FaceInfo *)req->arg;
-      if (!infos)
-        break;
-      memcpy(infos, req->arg, size * sizeof(FaceInfo));
-      for (int i = 0; i < size; i++) {
-        FaceInfo info = infos[i];
-        face_infos_.push_back(info);
+      std::list<RknnResult> infos_list;
+      RknnResult *infos = (RknnResult *)req->arg;
+      if (infos) {
+        for (int i = 0; i < size; i++) {
+          infos_list.push_back(infos[i]);
+        }
       }
+      AutoLockMutex rw_mtx(draw_mtx_);
+      nn_results_list_.push(infos_list);
     }
   } break;
   default:
@@ -269,20 +255,17 @@ void draw_rect(std::shared_ptr<ImageBuffer> &buffer, Rect &rect, int thick) {
   int img_w = buffer->GetWidth();
   int img_h = buffer->GetHeight();
 
-  if (img_w >= 1080)
-    thick *= 4;
-
-  if (rect.right >= img_w - thick) {
+  if (rect.right > img_w - thick) {
     LOG("draw_rect right > img_w\n");
-    rect.left = img_w - thick - 1;
+    rect.right = img_w - thick;
   }
   if (rect.left < 0) {
     LOG("draw_rect letf < 0\n");
     rect.left = 0;
   }
-  if (rect.bottom >= img_h - thick) {
+  if (rect.bottom > img_h - thick) {
     LOG("draw_rect bottom > img_h\n");
-    rect.bottom = img_h - thick - 1;
+    rect.bottom = img_h - thick;
   }
   if (rect.top < 0) {
     LOG("draw_rect top < 0\n");
@@ -315,12 +298,12 @@ int draw_nv12_rect(uint8_t *data, int img_w, int img_h, Rect &rect, int thick,
     for (k = rect_x; k <= rect_x + rect_w; k++) {
       if (k <= (rect_x + thick) || k >= (rect_x + rect_w - thick) ||
           j <= (rect_y + thick) || j >= (rect_y + rect_h - thick)) {
-          y_offset = j * img_w + k;
-          u_offset = (j >> 1) * img_w + k - k %2 + uv_offset;
-          v_offset = (j >> 1) * img_w + k - k %2 + uv_offset + 1;
-          data[y_offset] = y;
-          data[u_offset] = u;
-          data[v_offset] = v;
+        y_offset = j * img_w + k;
+        u_offset = (j >> 1) * img_w + k - k % 2 + uv_offset;
+        v_offset = u_offset + 1;
+        data[y_offset] = y;
+        data[u_offset] = u;
+        data[v_offset] = v;
       }
     }
   }
