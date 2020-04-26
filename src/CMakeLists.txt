@@ -106,6 +106,10 @@ if(SANITIZER)
   target_link_libraries(${LIBRARY_NAME} libasan.a)
 endif()
 
+if(USE_RKAIQ)
+set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} rkaiq)
+endif()
+
 if(EASY_MEDIA_COMPILE_DEFINITIONS)
   add_definitions(${EASY_MEDIA_COMPILE_DEFINITIONS})
 endif()
