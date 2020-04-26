@@ -188,9 +188,11 @@
 #define KEY_ENABLE "enable"
 #define KEY_BODY_PERCENTAGE "percentage"
 #define KEY_BODY_DURATION "duration"
+#define KEY_ENBALE_FACE_DETECT "enable_face_detect"
 
 //rockx
 #define KEY_ROCKX_MODEL "rockx_model"
+#define KEY_DB_PATH "db_path"
 
 // throuh_guard
 #define KEY_ALLOW_THROUGH_COUNT "allow_through_count"

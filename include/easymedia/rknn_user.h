@@ -5,6 +5,8 @@
 #ifndef EASYMEDIA_RKNN_USER_H_
 #define EASYMEDIA_RKNN_USER_H_
 
+#include <type_traits>
+
 #ifdef USE_ROCKFACE
 #include "rockface/rockface.h"
 #endif
@@ -12,9 +14,7 @@
 #include <rockx/rockx.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define RKNN_PICTURE_PATH_LEN (64)
 
 using RknnCallBack = std::add_pointer<void(void* handler,
     int type, void *ptr, int size)>::type;
@@ -27,6 +27,20 @@ typedef struct Rect {
   int bottom;
 } Rect;
 
+typedef enum {
+  FACE_REG_NONE = -1,
+  FACE_REG_RECOGNIZE = 0,
+  FACE_REG_REGISTER,
+} FaceRegType;
+
+/* recognize_type: -1, Unknow; register_type: -1, register repeaded, -99 register failed */
+typedef struct {
+  FaceRegType type;
+  int user_id;
+  float similarity;
+  char pic_path[RKNN_PICTURE_PATH_LEN];
+} FaceReg;
+
 typedef struct {
 #ifdef USE_ROCKFACE
   rockface_det_t base;
@@ -38,6 +52,7 @@ typedef struct {
 #ifdef USE_ROCKX
   rockx_object_t object;
 #endif
+  FaceReg face_reg;
 } FaceInfo;
 
 typedef struct {
@@ -76,6 +91,7 @@ typedef enum {
   NNRESULT_TYPE_FINGER,
   NNRESULT_TYPE_LANDMARK,
   NNRESULT_TYPE_AUTHORIZED_STATUS,
+  NNRESULT_TYPE_FACE_REG,
 } RknnResultType;
 
 typedef struct {
@@ -91,9 +107,5 @@ typedef struct {
     FingerInfo finger_info;
   };
 } RknnResult;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // #ifndef EASYMEDIA_RKNN_USER_H_

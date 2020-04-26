@@ -24,9 +24,11 @@ if(ROCKFACE)
                                    rknn/draw_filter.cc
                                    rknn/rockface_detect.cc
                                    rknn/rockface_bodydetect.cc
-                                   rknn/rockface_evaluate.cc)
+                                   rknn/rockface_evaluate.cc
+                                   rknn/rockface_recognition.cc
+                                   rknn/rockface_db_manager.cc)
   set(EASY_MEDIA_NN_DEPENDENT_LIBS ${EASY_MEDIA_NN_DEPENDENT_LIBS}
-                                     rknn_api rockface)
+                                     rknn_api rockface sqlite3)
 endif()
 
 if(ROCKX)
