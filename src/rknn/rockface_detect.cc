@@ -170,8 +170,8 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
       int i = 0;
       for (auto &iter : nn_result) {
         AutoLockMutex _rw_mtx(cb_mtx_);
-        infos[i].face_info.img_w = img_buffer->GetWidth();
-        infos[i].face_info.img_h = img_buffer->GetHeight();
+        infos[i].img_w = img_buffer->GetWidth();
+        infos[i].img_h = img_buffer->GetHeight();
         infos[i].face_info.base = iter.face_info.base;
         infos[i].type = NNRESULT_TYPE_FACE;
         i++;

@@ -28,8 +28,6 @@ typedef struct Rect {
 } Rect;
 
 typedef struct {
-  int img_w;
-  int img_h;
 #ifdef USE_ROCKFACE
   rockface_det_t base;
   rockface_attribute_t attr;
@@ -43,16 +41,12 @@ typedef struct {
 } FaceInfo;
 
 typedef struct {
-  int img_w;
-  int img_h;
 #ifdef USE_ROCKX
   rockx_face_landmark_t object;
 #endif
 } LandmarkInfo;
 
 typedef struct {
-  int img_w;
-  int img_h;
 #ifdef USE_ROCKFACE
   rockface_det_t base;
 #endif
@@ -67,6 +61,8 @@ typedef enum {
 } RknnResultType;
 
 typedef struct {
+  int img_w;
+  int img_h;
   RknnResultType type;
   union {
     BodyInfo body_info;

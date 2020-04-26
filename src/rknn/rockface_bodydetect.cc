@@ -96,27 +96,28 @@ int BodyDetect::Process(std::shared_ptr<MediaBuffer> input,
   auto &nn_result = input_buffer->GetRknnResult();
 
   int count = body_array.count;
-  BodyInfo body_infos[count];
+  RknnResult result[count];
   for (int i = 0; i < count; i++) {
     rockface_det_t *body = &body_array.person[i];
     if (!RoiFilter(body, input_img.width, input_img.height))
       continue;
 
-    body_infos[i].img_w = input_img.width;
-    body_infos[i].img_h = input_img.height;
+    result[i].img_w = input_img.width;
+    result[i].img_h = input_img.height;
     LOG("body[%d], position:[%d, %d, %d, %d]\n", i,
         body->box.left, body->box.top,
         body->box.right, body->box.bottom);
 
-    memcpy(&body_infos[i].base, body, sizeof(rockface_det_t));
+    memcpy(&result[i].face_info.base, body, sizeof(rockface_det_t));
     memcpy(&result_item.body_info.base, body, sizeof(rockface_det_t));
     nn_result.push_back(result_item);
   }
 
   if (count > 0 && callback_) {
     AutoLockMutex _rw_mtx(cb_mtx_);
-    callback_(this, NNRESULT_TYPE_BODY, body_infos, count);
+    callback_(this, NNRESULT_TYPE_BODY, result, count);
   }
+
   output = input;
   return 0;
 }
