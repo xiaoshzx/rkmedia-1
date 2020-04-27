@@ -527,10 +527,13 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
   uint8_t *region_dst = NULL;
 
   if (!region_data->enable) {
-    if (osd->region[rid].enable)
-      osd->num_region -= 1;
-    assert(osd->num_region < 8);
     osd->region[rid].enable = 0;
+    osd->num_region = 0;
+    for (int i = 0; i < OSD_REGIONS_CNT; i++) {
+      if (osd->region[i].enable)
+        osd->num_region = i + 1;
+    }
+    assert(osd->num_region < 8);
     return 0;
   }
 
