@@ -448,13 +448,13 @@ static void OsdDummpRegions(OsdRegionData *rdata) {
     return;
 
   LOGD("#RegionData:%p:\n", rdata->buffer);
-  LOG("\t enable:%d\n", rdata->enable);
-  LOG("\t region_id:%d\n", rdata->region_id);
-  LOG("\t inverse:%d\n", rdata->inverse);
-  LOG("\t pos_x:%d\n", rdata->pos_x);
-  LOG("\t pos_y:%d\n", rdata->pos_y);
-  LOG("\t width:%d\n", rdata->width);
-  LOG("\t height:%d\n", rdata->height);
+  LOG("\t enable:%u\n", rdata->enable);
+  LOG("\t region_id:%u\n", rdata->region_id);
+  LOG("\t inverse:%u\n", rdata->inverse);
+  LOG("\t pos_x:%u\n", rdata->pos_x);
+  LOG("\t pos_y:%u\n", rdata->pos_y);
+  LOG("\t width:%u\n", rdata->width);
+  LOG("\t height:%u\n", rdata->height);
 }
 
 static void OsdDummpMppOsd(MppEncOSDData *osd) {
@@ -462,13 +462,13 @@ static void OsdDummpMppOsd(MppEncOSDData *osd) {
     osd->num_region, osd->buf, mpp_buffer_get_size(osd->buf));
   for (int i = 0; i < OSD_REGIONS_CNT; i++) {
     LOGD("#MPP OsdData[%d]:\n", i);
-    LOG("\t enable:%d\n", osd->region[i].enable);
-    LOG("\t inverse:%d\n", osd->region[i].inverse);
-    LOG("\t pos_x:%d\n", osd->region[i].start_mb_x * 16);
-    LOG("\t pos_y:%d\n", osd->region[i].start_mb_y * 16);
-    LOG("\t width:%d\n", osd->region[i].num_mb_x * 16);
-    LOG("\t height:%d\n", osd->region[i].num_mb_y * 16);
-    LOG("\t buf_offset:%d\n", osd->region[i].buf_offset);
+    LOG("\t enable:%u\n", osd->region[i].enable);
+    LOG("\t inverse:%u\n", osd->region[i].inverse);
+    LOG("\t pos_x:%u\n", osd->region[i].start_mb_x * 16);
+    LOG("\t pos_y:%u\n", osd->region[i].start_mb_y * 16);
+    LOG("\t width:%u\n", osd->region[i].num_mb_x * 16);
+    LOG("\t height:%u\n", osd->region[i].num_mb_y * 16);
+    LOG("\t buf_offset:%u\n", osd->region[i].buf_offset);
   }
 }
 
@@ -551,6 +551,12 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
   osd->region[rid].start_mb_y = region_data->pos_y / 16;
   osd->region[rid].num_mb_x = region_data->width / 16;
   osd->region[rid].num_mb_y = region_data->height / 16;
+
+  // 256 * 16 => 4096 is enough for osd.
+  assert(osd->region[rid].start_mb_x <= 256);
+  assert(osd->region[rid].start_mb_y <=  256);
+  assert(osd->region[rid].num_mb_x <=  256);
+  assert(osd->region[rid].num_mb_y <=  256);
 
   // region[rid] buffer size is enough, copy data directly.
   if (old_size >= new_size) {

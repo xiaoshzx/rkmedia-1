@@ -149,7 +149,8 @@ int main(int argc, char **argv) {
   printf("#Dump streams:");
   easymedia::REFLECTOR(Stream)::DumpFactories();
 
-  if (strstr(input_path.c_str(), "/dev/video")) {
+  if (strstr(input_path.c_str(), "/dev/video") ||
+    strstr(input_path.c_str(), "rkispp")) {
     printf("INFO: reading yuv frome camera!\n");
     local_file_flag = 0;
   } else {
@@ -271,10 +272,10 @@ RESTART:
     int split_mb_cnt;
     if (video_enc_type == VIDEO_H264) {
       split_mb_cnt = (video_width / 16) * (( video_height / 16) / 2);
-      video_encoder_set_split(video_encoder_flow, split_mode, split_mb_cnt);
+      easymedia::video_encoder_set_split(video_encoder_flow, split_mode, split_mb_cnt);
     } else {
       split_mb_cnt = (video_width / 64) * (( video_height / 64) / 2);
-      video_encoder_set_split(video_encoder_flow, split_mode, split_mb_cnt);
+      easymedia::video_encoder_set_split(video_encoder_flow, split_mode, split_mb_cnt);
     }
     LOG("Split frame to 2 slice with MB cnt = %d...\n", split_mb_cnt);
   }

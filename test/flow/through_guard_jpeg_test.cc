@@ -188,7 +188,8 @@ int main(int argc, char **argv) {
   printf("#Dump streams:");
   easymedia::REFLECTOR(Stream)::DumpFactories();
 
-  if (strstr(input_path.c_str(), "/dev/video")) {
+  if (strstr(input_path.c_str(), "/dev/video") ||
+    strstr(input_path.c_str(), "rkispp")) {
     printf("INFO: reading yuv frome camera!\n");
     local_file_flag = 0;
   } else {
