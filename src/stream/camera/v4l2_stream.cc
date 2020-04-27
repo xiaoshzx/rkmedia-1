@@ -16,7 +16,7 @@ V4L2Context::V4L2Context(enum v4l2_buf_type cap_type, v4l2_io io_func,
     : fd(-1), capture_type(cap_type), vio(io_func), started(false)
 #ifndef NDEBUG
       ,
-      path(device)
+      path(nodename)
 #endif
 {
   char *dev = nodename;
