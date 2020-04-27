@@ -38,10 +38,8 @@ SIMPLEServerMediaSubsession::createNewStreamSource(unsigned /*clientSessionId*/,
   LOG_FILE_FUNC_LINE();
   estBitrate = (fbitrate + 500) / 1000; // kbps
   if (fAudioFormat == MUXER_MPEG_TS || fAudioFormat == MUXER_MPEG_PS) {
-    setVideoRTPSinkBufferSize();
     return fMediaInput.muxerSource();
   }
-  setAudioRTPSinkBufferSize();
   return fMediaInput.audioSource();
 }
 
@@ -52,10 +50,17 @@ RTPSink *SIMPLEServerMediaSubsession::createNewRTPSink(
     LOG("inputSource is not ready, can not create new rtp sink\n");
     return NULL;
   }
-  char const *mimeType;
+  char const *mimeType = NULL;
+  SimpleRTPSink *rtpsink = NULL;
   unsigned char payloadFormatCode =
       rtpPayloadTypeIfDynamic; // by default, unless a static RTP payload type
                                // can be used
+
+  if (fAudioFormat == MUXER_MPEG_TS || fAudioFormat == MUXER_MPEG_PS) {
+    setVideoRTPSinkBufferSize();
+  } else {
+    setAudioRTPSinkBufferSize();
+  }
   if (fAudioFormat == AUDIO_G711U) {
     mimeType = "PCMU";
     if (fSamplingFrequency == 8000 && fNumChannels == 1) {
@@ -75,11 +80,10 @@ RTPSink *SIMPLEServerMediaSubsession::createNewRTPSink(
       mimeType = "G726-32";
     } else if (fbitrate / 1000 == 40) {
       mimeType = "G726-40";
-    } else {
-      return nullptr;
     }
-  } else if (fAudioFormat == MUXER_MPEG_TS) {
-    SimpleRTPSink *rtpsink =
+  }
+  if (fAudioFormat == MUXER_MPEG_TS) {
+    rtpsink =
         SimpleRTPSink::createNew(envir(), rtpGroupsock, 33, 90000, "video",
                                  "MP2T", 1, True, False /*no 'M' bit*/);
     // maxPacketSize < MTU
@@ -87,17 +91,18 @@ RTPSink *SIMPLEServerMediaSubsession::createNewRTPSink(
     // 188 TRANSPORT_PACKET_SIZE
     unsigned maxPacketSize = 12 + 188 * 7;
     rtpsink->setPacketSizes(1000, maxPacketSize);
-    return rtpsink;
   } else if (fAudioFormat == MUXER_MPEG_PS) {
-    return SimpleRTPSink::createNew(envir(), rtpGroupsock, payloadFormatCode,
-                                    90000, "video", "MP2P", 1, True,
-                                    False /*no 'M' bit*/);
-  } else {
-    return nullptr;
+    rtpsink = SimpleRTPSink::createNew(envir(), rtpGroupsock, payloadFormatCode,
+                                       90000, "video", "MP2P", 1, True,
+                                       False /*no 'M' bit*/);
+  } else if (mimeType != NULL) {
+
+    rtpsink = SimpleRTPSink::createNew(envir(), rtpGroupsock, payloadFormatCode,
+                                       fSamplingFrequency, "audio", mimeType,
+                                       fNumChannels);
   }
-  return SimpleRTPSink::createNew(envir(), rtpGroupsock, payloadFormatCode,
-                                  fSamplingFrequency, "audio", mimeType,
-                                  fNumChannels);
+  setVideoRTPSinkBufferSize();
+  return rtpsink;
 }
 
 // std::mutex SIMPLEServerMediaSubsession::kMutex;
