@@ -78,10 +78,8 @@ RockFaceDetect::RockFaceDetect(const char *param)
   face_handle_ = rockface_create_handle();
 
   int ret = rockface_set_licence(face_handle_, license_path.c_str());
-  if (ret < 0) {
+  if (ret < 0)
     LOG("Error: authorization error %d!", ret);
-    return;
-  }
 
   rockface_init_detector(face_handle_);
 }

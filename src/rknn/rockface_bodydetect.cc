@@ -13,6 +13,8 @@
 
 namespace easymedia {
 
+#define DEFAULT_LIC_PATH "/userdata/key.lic"
+
 class BodyDetect : public Filter {
 public:
   BodyDetect(const char *param);
@@ -56,14 +58,21 @@ BodyDetect::BodyDetect(const char *param)
     return;
   }
   roi_rect_ = rects[0];
+
+  std::string license_path = DEFAULT_LIC_PATH;
+  if (!params[KEY_PATH].empty())
+    license_path = params[KEY_PATH];
+
+  rockface_ret_t ret;
   body_handle_ = rockface_create_handle();
-  if (body_handle_) {
-    rockface_ret_t ret;
-    ret = rockface_init_person_detector(body_handle_);
-    if (ret != ROCKFACE_RET_SUCCESS) {
-      LOG("rockface_init_person_detector failed, ret = %d\n", ret);
-      return;
-    }
+  ret = rockface_set_licence(body_handle_, license_path.c_str());
+  if (ret != ROCKFACE_RET_SUCCESS)
+    LOG("rockface_set_licence failed, ret = %d.\n", ret);
+
+  ret = rockface_init_person_detector(body_handle_);
+  if (ret != ROCKFACE_RET_SUCCESS) {
+    LOG("rockface_init_person_detector failed, ret = %d\n", ret);
+    return;
   }
 }
 
