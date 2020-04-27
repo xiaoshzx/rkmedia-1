@@ -46,6 +46,7 @@ _API void LOGD(const char *format, ...);
 
 #define VALUE_MAX(A, B) ((A) > (B) ? (A) : (B))
 #define VALUE_MIN(A, B) ((A) < (B) ? (A) : (B))
+#define VALUE_SCOPE_CHECK(X, MIN, MAX) assert((X >= MIN) && (X <= MAX))
 
 template <typename T, typename TBase> class IsDerived {
 public:

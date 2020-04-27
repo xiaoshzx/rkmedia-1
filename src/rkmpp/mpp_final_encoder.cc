@@ -86,6 +86,7 @@ bool MPPMJPEGConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
   ImageConfig &iconfig = mpp_enc.GetConfig().img_cfg;
   if (change & VideoEncoder::kQPChange) {
     int quant = val->GetValue();
+    VALUE_SCOPE_CHECK(quant, 1, 10);
     MppEncCodecCfg codec_cfg;
     memset(&codec_cfg, 0, sizeof(codec_cfg));
     codec_cfg.coding = MPP_VIDEO_CodingMJPEG;
@@ -171,6 +172,23 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   memset(&rc_cfg, 0, sizeof(rc_cfg));
   memset(&prep_cfg, 0, sizeof(prep_cfg));
   memset(&codec_cfg, 0, sizeof(codec_cfg));
+
+  //Encoder param check.
+  LOGD("MPP Encoder: Checking encoder config....\n");
+  VALUE_SCOPE_CHECK(vconfig.frame_rate, 1, 60);
+  VALUE_SCOPE_CHECK(vconfig.gop_size, 0, 0x7FFFFFFF);
+  VALUE_SCOPE_CHECK(vconfig.max_i_qp, 8, 51);
+  VALUE_SCOPE_CHECK(vconfig.min_i_qp, 1, VALUE_MIN(vconfig.max_i_qp, 48));
+  VALUE_SCOPE_CHECK(vconfig.qp_max, 8, 51);
+  VALUE_SCOPE_CHECK(vconfig.qp_min, 1, VALUE_MIN(vconfig.qp_max, 48));
+  VALUE_SCOPE_CHECK(img_cfg.qp_init, vconfig.qp_min, vconfig.qp_max);
+  VALUE_SCOPE_CHECK(vconfig.qp_step, 0, (vconfig.qp_max - vconfig.qp_min));
+  VALUE_SCOPE_CHECK(img_cfg.image_info.vir_width, 1, 8192);
+  VALUE_SCOPE_CHECK(img_cfg.image_info.vir_height, 1, 8192);
+  VALUE_SCOPE_CHECK(img_cfg.image_info.width, 1,
+    img_cfg.image_info.vir_width);
+  VALUE_SCOPE_CHECK(img_cfg.image_info.height, 1,
+    img_cfg.image_info.vir_height);
 
   MppPollType timeout = MPP_POLL_BLOCK;
   LOGD("MPP Encoder: Set output block mode.\n");
