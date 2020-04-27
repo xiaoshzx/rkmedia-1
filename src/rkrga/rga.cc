@@ -186,6 +186,7 @@ int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
     dst->SetValidSize(valid_size);
     if (src->GetUSTimeStamp() > dst->GetUSTimeStamp())
       dst->SetUSTimeStamp(src->GetUSTimeStamp());
+    dst->SetAtomicClock(src->GetAtomicClock());
   }
   return ret;
 }
