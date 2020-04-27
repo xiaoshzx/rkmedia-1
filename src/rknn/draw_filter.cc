@@ -311,18 +311,16 @@ int draw_nv12_rect(uint8_t *data, int img_w, int img_h, Rect &rect, int thick,
   int u = (yuv_color >> 8) & 0xFF;
   int v = (yuv_color >> 0) & 0xFF;
 
-  for (j = rect_y; j < rect_y + rect_h; j++) {
-    for (k = rect_x; k < rect_x + rect_w; k++) {
-      if (k < (rect_x + thick) || k > (rect_x + rect_w - thick) ||
-          j < (rect_y + thick) || j > (rect_y + rect_h - thick)) {
-        y_offset = j * img_w + k;
-        if (!(k & 0x1) && !(j & 0x1)) {
-          u_offset = (j >> 1) * img_w + uv_offset + k;
-          v_offset = u_offset + 1;
+  for (j = rect_y; j <= rect_y + rect_h; j++) {
+    for (k = rect_x; k <= rect_x + rect_w; k++) {
+      if (k <= (rect_x + thick) || k >= (rect_x + rect_w - thick) ||
+          j <= (rect_y + thick) || j >= (rect_y + rect_h - thick)) {
+          y_offset = j * img_w + k;
+          u_offset = (j >> 1) * img_w + k - k %2 + uv_offset;
+          v_offset = (j >> 1) * img_w + k - k %2 + uv_offset + 1;
           data[y_offset] = y;
           data[u_offset] = u;
           data[v_offset] = v;
-        }
       }
     }
   }
