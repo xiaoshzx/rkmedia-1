@@ -379,7 +379,18 @@ int V4L2CaptureStream::Open() {
     }
   }
   SetReadable(true);
-  if (aiq_ctx == NULL) {
+
+  char *ispp_dev = getenv("RKISPP_DEV");
+  int aiq_flag = 1;
+  if (ispp_dev) {
+    LOG("rkispp dev name: %s \n", ispp_dev);
+    if (!strcmp(dev, "rkispp_scale0"))
+      aiq_flag = 1;
+    else
+      aiq_flag = 0;
+  }
+
+  if (aiq_ctx == NULL && (aiq_flag == 1)) {
     char *hdr_mode = getenv("HDR_MODE");
     if (hdr_mode) {
       LOG("hdr mode: %s \n", hdr_mode);
