@@ -62,11 +62,18 @@ typedef struct {
 } FingerInfo;
 
 typedef enum {
+  SUCCESS = 0,
+  FAILURE,
+  UNKNOW,
+} AuthorizedStatus;
+
+typedef enum {
   NNRESULT_TYPE_NONE = -1,
   NNRESULT_TYPE_FACE = 0,
   NNRESULT_TYPE_BODY,
   NNRESULT_TYPE_FINGER,
   NNRESULT_TYPE_LANDMARK,
+  NNRESULT_TYPE_AUTHORIZED_STATUS,
 } RknnResultType;
 
 typedef struct {
@@ -74,6 +81,7 @@ typedef struct {
   int img_h;
   int64_t timeval;
   RknnResultType type;
+  AuthorizedStatus status;
   union {
     BodyInfo body_info;
     FaceInfo face_info;

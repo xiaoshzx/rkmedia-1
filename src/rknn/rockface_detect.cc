@@ -22,6 +22,7 @@ public:
   virtual int IoCtrl(unsigned long int request, ...) override;
 
 private:
+  bool send_auth_failure_;
   rockface_pixel_format pixel_fmt_;
   rockface_handle_t face_handle_;
   bool detect_track_;
@@ -82,6 +83,7 @@ RockFaceDetect::RockFaceDetect(const char *param)
     LOG("Error: authorization error %d!", ret);
 
   rockface_init_detector(face_handle_);
+  send_auth_failure_ = false;
 }
 
 int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
@@ -113,8 +115,18 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
   rockface_det_array_t tracked_face_array;
   memset(&face_array, 0, sizeof(rockface_det_array_t));
 
+  if (send_auth_failure_)
+    return -1;
+
   ret = rockface_detect(face_handle_, &input_image, &face_array);
   if (ret != ROCKFACE_RET_SUCCESS) {
+    if (ret == ROCKFACE_RET_AUTH_FAIL) {
+      RknnResult result;
+      result.type = NNRESULT_TYPE_AUTHORIZED_STATUS;
+      result.status = FAILURE;
+      callback_(this, NNRESULT_TYPE_AUTHORIZED_STATUS, &result, 1);
+      send_auth_failure_  = true;
+    }
     LOG("rockface_face_detect error %d\n", ret);
     return 1;
   }

@@ -28,6 +28,7 @@ protected:
   bool RoiFilter(rockface_det_t* objects, int width, int height);
 
 private:
+  bool send_auth_failure_;
   int interval_;
   ImageRect roi_rect_;
   std::string input_type_;
@@ -74,6 +75,7 @@ BodyDetect::BodyDetect(const char *param)
     LOG("rockface_init_person_detector failed, ret = %d\n", ret);
     return;
   }
+  send_auth_failure_ = false;
 }
 
 BodyDetect::~BodyDetect() {
@@ -86,6 +88,8 @@ int BodyDetect::Process(std::shared_ptr<MediaBuffer> input,
   static int frame_index = 0;
   if (frame_index++ < interval_)
     return 0;
+  if (send_auth_failure_)
+    return -1;
 
   auto input_buffer = std::static_pointer_cast<easymedia::ImageBuffer>(input);
   rockface_image_t input_img;
@@ -101,6 +105,13 @@ int BodyDetect::Process(std::shared_ptr<MediaBuffer> input,
   AutoDuration ad;
   ret = rockface_person_detect(body_handle_, &input_img, &body_array);
   if (ret != ROCKFACE_RET_SUCCESS) {
+    if (ret == ROCKFACE_RET_AUTH_FAIL) {
+      RknnResult result;
+      result.type = NNRESULT_TYPE_AUTHORIZED_STATUS;
+      result.status = FAILURE;
+      callback_(this, NNRESULT_TYPE_AUTHORIZED_STATUS, &result, 1);
+      send_auth_failure_ = true;
+    }
     LOG("rockface_person_detect failed.\n");
     return 0;
   }
