@@ -532,6 +532,18 @@ int video_encoder_set_osd_plt(
   return 0;
 }
 
+int video_encoder_set_gop_size(
+  std::shared_ptr<Flow> &enc_flow, int gop) {
+  if (!enc_flow || (gop < 0))
+    return -EINVAL;
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetValue(gop);
+  enc_flow->Control(VideoEncoder::kGopChange, pbuff);
+
+  return 0;
+}
+
 int video_encoder_set_osd_region(
   std::shared_ptr<Flow> &enc_flow, OsdRegionData *region_data) {
   if (!enc_flow || !region_data)

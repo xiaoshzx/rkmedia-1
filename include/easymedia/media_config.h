@@ -148,7 +148,8 @@ _API int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
   EncROIRegion *regions, int region_cnt);
 _API int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
   std::string roi_param);
-
+_API int video_encoder_set_gop_size(std::shared_ptr<Flow> &enc_flow,
+  int gop);
 // mode: slice split mode
 // 0 - No slice is split
 // 1 - Slice is split by byte number

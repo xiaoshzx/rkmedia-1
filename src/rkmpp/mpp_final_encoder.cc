@@ -454,6 +454,22 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       LOG("ERROR: MPP Encoder: force idr frame control failed!\n");
       return false;
     }
+  } else if (change & VideoEncoder::kGopChange) {
+    int new_gop_size = val->GetValue();
+    if(new_gop_size < 0) {
+      LOG("ERROR: MPP Encoder: gop size invalid!\n");
+      return false;
+    }
+    LOGD("MPP Encoder: gop change frome %d to %d\n",
+      vconfig.gop_size, new_gop_size);
+    rc_cfg.gop = new_gop_size;
+    rc_cfg.change = MPP_ENC_RC_CFG_CHANGE_GOP;
+    if (mpp_enc.EncodeControl(MPP_ENC_SET_RC_CFG, &rc_cfg) != 0) {
+      LOG("ERROR: MPP Encoder: gop size control failed!\n");
+      return false;
+    }
+    //save to vconfig
+    vconfig.gop_size = new_gop_size;
   } else if (change & VideoEncoder::kQPChange) {
     VideoEncoderQp *qps = (VideoEncoderQp *)val->GetPtr();
     if (val->GetSize() < sizeof(VideoEncoderQp)) {
