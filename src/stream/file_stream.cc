@@ -67,6 +67,7 @@ public:
   virtual int NewStream(std::string new_path) {
     Close();
     path = new_path;
+    LOG("NewStream file:%s\n", new_path.c_str());
     return Open();
   }
 
