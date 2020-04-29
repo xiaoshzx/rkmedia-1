@@ -133,7 +133,6 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
   det_array = &face_array;
 
   if (detect_track_) {
-    LOG("RockFaceDetect detect_track_\n");
     rockface_track(face_handle_, &input_image, 1, &face_array,
                    &tracked_face_array);
     det_array = &tracked_face_array;
@@ -143,7 +142,6 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
     rockface_det_t *det_face = &(det_array->face[i]);
 
     if (detect_align_) {
-      LOG("RockFaceDetect detect_align_\n");
       rockface_image_t aligned_img;
       memset(&aligned_img, 0, sizeof(rockface_image_t));
       ret = rockface_align(face_handle_, &input_image, &(det_face->box),
@@ -156,7 +154,6 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
     }
 
     if (detect_landmark_) {
-      LOG("RockFaceDetect detect_landmark_\n");
       rockface_landmark_t face_landmark;
       ret = rockface_landmark5(face_handle_, &input_image, &(det_face->box),
                                &face_landmark);
