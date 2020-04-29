@@ -179,8 +179,12 @@ std::string MuxerFlow::GenFilePath() {
   std::ostringstream ostr;
 
   // if user special a file path then use it.
-  if (!file_path.empty()) {
+  if (!file_path.empty() && file_prefix.empty()) {
     return file_path;
+  }
+
+  if (!file_path.empty()) {
+    ostr << file_path;
   }
 
   if (!file_prefix.empty()) {
