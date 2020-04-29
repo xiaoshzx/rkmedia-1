@@ -494,7 +494,7 @@ std::shared_ptr<MediaBuffer> V4L2CaptureStream::Read() {
       assert(ret_buf->GetFD() == buf.m.fd);
     }
     ret_buf->SetAtomicTimeVal(buf_ts);
-    ret_buf->SetUSTimeStamp(gettimeofday());
+    ret_buf->SetTimeVal(buf_ts);
     ret_buf->SetValidSize(buf.bytesused);
   } else {
     if (v4l2_ctx->IoCtrl(VIDIOC_QBUF, &buf) < 0)

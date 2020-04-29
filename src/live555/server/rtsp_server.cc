@@ -75,11 +75,11 @@ bool SendMediaToServer(Flow *f, MediaBufferVector &input_vector) {
       if (rtsp_flow->video_type == VIDEO_H264) {
         spspps = split_h264_separate((const uint8_t *)buffer->GetPtr(),
                                      buffer->GetValidSize(),
-                                     easymedia::gettimeofday());
+                                     buffer->GetUSTimeStamp());
       } else if (rtsp_flow->video_type == VIDEO_H265) {
         spspps = split_h265_separate((const uint8_t *)buffer->GetPtr(),
                                      buffer->GetValidSize(),
-                                     easymedia::gettimeofday());
+                                     buffer->GetUSTimeStamp());
       }
       // Independently send vps, sps, pps packets to live555.
       for (auto &buf : spspps)
