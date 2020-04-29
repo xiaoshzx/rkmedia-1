@@ -185,6 +185,7 @@ private:
   std::shared_ptr<Stream> fstream;
   std::string path;
   std::string save_mode;
+  std::string file_path;
   std::string file_prefix;
   std::string file_suffix;
   size_t file_index;
@@ -192,6 +193,10 @@ private:
 
 std::string FileWriteFlow::GenFilePath(time_t curtime) {
   std::ostringstream ostr;
+
+  if (!file_path.empty()) {
+    ostr << file_path;
+  }
 
   if (!file_prefix.empty()) {
     ostr << file_prefix;
@@ -230,6 +235,7 @@ FileWriteFlow::FileWriteFlow(const char *param)
     CHECK_EMPTY_SETERRNO(value, params, KEY_PATH, EINVAL)
     path = value;
   } else {
+    file_path = params[KEY_PATH];
     file_suffix = params[KEY_FILE_SUFFIX];
     path = GenFilePath();
   }
