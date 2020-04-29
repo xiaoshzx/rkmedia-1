@@ -4,22 +4,29 @@
 
 #include "v4l2_stream.h"
 
-#include <fcntl.h>
 #include <cstring>
+#include <fcntl.h>
 
 #include "control.h"
+
+ispp_t rkispp_hw_info;
+isp_t rkisp_hw_info;
 
 namespace easymedia {
 
 V4L2Context::V4L2Context(enum v4l2_buf_type cap_type, v4l2_io io_func,
-                         char *nodename)
-    : fd(-1), capture_type(cap_type), vio(io_func), started(false), path(nodename)
+                         const std::string device)
+    : fd(-1), capture_type(cap_type), vio(io_func), started(false)
+#ifndef NDEBUG
+      ,
+      path(device)
+#endif
 {
-  char *dev = nodename;
+  const char *dev = device.c_str();
   fd = v4l2_open(dev, O_RDWR | O_CLOEXEC, 0);
   if (fd < 0)
     LOG("open %s failed %m\n", dev);
-  LOGD("open %s, fd %d\n", dev, fd);
+  LOG("open %s, fd %d\n", dev, fd);
 }
 
 V4L2Context::~V4L2Context() {
@@ -52,47 +59,125 @@ int V4L2Context::IoCtrl(unsigned long int request, void *arg) {
   return V4L2IoCtl(&vio, fd, request, arg);
 }
 
-V4L2MediaCtl::V4L2MediaCtl(char* entity_name, ispp_media_info *ispp_info)
-{
-  const char* mdev_path = "/dev/media1";
-  int ret;
-  struct media_device *mdev;
+V4L2MediaCtl::V4L2MediaCtl() {}
 
-  mdev = media_device_new (mdev_path);
-  if (!mdev)
-    LOG("new media device failed %m\n");
+V4L2MediaCtl::~V4L2MediaCtl() {}
 
-  /* Enumerate entities, pads and links. */
-  ret = media_device_enumerate (mdev);
-  ret = GetNodeName(mdev, entity_name, ispp_info->sd_ispp_path);
-  if (ret){
-    media_device_unref (mdev);
-    return;
-  }
-}
+int get_ispp_subdevs(struct media_device *device, const char *devpath,
+                     ispp_t *ispp_info) {
+  media_entity *entity = NULL;
+  const char *entity_name = NULL;
 
-int V4L2MediaCtl::GetNodeName(struct media_device * mdev, char* ent_name,
-	char * nod_name)
-{
-  const char *devname;
-  struct media_entity *entity =  NULL;
-
-  entity = media_get_entity_by_name(mdev, ent_name, strlen(ent_name));
-  if (!entity)
+  if (!device || !ispp_info || !devpath)
     return -1;
 
-  devname = media_entity_get_devname(entity);
+  strncpy(ispp_info->media_dev_path, devpath,
+          sizeof(ispp_info->media_dev_path));
 
-  if (!devname) {
-    fprintf(stderr, "can't find %s device path!", ent_name);
-    return -1;
+  entity = media_get_entity_by_name(device, "rkispp_m_bypass",
+                                    strlen("rkispp_m_bypass"));
+  if (entity) {
+    entity_name = media_entity_get_devname(entity);
+    if (entity_name) {
+      strncpy(ispp_info->ispp_m_bypass_path, entity_name,
+              sizeof(ispp_info->ispp_m_bypass_path));
+    }
   }
-
-  strncpy(nod_name, devname, FILE_PATH_LEN);
-  LOG("get %s devname: %s\n", ent_name, nod_name);
+  entity = media_get_entity_by_name(device, "rkispp_scale0",
+                                    strlen("rkispp_scale0"));
+  if (entity) {
+    entity_name = media_entity_get_devname(entity);
+    if (entity_name) {
+      strncpy(ispp_info->ispp_scale0_path, entity_name,
+              sizeof(ispp_info->ispp_scale0_path));
+    }
+  }
+  entity = media_get_entity_by_name(device, "rkispp_scale1",
+                                    strlen("rkispp_scale1"));
+  if (entity) {
+    entity_name = media_entity_get_devname(entity);
+    if (entity_name) {
+      strncpy(ispp_info->ispp_scale1_path, entity_name,
+              sizeof(ispp_info->ispp_scale1_path));
+    }
+  }
+  entity = media_get_entity_by_name(device, "rkispp_scale2",
+                                    strlen("rkispp_scale2"));
+  if (entity) {
+    entity_name = media_entity_get_devname(entity);
+    if (entity_name) {
+      strncpy(ispp_info->ispp_scale2_path, entity_name,
+              sizeof(ispp_info->ispp_scale2_path));
+    }
+  }
 
   return 0;
-};
+}
+
+int get_isp_subdevs(struct media_device *device, const char *devpath,
+                    isp_t *isp_info) {
+  media_entity *entity = NULL;
+  const char *entity_name = NULL;
+
+  if (!device || !isp_info || !devpath)
+    return -1;
+
+  strncpy(isp_info->media_dev_path, (char *)devpath,
+          sizeof(isp_info->media_dev_path));
+  entity = media_get_entity_by_name(device, "rkisp_mainpath",
+                                    strlen("rkisp_mainpath"));
+  if (entity) {
+    entity_name = media_entity_get_devname(entity);
+    if (entity_name) {
+      strncpy(isp_info->isp_main_path, (char *)entity_name,
+              sizeof(isp_info->isp_main_path));
+    }
+  }
+  entity = media_get_entity_by_name(device, "rkisp_selfpath",
+                                    strlen("rkisp_selfpath"));
+  if (entity) {
+    entity_name = media_entity_get_devname(entity);
+    if (entity_name) {
+      strncpy(isp_info->isp_self_path, (char *)entity_name,
+              sizeof(isp_info->isp_self_path));
+    }
+  }
+
+  return 0;
+}
+
+int V4L2MediaCtl::InitHwInfos() {
+  char sys_path[64];
+  FILE *fp = NULL;
+  struct media_device *device = NULL;
+  uint32_t i = 0;
+
+  while (i < MAX_MEDIA_INDEX) {
+    snprintf(sys_path, 64, "/dev/media%d", i++);
+    fp = fopen(sys_path, "r");
+    if (!fp)
+      continue;
+    fclose(fp);
+    device = media_device_new(sys_path);
+
+    /* Enumerate entities, pads and links. */
+    media_device_enumerate(device);
+
+    if (strcmp(sys_path, "/dev/media1") == 0) {
+      get_ispp_subdevs(device, sys_path, &rkispp_hw_info);
+      goto media_unref;
+    } else if (strcmp(sys_path, "/dev/media0") == 0) {
+      get_isp_subdevs(device, sys_path, &rkisp_hw_info);
+      goto media_unref;
+    } else {
+      goto media_unref;
+    }
+
+  media_unref:
+    media_device_unref(device);
+  }
+  return 0;
+}
 
 V4L2Stream::V4L2Stream(const char *param)
     : use_libv4l2(false), fd(-1), capture_type(V4L2_BUF_TYPE_VIDEO_CAPTURE) {
@@ -117,17 +202,37 @@ V4L2Stream::V4L2Stream(const char *param)
   if (!cap_type.empty())
     capture_type =
         static_cast<enum v4l2_buf_type>(GetV4L2Type(cap_type.c_str()));
+  v4l2_medctl = std::make_shared<V4L2MediaCtl>();
+  if (v4l2_medctl) {
+    ret = v4l2_medctl->InitHwInfos();
+    if (ret)
+      return;
+  }
 }
 
 int V4L2Stream::Open() {
-  ispp_media_info ispp_info;
   if (!SetV4L2IoFunction(&vio, use_libv4l2))
     return -EINVAL;
   if (!sub_device.empty()) {
     // TODO:
   }
-  v4l2_medctl = std::make_shared<V4L2MediaCtl>((char *)device.c_str(), &ispp_info);
-  v4l2_ctx = std::make_shared<V4L2Context>(capture_type, vio, ispp_info.sd_ispp_path);
+  std::string dev;
+  if (!strcmp(device.c_str(), "rkispp_m_bypass"))
+    dev = std::string(rkispp_hw_info.ispp_m_bypass_path);
+  else if (!strcmp(device.c_str(), "rkispp_scale0"))
+    dev = std::string(rkispp_hw_info.ispp_scale0_path);
+  else if (!strcmp(device.c_str(), "rkispp_scale1"))
+    dev = std::string(rkispp_hw_info.ispp_scale1_path);
+  else if (!strcmp(device.c_str(), "rkispp_scale2"))
+    dev = std::string(rkispp_hw_info.ispp_scale2_path);
+  else if (!strcmp(device.c_str(), "rkisp_mainpath"))
+    dev = std::string(rkisp_hw_info.isp_main_path);
+  else if (!strcmp(device.c_str(), "rkisp_selfpath"))
+    dev = std::string(rkisp_hw_info.isp_self_path);
+  else
+    dev = device;
+
+  v4l2_ctx = std::make_shared<V4L2Context>(capture_type, vio, dev);
   if (!v4l2_ctx)
     return -ENOMEM;
   fd = v4l2_ctx->GetDeviceFd();

@@ -18,7 +18,7 @@ namespace easymedia {
 class V4L2Context {
 public:
   V4L2Context(enum v4l2_buf_type cap_type, v4l2_io io_func,
-              char *node_name);
+              const std::string device);
   ~V4L2Context();
   int GetDeviceFd() { return fd; }
   // val: if true, VIDIOC_STREAMON, else VIDIOC_STREAMOFF
@@ -36,8 +36,11 @@ private:
 
 class V4L2MediaCtl {
 public:
-  V4L2MediaCtl(char* entity_name, ispp_media_info *ispp_info);
-  int GetNodeName(struct media_device *mdev, char *ent_name, char *nod_name);
+  V4L2MediaCtl();
+  ~V4L2MediaCtl();
+  int InitHwInfos();
+  // int SetUpLink(struct media_device *mdev, char* ent_name, __u32 flags);
+  // int IoCtrl(unsigned long int request, void *arg);
 };
 
 class V4L2Stream : public Stream {

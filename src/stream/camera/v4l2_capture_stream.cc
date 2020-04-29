@@ -6,16 +6,10 @@
 #include <vector>
 
 #include "buffer.h"
+#include "rkaiq/uAPI/rk_aiq_user_api_sysctl.h"
 #include "utils.h"
 #include "v4l2_stream.h"
-
-#include "rkaiq/common/mediactl/mediactl.h"
-#include "rkaiq/uAPI/rk_aiq_user_api_sysctl.h"
-#define RKAIQ_FILE_PATH_LEN 64
-#define RKAIQ_CAMS_NUM_MAX 2
-#define RKAIQ_FLASH_NUM_MAX 2
 static rk_aiq_sys_ctx_t *aiq_ctx = NULL;
-const char *mdev_path = "/dev/media0";
 #if CONFIG_OEM
 const char *iq_file_dir = "oem/etc/iqfiles/";
 #else
@@ -25,18 +19,8 @@ const char *iq_file_dir = "/etc/iqfiles/";
 rk_aiq_working_mode_t mode = RK_AIQ_WORKING_MODE_ISP_HDR2;
 static int WIDTH = 2688;
 static int HEIGHT = 1520;
-
-struct rkaiq_media_info {
-  struct {
-    char sd_sensor_path[RKAIQ_FILE_PATH_LEN];
-    char sensor_entity_name[RKAIQ_FILE_PATH_LEN];
-    char sd_lens_path[RKAIQ_FILE_PATH_LEN];
-    char sd_flash_path[RKAIQ_FLASH_NUM_MAX][RKAIQ_FILE_PATH_LEN];
-    bool link_enabled;
-  } cams[RKAIQ_CAMS_NUM_MAX];
-};
-
-static struct rkaiq_media_info media_info;
+static int cam_open_cnt = 0;
+sensor_t rkcam_info;
 
 namespace easymedia {
 
@@ -119,98 +103,27 @@ int V4L2CaptureStream::BufferExport(enum v4l2_buf_type bt, int index,
   return 0;
 }
 
-int rkaiq_enumrate_modules(struct media_device *device,
-                           struct rkaiq_media_info *media_info) {
-  uint32_t nents, i;
-  const char *dev_name = NULL;
-  int active_sensor = -1;
+int get_sensor_info(sensor_t *cam_info) {
+  uint32_t nents, j = 0;
+  const char *devpath = "/dev/media0";
+  struct media_device *device = NULL;
+  const struct media_entity_desc *entity_info = NULL;
+  struct media_entity *entity = NULL;
+
+  device = media_device_new(devpath);
+
+  /* Enumerate entities, pads and links. */
+  media_device_enumerate(device);
 
   nents = media_get_entities_count(device);
-  for (i = 0; i < nents; ++i) {
-    int module_idx = -1;
-    struct media_entity *e;
-    const struct media_entity_desc *ef;
-    const struct media_link *link;
-
-    e = media_get_entity(device, i);
-    ef = media_entity_get_info(e);
-
-    if (ef->type != MEDIA_ENT_T_V4L2_SUBDEV_SENSOR &&
-        ef->type != MEDIA_ENT_T_V4L2_SUBDEV_FLASH &&
-        ef->type != MEDIA_ENT_T_V4L2_SUBDEV_LENS)
-      continue;
-
-    if (ef->name[0] != 'm' && ef->name[3] != '_') {
-      fprintf(stderr, "sensor/lens/flash entity name format is incorrect,"
-                      "pls check driver version !\n");
-      return -1;
-    }
-
-    /* Retrive the sensor index from sensor name,
-      * which is indicated by two characters after 'm',
-      *	 e.g.  m00_b_ov13850 1-0010
-      *			^^, 00 is the module index
-      */
-    module_idx = atoi(ef->name + 1);
-    if (module_idx >= RKAIQ_CAMS_NUM_MAX) {
-      fprintf(stderr, "sensors more than two not supported, %s\n", ef->name);
-      continue;
-    }
-
-    dev_name = media_entity_get_devname(e);
-
-    switch (ef->type) {
-    case MEDIA_ENT_T_V4L2_SUBDEV_SENSOR:
-      strncpy(media_info->cams[module_idx].sd_sensor_path, dev_name,
-              RKAIQ_FILE_PATH_LEN);
-
-      link = media_entity_get_link(e, 0);
-      if (link && (link->flags & MEDIA_LNK_FL_ENABLED)) {
-        media_info->cams[module_idx].link_enabled = true;
-        strncpy(media_info->cams[module_idx].sensor_entity_name, ef->name, 32);
-        active_sensor = module_idx;
-      }
-      break;
-    case MEDIA_ENT_T_V4L2_SUBDEV_FLASH:
-      // TODO, support multiple flashes attached to one module
-      strncpy(media_info->cams[module_idx].sd_flash_path[0], dev_name,
-              RKAIQ_FILE_PATH_LEN);
-      break;
-    case MEDIA_ENT_T_V4L2_SUBDEV_LENS:
-      strncpy(media_info->cams[module_idx].sd_lens_path, dev_name,
-              RKAIQ_FILE_PATH_LEN);
-      break;
-    default:
-      break;
-    }
+  for (j = 0; j < nents; ++j) {
+    entity = media_get_entity(device, j);
+    entity_info = media_entity_get_info(entity);
+    if ((NULL != entity_info) &&
+        (entity_info->type == MEDIA_ENT_T_V4L2_SUBDEV_SENSOR))
+      cam_info->sensor_name = std::string(entity_info->name);
   }
-
-  if (active_sensor < 0) {
-    fprintf(stderr,
-            "Not sensor link is enabled, does sensor probe correctly?\n");
-    return -1;
-  }
-
   return 0;
-}
-
-int rkaiq_get_media0_info(struct rkaiq_media_info *media_info,
-                          const char *mdev_path) {
-  struct media_device *device = NULL;
-  int ret;
-
-  device = media_device_new(mdev_path);
-  if (!device)
-    return -ENOMEM;
-  /* Enumerate entities, pads and links. */
-  ret = media_device_enumerate(device);
-  if (ret)
-    return ret;
-
-  ret = rkaiq_enumrate_modules(device, media_info);
-  media_device_unref(device);
-
-  return ret;
 }
 
 class V4L2Buffer {
@@ -384,7 +297,6 @@ int V4L2CaptureStream::Open() {
       }
     }
   }
-  SetReadable(true);
 
   char *ispp_dev = getenv("RKISPP_DEV");
   int aiq_flag = 1;
@@ -407,26 +319,27 @@ int V4L2CaptureStream::Open() {
       else if (2 == atoi(hdr_mode))
         mode = RK_AIQ_WORKING_MODE_ISP_HDR3;
     }
-    /* Refresh media info so that sensor link status updated */
-    if (rkaiq_get_media0_info(&media_info, mdev_path))
-      LOG("Bad media topology\n");
-    LOG("sensor_entity_name = %s\n", media_info.cams[1].sensor_entity_name);
-    aiq_ctx = rk_aiq_uapi_sysctl_init(media_info.cams[1].sensor_entity_name,
-                                      iq_file_dir, NULL, NULL);
+    if (!get_sensor_info(&rkcam_info))
+      LOG("sensor_entity_name = %s\n", rkcam_info.sensor_name.c_str());
+    aiq_ctx = rk_aiq_uapi_sysctl_init(rkcam_info.sensor_name.c_str(), iq_file_dir,
+                                      NULL, NULL);
     LOG("rkaiq prepare width = %d, height = %d, mode = %d\n", WIDTH, HEIGHT,
         mode);
-    int ret_val = rk_aiq_uapi_sysctl_prepare(aiq_ctx, WIDTH, WIDTH, mode);
+    int ret_val = rk_aiq_uapi_sysctl_prepare(aiq_ctx, WIDTH, HEIGHT, mode);
     if (ret_val)
       LOG("rk_aiq_uapi_sysctl_prepare failed: %d\n", ret_val);
     rk_aiq_uapi_sysctl_start(aiq_ctx);
     LOG("rkaiq start\n");
   }
+  cam_open_cnt++;
+  SetReadable(true);
   return 0;
 }
 int V4L2CaptureStream::Close() {
   started = false;
   int ret = V4L2Stream::Close();
-  if (aiq_ctx) {
+  cam_open_cnt--;
+  if (aiq_ctx && (cam_open_cnt == 0)) {
     rk_aiq_uapi_sysctl_stop(aiq_ctx);
     rk_aiq_uapi_sysctl_deinit(aiq_ctx);
     aiq_ctx = NULL;
