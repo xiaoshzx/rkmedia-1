@@ -21,6 +21,7 @@ typedef struct {
 }
 #endif
 
+#include "utils.h"
 #include "control.h"
 #include "image.h"
 #include "media_reflector.h"

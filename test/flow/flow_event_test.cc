@@ -87,7 +87,6 @@ bool ParseImageInfoFromMap(std::map<std::string, std::string> &params,
   return true;
 }
 
-#define LOG_NO_MEMORY()  fprintf(stderr, "No memory %s: %d\n", __FUNCTION__, __LINE__)
 
 TestReadFlow::TestReadFlow(const char *param)
     : mtype(MediaBuffer::MemType::MEM_COMMON), read_size(0), fps(0),
