@@ -196,6 +196,7 @@ std::string FileWriteFlow::GenFilePath(time_t curtime) {
 
   if (!file_path.empty()) {
     ostr << file_path;
+    ostr << "/";
   }
 
   if (!file_prefix.empty()) {
