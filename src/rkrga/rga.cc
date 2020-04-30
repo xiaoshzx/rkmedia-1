@@ -176,6 +176,10 @@ int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
   dummp_rga_info(dst_info, "DstInfo");
 #endif
 
+  // flush cache,  2688x1520 NV12 cost 1399us, 1080P cost 905us
+  src->BeginCPUAccess(false);
+  src->EndCPUAccess(false);
+
   int ret = RgaFilter::gRkRga.RkRgaBlit(&src_info, &dst_info, NULL);
   if (ret) {
     dst->SetValidSize(0);
@@ -188,6 +192,11 @@ int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
       dst->SetUSTimeStamp(src->GetUSTimeStamp());
     dst->SetAtomicClock(src->GetAtomicClock());
   }
+
+  // invalidate cache, 2688x1520 NV12 cost  1072us, 1080P cost 779us
+  dst->BeginCPUAccess(true);
+  dst->EndCPUAccess(true);
+
   return ret;
 }
 
