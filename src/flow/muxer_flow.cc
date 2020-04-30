@@ -185,6 +185,7 @@ std::string MuxerFlow::GenFilePath() {
 
   if (!file_path.empty()) {
     ostr << file_path;
+    ostr << "/";
   }
 
   if (!file_prefix.empty()) {
