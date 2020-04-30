@@ -70,7 +70,11 @@ enum {
   S_MD_ROI_RECTS,
   G_MD_ROI_RECTS,
   S_MD_SENSITIVITY,
-  G_MD_SENSITIVITY
+  G_MD_SENSITIVITY,
+
+  // MUXER controls
+  S_START_SRTEAM = 10800,
+  S_STOP_SRTEAM,
 };
 
 } // namespace easymedia

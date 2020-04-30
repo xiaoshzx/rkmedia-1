@@ -32,6 +32,11 @@ public:
   virtual ~MuxerFlow();
   static const char *GetFlowName() { return "muxer_flow"; }
 
+  virtual int Control(unsigned long int request, ...) final;
+
+  void StartStream();
+  void StopStream();
+
 private:
   std::shared_ptr<VideoRecorder> NewRecoder(const char *path);
   friend bool save_buffer(Flow *f, MediaBufferVector &input_vector);
@@ -54,6 +59,7 @@ private:
   bool file_time_en;
   bool is_use_customio;
   std::string GenFilePath();
+  bool enable_streaming;
 };
 
 class VideoRecorder {

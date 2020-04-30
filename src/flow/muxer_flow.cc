@@ -52,7 +52,8 @@ static int muxer_buffer_callback(void *handler, uint8_t *buf, int buf_size) {
 
 MuxerFlow::MuxerFlow(const char *param)
     : video_recorder(nullptr), video_in(false), audio_in(false),
-      file_duration(-1), file_index(-1), file_time_en(false) {
+      file_duration(-1), file_index(-1), file_time_en(false),
+      enable_streaming(true) {
   std::list<std::string> separate_list;
   std::map<std::string, std::string> params;
 
@@ -213,13 +214,53 @@ std::string MuxerFlow::GenFilePath() {
   return ostr.str();
 }
 
+int MuxerFlow::Control(unsigned long int request, ...) {
+  int ret = 0;
+  va_list vl;
+  va_start(vl, request);
+
+  switch (request) {
+  case S_START_SRTEAM: {
+      StartStream();
+    } break;
+  case S_STOP_SRTEAM: {
+      StopStream();
+    } break;
+  default:
+      ret = -1;
+    break;
+  }
+
+  va_end(vl);
+  return ret;
+}
+
+void MuxerFlow::StartStream() {
+  enable_streaming = true;
+}
+
+void MuxerFlow::StopStream() {
+  enable_streaming = false;
+}
+
 bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
   MuxerFlow *flow = static_cast<MuxerFlow *>(f);
   auto &&recoder = flow->video_recorder;
   int64_t duration_us = flow->file_duration;
+
+  if (!flow->enable_streaming) {
+    if (recoder) {
+      recoder.reset();
+      recoder = nullptr;
+    }
+    return true;
+  }
+
   if (recoder == nullptr) {
     recoder = flow->NewRecoder(flow->GenFilePath().c_str());
     flow->last_ts = 0;
+    if (recoder == nullptr)
+      flow->enable_streaming = false;
   }
 
   // process audio stream here
@@ -236,6 +277,7 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
 
     if (!recoder->Write(flow, aud_buffer)) {
       recoder.reset();
+        flow->enable_streaming = false;
       return true;
     }
   } while (0);
@@ -276,6 +318,7 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
 
     if (!recoder->Write(flow, vid_buffer)) {
       recoder.reset();
+        flow->enable_streaming = false;
       return true;
     }
 
@@ -289,6 +332,7 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
 
     if (vid_buffer->GetUSTimeStamp() - flow->last_ts >= duration_us * 1000000) {
       recoder.reset();
+        flow->enable_streaming = false;
       recoder = nullptr;
     }
   } while (0);
