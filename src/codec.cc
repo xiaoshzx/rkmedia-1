@@ -194,15 +194,15 @@ split_h265_separate(const uint8_t *buffer, size_t length, int64_t timestamp) {
   return std::move(l);
 }
 
-static void *FindNaluByType(std::shared_ptr<MediaBuffer> &mb,
-  int nal_type, int &size, CodecType c_type) {
+static void *FindNaluByType(std::shared_ptr<MediaBuffer> &mb, int nal_type,
+                            int &size, CodecType c_type) {
   if ((c_type != CODEC_TYPE_H264) && (c_type != CODEC_TYPE_H265)) {
     LOG("ERROR: %s failed! Invalid codec type\n", __func__);
     return NULL;
   }
 
   void *target_nalu = NULL;
-  const uint8_t *start = (uint8_t *) mb->GetPtr();
+  const uint8_t *start = (uint8_t *)mb->GetPtr();
   const uint8_t *end = start + mb->GetValidSize();
   const uint8_t *nal_start = nullptr, *nal_end = nullptr;
   nal_start = nal_end = find_nalu_startcode(start, end);
@@ -233,8 +233,8 @@ static void *FindNaluByType(std::shared_ptr<MediaBuffer> &mb,
   return target_nalu;
 }
 
-void *GetVpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
-  int &size, CodecType c_type) {
+void *GetVpsFromBuffer(std::shared_ptr<MediaBuffer> &mb, int &size,
+                       CodecType c_type) {
 
   if (c_type != CODEC_TYPE_H265)
     return NULL;
@@ -242,8 +242,8 @@ void *GetVpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
   return FindNaluByType(mb, 32, size, c_type);
 }
 
-void *GetSpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
-  int &size, CodecType c_type) {
+void *GetSpsFromBuffer(std::shared_ptr<MediaBuffer> &mb, int &size,
+                       CodecType c_type) {
 
   int nalu_type = 0;
   if (c_type == CODEC_TYPE_H265)
@@ -256,8 +256,8 @@ void *GetSpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
   return FindNaluByType(mb, nalu_type, size, c_type);
 }
 
-void *GetPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
-  int &size, CodecType c_type) {
+void *GetPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb, int &size,
+                       CodecType c_type) {
 
   int nalu_type = 0;
   if (c_type == CODEC_TYPE_H265)
@@ -270,8 +270,8 @@ void *GetPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
   return FindNaluByType(mb, nalu_type, size, c_type);
 }
 
-void *GetSpsPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
-  int &size, CodecType c_type) {
+void *GetSpsPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb, int &size,
+                          CodecType c_type) {
 
   void *sps_ptr = NULL;
   int sps_size = 0;
@@ -291,8 +291,8 @@ void *GetSpsPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
   return sps_ptr;
 }
 
-void *GetVpsSpsPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
-  int &size, CodecType c_type) {
+void *GetVpsSpsPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb, int &size,
+                             CodecType c_type) {
 
   void *vps_ptr = NULL;
   int vps_size = 0;
@@ -318,8 +318,8 @@ void *GetVpsSpsPpsFromBuffer(std::shared_ptr<MediaBuffer> &mb,
   return vps_ptr;
 }
 
-void *GetSeiFromBuffer(std::shared_ptr<MediaBuffer> &mb,
-  int &size, CodecType c_type) {
+void *GetSeiFromBuffer(std::shared_ptr<MediaBuffer> &mb, int &size,
+                       CodecType c_type) {
 
   int nalu_type = 0;
   if (c_type == CODEC_TYPE_H265)
@@ -332,9 +332,10 @@ void *GetSeiFromBuffer(std::shared_ptr<MediaBuffer> &mb,
   return FindNaluByType(mb, nalu_type, size, c_type);
 }
 
-void *GetIntraFromBuffer(std::shared_ptr<MediaBuffer> &mb,
-  int &size, CodecType c_type) {
-
+// Last nalu must be IDR otherwise will occure error.
+void *GetIntraFromBuffer(std::shared_ptr<MediaBuffer> &mb, int &size,
+                         CodecType c_type) {
+  void *idr_ptr = NULL;
   int nalu_type = 0;
   if (c_type == CODEC_TYPE_H265)
     nalu_type = 19;
@@ -343,7 +344,11 @@ void *GetIntraFromBuffer(std::shared_ptr<MediaBuffer> &mb,
   else
     return NULL;
 
-  return FindNaluByType(mb, nalu_type, size, c_type);
+  idr_ptr = FindNaluByType(mb, nalu_type, size, c_type);
+  size =
+      mb->GetValidSize() - (int)((uint8_t *)mb->GetPtr() - (uint8_t *)idr_ptr);
+
+  return idr_ptr;
 }
 
 } // namespace easymedia
