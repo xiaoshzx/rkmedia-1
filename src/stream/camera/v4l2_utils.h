@@ -23,6 +23,12 @@
 #define DEV_PATH_LEN 64
 #define MAX_MEDIA_INDEX 4
 
+#define DRIVER_NAME "rkispp"
+#define MB_ENTITY_NAME DRIVER_NAME "_m_bypass"
+#define S0_ENTITY_NAME DRIVER_NAME "_scale0"
+#define S1_ENTITY_NAME DRIVER_NAME "_scale1"
+#define S2_ENTITY_NAME DRIVER_NAME "_scale2"
+
 typedef struct {
   char media_dev_path[DEV_PATH_LEN];
   char ispp_m_bypass_path[DEV_PATH_LEN];

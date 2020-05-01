@@ -39,8 +39,7 @@ public:
   V4L2MediaCtl();
   ~V4L2MediaCtl();
   int InitHwInfos();
-  // int SetUpLink(struct media_device *mdev, char* ent_name, __u32 flags);
-  // int IoCtrl(unsigned long int request, void *arg);
+  int SetupLink(std::string devname, bool enable);
 };
 
 class V4L2Stream : public Stream {
@@ -75,6 +74,7 @@ protected:
 
   bool use_libv4l2;
   v4l2_io vio;
+  std::string devname;
   std::string device;
   std::string sub_device;
   int fd; // just for convenience
