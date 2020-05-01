@@ -87,8 +87,8 @@ static int get_rga_format(PixelFormat f) {
       {PIX_FMT_UYVY422, -1},
       {PIX_FMT_RGB565, RK_FORMAT_RGB_565},
       {PIX_FMT_BGR565, -1},
-      {PIX_FMT_RGB888, RK_FORMAT_RGB_888},
-      {PIX_FMT_BGR888, RK_FORMAT_BGR_888},
+      {PIX_FMT_RGB888, RK_FORMAT_BGR_888},
+      {PIX_FMT_BGR888, RK_FORMAT_RGB_888},
       {PIX_FMT_ARGB8888, RK_FORMAT_RGBA_8888},
       {PIX_FMT_ABGR8888, RK_FORMAT_BGRA_8888}};
   auto it = rga_format_map.find(f);
