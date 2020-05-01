@@ -70,12 +70,14 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
     mdevent->ds_width = mdf->ds_width;
     mdevent->ds_height = mdf->ds_height;
     mdevent->data = mdinfo;
-    for (int i = 0; i < mdf->roi_cnt; i++) {
+    int info_id = 0;
+    for (int i = 0; (i < mdf->roi_cnt) && (info_id < info_cnt); i++) {
       if (mdf->roi_in[i].flag && mdf->roi_in[i].is_move) {
-        mdinfo[i].x = mdf->roi_in[i].up_left[1];
-        mdinfo[i].y = mdf->roi_in[i].up_left[0];
-        mdinfo[i].w = mdf->roi_in[i].down_right[1];
-        mdinfo[i].h = mdf->roi_in[i].down_right[0];
+        mdinfo[info_id].x = mdf->roi_in[i].up_left[1];
+        mdinfo[info_id].y = mdf->roi_in[i].up_left[0];
+        mdinfo[info_id].w = mdf->roi_in[i].down_right[1];
+        mdinfo[info_id].h = mdf->roi_in[i].down_right[0];
+        info_id++;
       }
     }
     param->SetParams(mdevent, mdevent_size);
