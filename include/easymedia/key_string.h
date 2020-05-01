@@ -170,6 +170,7 @@
 #define KEY_NEED_HW_DRAW "need_hw_draw"
 #define KEY_DRAW_RECT_THICK "draw_rect_thick"
 #define KEY_FRAME_INTERVAL "frame_interval"
+#define KEY_SCORE_THRESHOD "score_threshod"
 
 //rockx
 #define KEY_ROCKX_MODEL "rockx_model"

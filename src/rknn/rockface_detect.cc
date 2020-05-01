@@ -23,6 +23,7 @@ public:
 
 private:
   bool send_auth_failure_;
+  float score_threshod_;
   rockface_pixel_format pixel_fmt_;
   rockface_handle_t face_handle_;
   bool detect_track_;
@@ -57,6 +58,11 @@ RockFaceDetect::RockFaceDetect(const char *param)
       return;
     }
   }
+
+  score_threshod_ = 0.0;
+  const std::string &score_threshod = params[KEY_SCORE_THRESHOD];
+  if (!score_threshod.empty())
+    score_threshod_ = std::stof(score_threshod);
 
   if (params[KEY_ROCKFACE_DETECT_TRACK].empty()) {
     detect_track_ = false;
@@ -133,13 +139,17 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
   det_array = &face_array;
 
   if (detect_track_) {
-    rockface_track(face_handle_, &input_image, 1, &face_array,
+    rockface_track(face_handle_, &input_image, 4, &face_array,
                    &tracked_face_array);
     det_array = &tracked_face_array;
   }
 
   for (int i = 0; i < det_array->count; i++) {
     rockface_det_t *det_face = &(det_array->face[i]);
+    if (det_face->score - score_threshod_ < 0) {
+      LOG("Drop the face, score = %f\n", det_face->score);
+      continue;
+    }
 
     if (detect_align_) {
       rockface_image_t aligned_img;
@@ -163,12 +173,8 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
       }
       result_item.face_info.landmark = face_landmark;
     }
-
     result_item.face_info.base = *det_face;
     nn_result.push_back(result_item);
-
-    LOGD("RockFaceDetect detect id %d\n", result_item.face_info.base.id);
-
   }
 
   if (nn_result.size()) {
@@ -189,8 +195,6 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
     LOGD("RockFaceDetect %lld ms %lld us\n", ad.Get() / 1000, ad.Get() % 1000);
   }
   output = input;
-
-
   return 0;
 }
 
