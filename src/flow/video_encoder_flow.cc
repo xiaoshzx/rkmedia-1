@@ -192,7 +192,7 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
         (regions + i)->qp_area_idx = roi_regions[i].qp_area_idx;
         (regions + i)->area_map_en = roi_regions[i].area_map_en;
         (regions + i)->abs_qp_en = roi_regions[i].abs_qp_en;
-        LOGD("VEnc Flow: Roi Regions[%d]: (%d,%d,%d,%d,%d,%d,%d,%d,%d)\n",
+        LOG("VEnc Flow: Roi Regions[%d]: (%d,%d,%d,%d,%d,%d,%d,%d,%d)\n",
           i, roi_regions[i].x, roi_regions[i].y, roi_regions[i].w, roi_regions[i].h,
           roi_regions[i].intra, roi_regions[i].quality, roi_regions[i].qp_area_idx,
           roi_regions[i].area_map_en, roi_regions[i].abs_qp_en);

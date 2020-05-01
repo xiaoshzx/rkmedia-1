@@ -697,7 +697,7 @@ int MPPEncoder::RoiUpdateRegions(EncROIRegion *regions, int region_cnt) {
       free(roi_cfg.regions);
       roi_cfg.regions = NULL;
     }
-    LOGD("MPP Encoder: disable roi function.");
+    LOG("MPP Encoder: disable roi function.");
     return 0;
   }
 
@@ -721,8 +721,24 @@ int MPPEncoder::RoiUpdateRegions(EncROIRegion *regions, int region_cnt) {
       regions[i].w = UPALIGNTO16(regions[i].w);
       regions[i].h = UPALIGNTO16(regions[i].h);
     }
-    LOGD("MPP Encoder: region[%d]:<%d,%d,%d,%d>\n",
+    LOGD("MPP Encoder: roi region[%d]:<%d,%d,%d,%d>\n",
       i, regions[i].x, regions[i].y, regions[i].w, regions[i].h);
+    LOGD("MPP Encoder: roi region[%d].intra=%d,\n", i, regions[i].intra);
+    LOGD("MPP Encoder: roi region[%d].quality=%d,\n", i, regions[i].quality);
+    LOGD("MPP Encoder: roi region[%d].abs_qp_en=%d,\n", i, regions[i].abs_qp_en);
+    LOGD("MPP Encoder: roi region[%d].qp_area_idx=%d,\n", i, regions[i].qp_area_idx);
+    LOGD("MPP Encoder: roi region[%d].area_map_en=%d,\n", i, regions[i].area_map_en);
+    assert(regions[i].x < 8192);
+    assert(regions[i].y < 8192);
+    assert(regions[i].w < 8192);
+    assert(regions[i].h < 8192);
+    assert(regions[i].x < 8192);
+    assert(regions[i].intra <= 1);
+    assert(regions[i].abs_qp_en <= 1);
+    assert(regions[i].qp_area_idx <= 7);
+    assert(regions[i].area_map_en <= 1);
+    VALUE_SCOPE_CHECK(regions[i].quality, -48, 51);
+
     region[i].x = regions[i].x;
     region[i].y = regions[i].y;
     region[i].w = regions[i].w;
