@@ -154,16 +154,23 @@ std::vector<EncROIRegion> StringToRoiRegions(const std::string &str_regions) {
         str_regions.c_str());
       break;
     }
-
+    int x, y, w, h, intra, quality, qp_area_idx, area_map_en, abs_qp_en;
     int r = sscanf(start, "(%d,%d,%d,%d,%d,%d,%d,%d,%d)",
-      (int *)&region.x, (int *)&region.y, (int *)&region.w, (int *)&region.h,
-      (int *)&region.intra, (int *)&region.quality, (int *)&region.qp_area_idx,
-      (int *)&region.area_map_en, (int *)&region.abs_qp_en);
+      &x, &y, &w, &h, &intra, &quality, &qp_area_idx, &area_map_en, &abs_qp_en);
     if (r != 9) {
       LOG("ERROR: Fail to sscanf(ret=%d) : %m\n", r);
       ret.clear();
       return std::move(ret);
     }
+    region.x = (uint16_t)x;
+    region.y = (uint16_t)y;
+    region.w = (uint16_t)w;
+    region.h = (uint16_t)h;
+    region.intra = (uint16_t)intra;
+    region.quality = (int16_t)quality;
+    region.qp_area_idx = (uint16_t)qp_area_idx;
+    region.area_map_en = (uint8_t)area_map_en;
+    region.abs_qp_en = (uint8_t)abs_qp_en;
     ret.push_back(std::move(region));
     start = end;
   }
