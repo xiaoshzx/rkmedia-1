@@ -79,7 +79,7 @@ typedef struct  {
   uint16_t w;            /**< width of ROI rectangle */
   uint16_t h;            /**< height of ROI rectangle */
   uint16_t intra;        /**< flag of forced intra macroblock */
-  uint16_t quality;      /**<  qp of macroblock */
+  int16_t quality;      /**<  qp of macroblock */
   uint16_t qp_area_idx;  /**< qp min max area select*/
   uint8_t  area_map_en;  /**< enable area map */
   uint8_t  abs_qp_en;    /**< absolute qp enable flag*/
