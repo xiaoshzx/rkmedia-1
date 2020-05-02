@@ -148,6 +148,8 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
 {
   std::list<std::string> separate_list;
   std::map<std::string, std::string> params;
+
+  LOG("VEnc Flow: dump param:%s\n", param);
   if (!ParseWrapFlowParams(param, params, separate_list)) {
     SetError(-EINVAL);
     return;
