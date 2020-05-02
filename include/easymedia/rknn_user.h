@@ -64,6 +64,7 @@ typedef struct {
 typedef enum {
   SUCCESS = 0,
   FAILURE,
+  TIMEOUT,
   UNKNOW,
 } AuthorizedStatus;
 
