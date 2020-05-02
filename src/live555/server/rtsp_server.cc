@@ -163,6 +163,8 @@ RtspServerFlow::RtspServerFlow(const char *param) {
     sm.thread_model = Model::ASYNCCOMMON;
     sm.mode_when_full = InputMode::BLOCKING;
     sm.input_maxcachenum.push_back(0); // no limit
+    if (sm.input_slots.size() > 1)
+      sm.input_maxcachenum.push_back(0);
     markname = "rtsp " + channel_name + std::to_string(in_idx);
     if (!InstallSlotMap(sm, markname, 0)) {
       LOG("Fail to InstallSlotMap, %s\n", markname.c_str());
