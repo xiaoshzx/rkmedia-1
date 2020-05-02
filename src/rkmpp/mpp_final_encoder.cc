@@ -239,7 +239,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, const MediaConfig &cfg) {
   rc_cfg.gop = gop;
   rc_cfg.skip_cnt = 0;
 
-  vconfig.bit_rate = rc_cfg.bps_target;
+  //vconfig.bit_rate = rc_cfg.bps_target;
   vconfig.frame_rate = fps;
   LOG("MPP Encoder: bps %d fps %d gop %d\n", bps, fps, gop);
   ret = mpp_enc.EncodeControl(MPP_ENC_SET_RC_CFG, &rc_cfg);

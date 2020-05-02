@@ -7,6 +7,7 @@
 
 #include "encoder.h"
 #include "mpp_inc.h"
+#include "mpp_rc_api.h"
 
 #define  RK_MPP_VERSION_NEW 1
 
@@ -47,9 +48,11 @@ public:
   // for updating roi regions config.
   int RoiUpdateRegions(EncROIRegion *regions, int region_cnt);
 
+  virtual void QueryChange(uint32_t change, void *value, int32_t size);
 protected:
   MppCodingType coding_type;
   uint32_t output_mb_flags;
+  std::string rc_api_brief_name;
   // call before Init()
   void SetMppCodeingType(MppCodingType type);
   virtual bool

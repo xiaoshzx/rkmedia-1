@@ -25,6 +25,7 @@ MPPEncoder::MPPEncoder()
   memset(&osd_data, 0, sizeof(osd_data));
 #endif
   memset(&roi_cfg, 0, sizeof(roi_cfg));
+  rc_api_brief_name = "default";
 }
 
 MPPEncoder::~MPPEncoder() {
@@ -419,6 +420,18 @@ int MPPEncoder::EncodeControl(int cmd, void *param) {
   }
 
   return 0;
+}
+
+void MPPEncoder::QueryChange(uint32_t change, void *value, int32_t size) {
+  if (!value || !size) {
+    LOG("ERROR: MPP ENCODER: %s invalid argument!\n", __func__);
+    return;
+  }
+  switch (change) {
+    default:
+      LOG("WARN: MPP ENCODER: %s change:[%d] not support!\n",
+        __func__, change);
+  }
 }
 
 void MPPEncoder::set_statistics_switch(bool value) {

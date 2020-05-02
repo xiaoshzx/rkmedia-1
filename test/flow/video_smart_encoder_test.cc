@@ -121,8 +121,6 @@ int main(int argc, char **argv) {
   //add prefix for encoder type
   if ((video_enc_type =="h264") || (video_enc_type == "h265"))
     video_enc_type = "video:" + video_enc_type;
-  else if (video_enc_type == "jpeg")
-    video_enc_type = "image:" + video_enc_type;
   else {
     printf("ERROR: encoder type:%s not support!\n", video_enc_type.c_str());
     print_usage(argv[0]);
@@ -164,58 +162,24 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-
   flow_name = "video_enc";
   flow_param = "";
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, video_enc_type);
 
-  MediaConfig enc_config;
-  memset(&enc_config, 0, sizeof(enc_config));
-  VideoConfig &vid_cfg = enc_config.vid_cfg;
-  ImageConfig &img_cfg = vid_cfg.image_cfg;
-  img_cfg.image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
-  img_cfg.image_info.width = video_width;
-  img_cfg.image_info.height = video_height;
-  img_cfg.image_info.vir_width = UPALIGNTO16(video_width);
-  img_cfg.image_info.vir_height = UPALIGNTO16(video_height);
-  if ((video_enc_type == VIDEO_H264)) {
-    img_cfg.qp_init = 24;
-    vid_cfg.qp_step = 4;
-    vid_cfg.qp_min = 12;
-    vid_cfg.qp_max = 48;
-    vid_cfg.bit_rate = video_width * video_height * 7;
-    if (vid_cfg.bit_rate > 1000000) {
-      vid_cfg.bit_rate /= 1000000;
-      vid_cfg.bit_rate *= 1000000;
-    }
-    vid_cfg.frame_rate = video_fps;
-    vid_cfg.level = 52;
-    vid_cfg.gop_size = video_fps;
-    vid_cfg.profile = 100;
-    // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
-    vid_cfg.rc_quality = KEY_BEST;
-    vid_cfg.rc_mode = KEY_CBR;
-  } else if (video_enc_type == VIDEO_H265) {
-    img_cfg.qp_init = -1;
-    vid_cfg.max_i_qp = 46;
-    vid_cfg.min_i_qp = 24;
-    vid_cfg.qp_min = 10;
-    vid_cfg.qp_max = 51;
-    vid_cfg.bit_rate = video_width * video_height / 8 * video_fps;
-    vid_cfg.frame_rate = video_fps;
-    vid_cfg.gop_size = video_fps * 2;
-    // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
-    vid_cfg.rc_quality = KEY_MEDIUM;
-    vid_cfg.rc_mode = KEY_CBR;
-  } else {
-    printf("ERROR: not support codec type:%s\n", video_enc_type.c_str());
-    return -1;
-  }
-
-  enc_param = "";
-  enc_param.append(easymedia::to_param_string(enc_config, video_enc_type));
+  VideoEncoderCfg vcfg;
+  memset(&vcfg, 0, sizeof(vcfg));
+  vcfg.type = (char *)video_enc_type.c_str();
+  vcfg.fps = video_fps;
+  vcfg.max_bps = video_width * video_height * video_fps / 14;
+  ImageInfo image_info;
+  image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
+  image_info.width = video_width;
+  image_info.height = video_height;
+  image_info.vir_width = video_width;
+  image_info.vir_height = video_height;
+  enc_param = easymedia::get_video_encoder_config_string(image_info, vcfg);
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   printf("\n#VideoEncoder flow param:\n%s\n", flow_param.c_str());
   video_encoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
@@ -291,9 +255,9 @@ int main(int argc, char **argv) {
   }
 
   printf("\n# Set md flow for encdoer flow:%p!\n", video_md_flow.get());
-  video_encoder_set_move_detection(video_encoder_flow, video_md_flow);
+  easymedia::video_encoder_set_move_detection(video_encoder_flow, video_md_flow);
   printf("\n# Enable video encoder statistics...\n");
-  video_encoder_enable_statistics(video_encoder_flow, 1);
+  easymedia::video_encoder_enable_statistics(video_encoder_flow, 1);
 
   video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);
   video_read_flow0->AddDownFlow(video_encoder_flow, 0, 0);
@@ -304,14 +268,13 @@ int main(int argc, char **argv) {
   while(!quit) {
     easymedia::msleep(10);
   }
-
   video_read_flow0->RemoveDownFlow(video_encoder_flow);
   video_read_flow0.reset();
   video_encoder_flow->RemoveDownFlow(video_save_flow);
   video_encoder_flow.reset();
   video_save_flow.reset();
   video_read_flow1->RemoveDownFlow(video_md_flow);
-  video_md_flow.reset();
+  video_read_flow1.reset();
   video_md_flow.reset();
 
   return 0;
