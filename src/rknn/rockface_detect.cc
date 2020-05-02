@@ -93,7 +93,7 @@ RockFaceDetect::RockFaceDetect(const char *param)
 int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
                             std::shared_ptr<MediaBuffer> &output) {
   auto image = std::static_pointer_cast<easymedia::ImageBuffer>(input);
-  if (!image || auth_status_ == TIMEOUT)
+  if (!image)
     return -1;
 
   AutoDuration duration;
@@ -109,6 +109,8 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
   memset(&nn_result, 0, sizeof(RknnResult));
   nn_result.type = NNRESULT_TYPE_FACE;
   auto &nn_list = image->GetRknnResult();
+  if (auth_status_ == TIMEOUT)
+    goto exit;
 
   rockface_ret_t ret;
   rockface_det_array_t det_array;
@@ -151,31 +153,35 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
     nn_list.push_back(nn_result);
   }
   LOGD("RockFaceDetect cost time %lld us\n", duration.Get());
-  if (!nn_list.empty())
-    SendNNResult(nn_list, image);
+exit:
+  SendNNResult(nn_list, image);
   output = input;
   return 0;
 }
 
 void RockFaceDetect::SendNNResult(std::list<RknnResult>& list,
                                   std::shared_ptr<ImageBuffer> image) {
+  AutoLockMutex lock(cb_mtx_);
   if (!callback_)
     return;
-  int count = 0;
-  int size = list.size();
-  RknnResult nn_array[size];
-  for (auto &iter : list) {
-    if (iter.type != NNRESULT_TYPE_FACE)
-      continue;
-    nn_array[count].timeval = image->GetAtomicClock();
-    nn_array[count].img_w = image->GetWidth();
-    nn_array[count].img_h = image->GetHeight();
-    nn_array[count].face_info.base = iter.face_info.base;
-    nn_array[count].type = NNRESULT_TYPE_FACE;
-    count++;
+  if (list.empty()) {
+    callback_(this, NNRESULT_TYPE_FACE, nullptr, 0);
+  } else {
+    int count = 0;
+    int size = list.size();
+    RknnResult nn_array[size];
+    for (auto &iter : list) {
+      if (iter.type != NNRESULT_TYPE_FACE)
+        continue;
+      nn_array[count].timeval = image->GetAtomicClock();
+      nn_array[count].img_w = image->GetWidth();
+      nn_array[count].img_h = image->GetHeight();
+      nn_array[count].face_info.base = iter.face_info.base;
+      nn_array[count].type = NNRESULT_TYPE_FACE;
+      count++;
+    }
+    callback_(this, NNRESULT_TYPE_FACE, nn_array, count);
   }
-  AutoLockMutex lock(cb_mtx_);
-  callback_(this, NNRESULT_TYPE_FACE, nn_array, count);
 }
 
 int RockFaceDetect::IoCtrl(unsigned long int request, ...) {
