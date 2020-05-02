@@ -38,10 +38,27 @@ public:
   void DoHwDrawRect(OsdRegionData *region_data, int enable = 1);
   void DoHwDraw(std::list<RknnResult> &nn_result);
 
+  void PushRequest(std::list<RknnResult>& request);
+  std::list<RknnResult> PopRequest(void);
+
+  bool wait_for(std::unique_lock<std::mutex> &lock, uint32_t milliseconds) {
+    if (cond_.wait_for(lock, std::chrono::milliseconds(milliseconds)) ==
+        std::cv_status::timeout)
+      return false;
+    else
+      return true;
+  }
+  void signal(void) { cond_.notify_all(); }
+
 private:
   bool need_async_draw_;
   bool need_hw_draw_;
   int draw_rect_thick_;
+  int draw_frame_rate_;
+
+  std::mutex mutex_;
+  std::condition_variable cond_;
+
   std::queue<std::list<RknnResult>> nn_results_list_;
   ReadWriteLockMutex draw_mtx_;
   RknnHandler handler_;
@@ -70,6 +87,12 @@ DrawFilter::DrawFilter(const char *param)
 
   if (!params[KEY_DRAW_RECT_THICK].empty()) {
     draw_rect_thick_ = atoi(params[KEY_DRAW_RECT_THICK].c_str());
+  }
+
+  if (params[KEY_FRAME_RATE].empty()) {
+    draw_frame_rate_ = 30;
+  } else {
+    draw_frame_rate_ = atoi(params[KEY_FRAME_RATE].c_str());
   }
 }
 
@@ -166,6 +189,31 @@ void DrawFilter::DoDraw(std::shared_ptr<ImageBuffer> &buffer,
   }
 }
 
+void DrawFilter::PushRequest(std::list<RknnResult>& request) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  while (!nn_results_list_.empty())
+    nn_results_list_.pop();
+  if (nn_results_list_.empty())
+    nn_results_list_.push(request);
+  if (nn_results_list_.size() > 0)
+    signal();
+}
+
+std::list<RknnResult> DrawFilter::PopRequest(void) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  std::list<RknnResult> list;
+  if (nn_results_list_.empty()) {
+    uint32_t milliseconds = 1000 / draw_frame_rate_;
+    if (wait_for(lock, milliseconds) == false) {
+      LOG("request timeout\n");
+      return std::move(list);
+    }
+  }
+  list = nn_results_list_.front();
+  nn_results_list_.pop();
+  return std::move(list);
+}
+
 int DrawFilter::Process(std::shared_ptr<MediaBuffer> input,
                         std::shared_ptr<MediaBuffer> &output) {
   if (!input || input->GetType() != Type::Image)
@@ -177,29 +225,16 @@ int DrawFilter::Process(std::shared_ptr<MediaBuffer> input,
   auto src = std::static_pointer_cast<easymedia::ImageBuffer>(input);
   auto dst = std::static_pointer_cast<easymedia::ImageBuffer>(output);
 
-  if (nn_results_list_.empty())
+  std::list<RknnResult> written_list = PopRequest();
+  if (written_list.empty())
     return 0;
-
-  while (nn_results_list_.size() >= 2) {
-    AutoLockMutex rw_mtx(draw_mtx_);
-    nn_results_list_.pop();
-  }
-  auto nn_result = nn_results_list_.front();
-  int duartion_ms =
-      abs((nn_result.front().timeval - src->GetAtomicClock()) / 1000);
-  if (duartion_ms > 133) {
-    AutoLockMutex rw_mtx(draw_mtx_);
-    nn_results_list_.pop();
-    return 0;
-  }
 
   input->BeginCPUAccess(false);
   if (handler_ && need_hw_draw_)
-    DoHwDraw(nn_result);
+    DoHwDraw(written_list);
   else
-    DoDraw(dst, nn_result);
+    DoDraw(dst, written_list);
   input->EndCPUAccess(false);
-
   return 0;
 }
 
@@ -210,13 +245,12 @@ int DrawFilter::IoCtrl(unsigned long int request, ...) {
   va_end(vl);
 
   int ret = 0;
+  AutoLockMutex rw_mtx(draw_mtx_);
   switch (request) {
   case S_NN_HANDLER: {
-    AutoLockMutex rw_mtx(draw_mtx_);
     handler_ = (RknnHandler)arg;
   } break;
   case G_NN_HANDLER: {
-    AutoLockMutex rw_mtx(draw_mtx_);
     arg = (void *)handler_;
   } break;
 
@@ -227,12 +261,10 @@ int DrawFilter::IoCtrl(unsigned long int request, ...) {
       std::list<RknnResult> infos_list;
       RknnResult *infos = (RknnResult *)req->arg;
       if (infos) {
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++)
           infos_list.push_back(infos[i]);
-        }
       }
-      AutoLockMutex rw_mtx(draw_mtx_);
-      nn_results_list_.push(infos_list);
+      PushRequest(infos_list);
     }
   } break;
   default:
