@@ -14,6 +14,12 @@
 #include "move_detection_flow.h"
 #endif
 
+// When the resolution is 2688x1520,
+// the average encoding takes 12ms.
+//
+// TO DO: Dynamic calculate time cost.
+#define ENC_CONST_MAX_TIME 12000 //us
+
 namespace easymedia {
 
 static bool encode(Flow *f, MediaBufferVector &input_vector);
@@ -27,6 +33,14 @@ public:
   }
   static const char *GetFlowName() { return "video_enc"; }
   int Control(unsigned long int request, ...);
+
+  MediaConfig GetConfig() {
+    MediaConfig cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    if (enc)
+      cfg = enc->GetConfig();
+    return cfg;
+  }
 
 private:
   std::shared_ptr<VideoEncoder> enc;
@@ -44,6 +58,10 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
   std::shared_ptr<VideoEncoder> enc = vf->enc;
   std::shared_ptr<MediaBuffer> &src = input_vector[0];
   std::shared_ptr<MediaBuffer> dst, extra_dst;
+
+  if (!src)
+    return false;
+
   dst = std::make_shared<MediaBuffer>(); // TODO: buffer pool
   if (!dst) {
     LOG_NO_MEMORY();
@@ -60,35 +78,48 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
 #ifdef RK_MOVE_DETECTION
   std::shared_ptr<MediaBuffer> md_info;
   if (vf->md_flow) {
-    LOGD("[VEnc Flow]: LookForMdResult start!\n");
-    int time_cost = 0;
-    int last_time = 0;
-    while(time_cost < 21) {
-      if (time_cost >= 18)
-        last_time = 1;
+    int smartp_enable = 0;
+    enc->QueryChange(VideoEncoder::kMoveDetectionFlow,
+      &smartp_enable, sizeof(int));
+    if (!smartp_enable) {
+      LOG("INFO: VEnc Flow: Wait for smartp configuration to take effect\n");
+    } else {
+      LOGD("VEnc Flow: LookForMdResult start!\n");
+
+      MediaConfig mcfg = vf->GetConfig();
+      int fps = mcfg.vid_cfg.frame_rate;
+      if (fps <= 0) {
+        LOG("ERROR: VEnc Flow: smartp must config fps correctly!");
+        fps = 30;
+      } else if (fps > 60)
+        LOG("WARN: VEnc Flow: smartp may error in high fps:%d!", fps);
+
+      int maximum_timeout = 1000000 / fps - ENC_CONST_MAX_TIME;
       md_info = vf->md_flow->LookForMdResult(
-        src->GetAtomicClock(), last_time);
-      if (md_info)
-        break;
-
-      time_cost += 3;
-      msleep(3); //3ms
-    }
-    if (md_info && md_info->GetValidSize()) {
+        src->GetAtomicClock(), maximum_timeout);
+      if (md_info) {
 #ifndef NDEBUG
-      LOGD("[VEnc Flow]: get md info(cnt=%d): %p, %zuBytes\n",
-         md_info->GetValidSize() / sizeof(INFO_LIST),
-         md_info.get(), md_info->GetValidSize());
-      INFO_LIST *info = (INFO_LIST *)md_info->GetPtr();
-      LOGD("[VEnc Flow]: mdinfo: flag:%d, upleft:<%d, %d>, downright:<%d, %d>\n",
-        info->flag, info->up_left[0], info->up_left[1],
-        info->down_right[0], info->down_right[1]);
+        LOGD("VEnc Flow: get md info(cnt=%d): %p, %zuBytes\n",
+          md_info->GetValidSize() / sizeof(INFO_LIST),
+          md_info.get(), md_info->GetValidSize());
 #endif
-      src->SetRelatedSPtr(md_info);
-    } else
-      LOG("ERROR: VEnc Flow: fate error get null md result\n");
+        if (md_info->GetSize() >= sizeof(INFO_LIST)) {
+#ifndef NDEBUG
+          INFO_LIST *info = (INFO_LIST *)md_info->GetPtr();
+          while (info->flag) {
+            LOGD("VEnc Flow: mdinfo: flag:%d, upleft:<%d, %d>, downright:<%d, %d>\n",
+              info->flag, info->up_left[0], info->up_left[1],
+              info->down_right[0], info->down_right[1]);
+            info += 1;
+          }
+#endif
+          src->SetRelatedSPtr(md_info);
+        }
+      } else
+        LOG("ERROR: VEnc Flow: fate error get null md result\n");
 
-    LOGD("[VEnc Flow]: LookForMdResult end!\n\n");
+      LOGD("VEnc Flow: LookForMdResult end!\n\n");
+    }
   }
 #endif //RK_MOVE_DETECTION
 
@@ -272,11 +303,11 @@ int VideoEncoderFlow::Control(unsigned long int request, ...) {
       return -1;
     }
     md_flow = *((MoveDetectionFlow **)value->GetPtr());
-    LOGD("[VEnc Flow]: md_flow:%p, flow name:%s\n",
-      md_flow, md_flow->GetFlowName());
-  } else
+    LOGD("VEnc Flow: md_flow:%p\n", md_flow);
+  }
 #endif //RK_MOVE_DETECTION
-    enc->RequestChange(request, value);
+
+  enc->RequestChange(request, value);
   return 0;
 }
 

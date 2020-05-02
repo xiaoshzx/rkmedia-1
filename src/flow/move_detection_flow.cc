@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 #include <assert.h>
 #include <math.h>
+#include <chrono>             // std::chrono::seconds
+#include <mutex>              // std::mutex, std::unique_lock
+#include <condition_variable> // std::condition_variable, std::cv_status
 
 #include <move_detect/move_detection.h>
 
@@ -32,7 +35,10 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
   gettimeofday(&tv1, NULL);
 #endif
 
-  if (!mdf->roi_cnt || !mdf->roi_in) {
+  if (!src)
+    return false;
+
+  if (!mdf->roi_in) {
     LOG("ERROR: MD: process invalid arguments\n");
     return false;
   }
@@ -129,38 +135,65 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
 }
 
 std::shared_ptr<MediaBuffer> MoveDetectionFlow::
-LookForMdResult(int64_t atomic_clock, int approximation) {
+LookForMdResult(int64_t atomic_clock, int timeout_us) {
   std::shared_ptr<MediaBuffer> right_result = NULL;
   std::shared_ptr<MediaBuffer> last_restult = NULL;
   int clk_delta = 0;
   int clk_delta_min = 0;
+  int64_t start_ts = gettimeofday();
+  int left_time = 0;
+#ifndef NDBUEG
+  AutoDuration ad;
+#endif
 
-  md_results_mtx.read_lock();
-  LOGD("#LookForMdResult, target:%.1f\n", atomic_clock / 1000.0);
-  for (auto &tmp : md_results) {
-    clk_delta = abs(atomic_clock - tmp->GetAtomicClock());
-    LOGD("...Compare vs :%.1f\n", tmp->GetAtomicClock() / 1000.0);
-    // The time stamps of images acquired by multiple image
-    // acquisition channels at the same time cannot exceed 1 ms.
-    if (clk_delta <= 1000) {
-      LOGD(">>> MD get right result\n");
-      right_result = tmp;
-      break;
+  LOGD("#LookForMdResult, target:%.1f, timeout:%.1f\n",
+    atomic_clock / 1000.0, timeout_us / 1000.0);
+  do {
+    // Step1: Lookfor mdinfo first.
+    md_results_mtx.lock();
+    for (auto &tmp : md_results) {
+      clk_delta = abs(atomic_clock - tmp->GetAtomicClock());
+      LOGD("...Compare vs :%.1f\n", tmp->GetAtomicClock() / 1000.0);
+      // The time stamps of images acquired by multiple image
+      // acquisition channels at the same time cannot exceed 1 ms.
+      if (clk_delta <= 1000) {
+        LOGD(">>> MD get right result\n");
+        right_result = tmp;
+        break;
+      }
+      // Find the closest value.
+      if ((!clk_delta_min || (clk_delta <=  clk_delta_min))) {
+        clk_delta_min = clk_delta;
+        last_restult = tmp;
+      }
     }
-    // Find the closest value.
-    if (approximation &&
-        (!clk_delta_min || (clk_delta <=  clk_delta_min))) {
-      clk_delta_min = clk_delta;
-      last_restult = tmp;
-    }
-  }
-  md_results_mtx.unlock();
+    md_results_mtx.unlock();
 
-  if (approximation && !right_result && last_restult) {
-    LOG("WARN:MD get closest result, deltaTime=%.1fms.\n",
-      clk_delta_min / 1000.0);
-    right_result = last_restult;
-  }
+    // Step2: wait for new mdinfo, then lookup again.
+    // If no new mdinfo is received within the remaining time,
+    // timeout processing: directly use the closest mdinfo as
+    // the result.
+    left_time = timeout_us - (gettimeofday() - start_ts);
+    if ((md_results.size() > 0) && !right_result && (left_time > 0)) {
+      std::unique_lock<std::mutex> lck(md_results_mtx);
+      if (con_var.wait_for(lck, std::chrono::microseconds(left_time)) ==
+        std::cv_status::timeout) {
+        LOG("WARN:MD get closest result, deltaTime=%.1fms.\n", clk_delta_min / 1000.0);
+        right_result = last_restult;
+        break; //stop while
+      }
+#ifndef NDEBUG
+      else {
+        LOGD("#RetryLookForMdResult target:%.1f\n", atomic_clock / 1000.0);
+      }
+#endif
+    } else
+      break; //stop while
+  } while(1);
+
+#ifndef NDBUEG
+  LOGD("#%s cost:%dms\n", __func__, (int)(ad.Get() / 1000));
+#endif
 
   return right_result;
 }
@@ -173,6 +206,7 @@ InsertMdResult(std::shared_ptr<MediaBuffer> &buffer) {
 
   md_results.push_back(buffer);
   md_results_mtx.unlock();
+  con_var.notify_all();
 }
 
 MoveDetectionFlow::MoveDetectionFlow(const char *param) {
@@ -209,9 +243,9 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
   std::string value;
   CHECK_EMPTY_SETERRNO(value, md_params, KEY_MD_SINGLE_REF, 0)
   is_single_ref = std::stoi(value);
-  CHECK_EMPTY_SETERRNO(value, md_params, KEY_MD_ORI_HEIGHT, 0)
-  ori_width = std::stoi(value);
   CHECK_EMPTY_SETERRNO(value, md_params, KEY_MD_ORI_WIDTH, 0)
+  ori_width = std::stoi(value);
+  CHECK_EMPTY_SETERRNO(value, md_params, KEY_MD_ORI_HEIGHT, 0)
   ori_height = std::stoi(value);
   CHECK_EMPTY_SETERRNO(value, md_params, KEY_MD_DS_WIDTH, 0)
   ds_width = std::stoi(value);
@@ -219,18 +253,22 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
   ds_height = std::stoi(value);
   CHECK_EMPTY_SETERRNO(value, md_params, KEY_MD_ROI_CNT, 0)
   roi_cnt = std::stoi(value);
-  CHECK_EMPTY_SETERRNO(value, md_params, KEY_MD_ROI_RECT, 0)
-  auto rects = StringToImageRect(value);
-  if (rects.empty()) {
-    LOG("ERROR: MD: param missing rects\n");
-    SetError(-EINVAL);
-    return;
-  }
 
-  if ((int)rects.size() != roi_cnt) {
-    LOG("ERROR: MD: rects cnt != roi cnt.\n");
-    SetError(-EINVAL);
-    return;
+  std::vector<ImageRect> rects;
+  if (roi_cnt > 0) {
+    CHECK_EMPTY_SETERRNO(value, md_params, KEY_MD_ROI_RECT, 0)
+    rects = StringToImageRect(value);
+    if (rects.empty()) {
+      LOG("ERROR: MD: param missing rects\n");
+      SetError(-EINVAL);
+      return;
+    }
+
+    if ((int)rects.size() != roi_cnt) {
+      LOG("ERROR: MD: rects cnt != roi cnt.\n");
+      SetError(-EINVAL);
+      return;
+    }
   }
 
   LOGD("MD: param: is_single_ref=%d\n", is_single_ref);

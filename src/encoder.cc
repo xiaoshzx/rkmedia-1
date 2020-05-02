@@ -23,6 +23,15 @@ void VideoEncoder::RequestChange(uint32_t change,
   change_mtx.unlock();
 }
 
+void VideoEncoder::QueryChange(uint32_t change,
+  void *value, int32_t size) {
+  LOG("WARN: Video Encoder: %s should be reloaded first!\n",
+    __func__);
+  UNUSED(change);
+  UNUSED(value);
+  UNUSED(size);
+}
+
 std::pair<uint32_t, std::shared_ptr<ParameterBuffer>>
 VideoEncoder::PeekChange() {
   std::lock_guard<std::mutex> _lg(change_mtx);

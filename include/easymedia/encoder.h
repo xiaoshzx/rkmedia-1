@@ -87,7 +87,7 @@ public:
   VideoEncoder() : codec_type(CODEC_TYPE_NONE) {}
   virtual ~VideoEncoder() = default;
   void RequestChange(uint32_t change, std::shared_ptr<ParameterBuffer> value);
-
+  virtual void QueryChange(uint32_t change, void *value, int32_t size);
 protected:
   bool HasChangeReq() { return !change_list.empty(); }
   std::pair<uint32_t, std::shared_ptr<ParameterBuffer>> PeekChange();

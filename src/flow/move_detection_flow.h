@@ -39,7 +39,8 @@ private:
   // orignal width, orignal height
   int ori_width, ori_height;
   int ds_width, ds_height;
-  ReadWriteLockMutex md_results_mtx;
+  std::mutex md_results_mtx;
+  std::condition_variable con_var;
   std::list<std::shared_ptr<MediaBuffer>> md_results;
   friend bool md_process(Flow *f, MediaBufferVector &input_vector);
 };
