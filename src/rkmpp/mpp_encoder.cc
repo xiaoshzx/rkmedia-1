@@ -428,6 +428,17 @@ void MPPEncoder::QueryChange(uint32_t change, void *value, int32_t size) {
     return;
   }
   switch (change) {
+    case VideoEncoder::kMoveDetectionFlow:
+      if (size < (int)sizeof(int32_t)) {
+        LOG("ERROR: MPP ENCODER: %s change:[%d], size invalid!\n",
+          __func__, VideoEncoder::kMoveDetectionFlow);
+        return;
+      }
+      if (rc_api_brief_name == "smart")
+        *((int32_t *)value) = 1;
+      else
+        *((int32_t *)value) = 0;
+      break;
     default:
       LOG("WARN: MPP ENCODER: %s change:[%d] not support!\n",
         __func__, change);
