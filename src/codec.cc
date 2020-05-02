@@ -346,7 +346,7 @@ void *GetIntraFromBuffer(std::shared_ptr<MediaBuffer> &mb, int &size,
 
   idr_ptr = FindNaluByType(mb, nalu_type, size, c_type);
   size =
-      mb->GetValidSize() - (int)((uint8_t *)mb->GetPtr() - (uint8_t *)idr_ptr);
+      mb->GetValidSize() - (int)((uint8_t *)idr_ptr - (uint8_t *)mb->GetPtr());
 
   return idr_ptr;
 }
