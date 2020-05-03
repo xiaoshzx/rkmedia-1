@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "control.h"
 #include "buffer.h"
 #include "encoder.h"
 #include "flow.h"
@@ -29,7 +30,7 @@ static char optstr[] = "?:i:w:h:f:";
 
 static void print_usage(char *name) {
   printf("usage example: \n");
-  printf("%s -i /dev/video0 -w 640 -h 360 -f nv12\n", name);
+  printf("%s -i /dev/video0 -w 640 -h 480 -f nv12\n", name);
 }
 
 int MoveDetectionEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
@@ -59,10 +60,10 @@ int MoveDetectionEventProc(std::shared_ptr<easymedia::Flow> flow, bool &loop) {
 }
 
 int main(int argc, char **argv) {
-  int video_fps = 30;
+  int video_fps = 23;
   int c;
   int video_width = 640;
-  int video_height = 360;
+  int video_height = 480;
   std::string pixel_format;
   std::string input_path;
 
@@ -114,12 +115,13 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-
   signal(SIGINT, sigterm_handler);
   printf("#Dump factroys:");
   easymedia::REFLECTOR(Flow)::DumpFactories();
   printf("#Dump streams:");
   easymedia::REFLECTOR(Stream)::DumpFactories();
+
+  LOG_INIT();
 
   //Reading yuv from camera
   flow_name = "source_stream";
@@ -176,8 +178,31 @@ int main(int argc, char **argv) {
 
   video_md_flow->RegisterEventHandler(video_md_flow, MoveDetectionEventProc);
   video_read_flow->AddDownFlow(video_md_flow, 0, 0);
-
   LOG("%s initial finish\n", argv[0]);
+  easymedia::msleep(30000);
+
+  LOG("#Disable roi function for 10s....\n");
+  video_md_flow->Control(easymedia::S_MD_ROI_ENABLE, 0);
+  easymedia::msleep(10000);
+
+  LOG("#Enable roi function....\n");
+  video_md_flow->Control(easymedia::S_MD_ROI_ENABLE, 1);
+  LOG("#Enable sensitivity....\n");
+  video_md_flow->Control(easymedia::S_MD_SENSITIVITY, 3);
+  easymedia::msleep(3000);
+
+  LOG("#Set new roi rects....\n");
+  ImageRect retcs[2];
+  retcs[0].x = 0;
+  retcs[0].y = 0;
+  retcs[0].w = 32;
+  retcs[0].h = 32;
+  retcs[1].x = 32;
+  retcs[1].y = 32;
+  retcs[1].w = 32;
+  retcs[1].h = 32;
+  video_md_flow->Control(easymedia::S_MD_ROI_RECTS, retcs, 2);
+
   while(!quit) {
     easymedia::msleep(10);
   }
