@@ -64,6 +64,13 @@ enum {
   S_NN_INFO,
   G_NN_INFO,
 
+  // Move Detection
+  S_MD_ROI_ENABLE = 10700,
+  G_MD_ROI_ENABLE,
+  S_MD_ROI_RECTS,
+  G_MD_ROI_RECTS,
+  S_MD_SENSITIVITY,
+  G_MD_SENSITIVITY
 };
 
 } // namespace easymedia

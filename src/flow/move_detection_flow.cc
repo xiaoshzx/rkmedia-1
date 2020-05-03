@@ -20,6 +20,12 @@
 /* Upper limit of the result stored in the list */
 #define MD_RESULT_MAX_CNT 10
 
+enum {
+  MD_UPDATE_NONE = 0x00,
+  MD_UPDATE_SENSITIVITY = 0x01,
+  MD_UPDATE_ROI_RECTS = 0x02,
+};
+
 namespace easymedia {
 
 bool md_process(Flow *f, MediaBufferVector &input_vector) {
@@ -43,8 +49,42 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
     return false;
   }
 
+  if (mdf->update_mask & MD_UPDATE_SENSITIVITY) {
+    LOG("MD: Applying new sensitivity....\n");
+    MD_PARAMS param;
+    param.still_threshold0 = mdf->still_threshold0;
+    param.still_threshold1 = mdf->still_threshold1;
+    param.pix_threshold = mdf->Sensitivity;
+    move_detection_set_params(mdf->md_ctx, param);
+    mdf->update_mask &= (~MD_UPDATE_SENSITIVITY);
+  } else if (mdf->update_mask & MD_UPDATE_ROI_RECTS) {
+    LOG("MD: Applying new roi rects...\n");
+    if (mdf->roi_in) {
+      LOG("MD: free old roi info.\n");
+      free(mdf->roi_in);
+    }
+
+    for (int i = 0; i < (int)mdf->new_roi.size(); i++) {
+      LOG("MD: New ROI RECT[%d]:(%d,%d,%d,%d)\n", i, mdf->new_roi[i].x,
+        mdf->new_roi[i].y, mdf->new_roi[i].w, mdf->new_roi[i].h);
+    }
+    mdf->roi_cnt = (int)mdf->new_roi.size();
+    // We need to create roi_cnt + 1 ROI_IN, and the last one sets
+    // the flag to 0 to tell the motion detection interface that
+    // this is the end marker.
+    mdf->roi_in = (ROI_INFO *)malloc((mdf->roi_cnt + 1) * sizeof(ROI_INFO));
+    memset(mdf->roi_in, 0, (mdf->roi_cnt + 1) * sizeof(ROI_INFO));
+    for (int i = 0; i < mdf->roi_cnt; i++) {
+      mdf->roi_in[i].up_left[0] = mdf->new_roi[i].y; // y
+      mdf->roi_in[i].up_left[1] = mdf->new_roi[i].x; // x
+      mdf->roi_in[i].down_right[0] = mdf->new_roi[i].y + mdf->new_roi[i].h; // y
+      mdf->roi_in[i].down_right[1] = mdf->new_roi[i].x + mdf->new_roi[i].w; // x
+    }
+    mdf->update_mask &= (~MD_UPDATE_ROI_RECTS);
+  }
+
   for (int i = 0; i < mdf->roi_cnt; i++) {
-    mdf->roi_in[i].flag = 1;
+    mdf->roi_in[i].flag = mdf->roi_enable ? 1 : 0;
     mdf->roi_in[i].is_move = 0;
   }
   mdf->roi_in[mdf->roi_cnt].flag = 0;
@@ -81,8 +121,8 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
       if (mdf->roi_in[i].flag && mdf->roi_in[i].is_move) {
         mdinfo[info_id].x = mdf->roi_in[i].up_left[1];
         mdinfo[info_id].y = mdf->roi_in[i].up_left[0];
-        mdinfo[info_id].w = mdf->roi_in[i].down_right[1];
-        mdinfo[info_id].h = mdf->roi_in[i].down_right[0];
+        mdinfo[info_id].w = mdf->roi_in[i].down_right[1] - mdf->roi_in[i].up_left[1];
+        mdinfo[info_id].h = mdf->roi_in[i].down_right[0] - mdf->roi_in[i].up_left[0];
         info_id++;
       }
     }
@@ -289,9 +329,15 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
     roi_in[i].flag = 1;
     roi_in[i].up_left[0] = rects[i].y; // y
     roi_in[i].up_left[1] = rects[i].x; // x
-    roi_in[i].down_right[0] = rects[i].h; // y
-    roi_in[i].down_right[1] = rects[i].w; // x
+    roi_in[i].down_right[0] = rects[i].y + rects[i].h; // y
+    roi_in[i].down_right[1] = rects[i].x + rects[i].w; // x
   }
+
+  roi_enable = 1;
+  Sensitivity = 3;
+  still_threshold0 = 20;
+  still_threshold1 = is_single_ref ? 60 : 50;
+  update_mask = MD_UPDATE_NONE;
 
   md_ctx = move_detection_init(ori_width, ori_height,
     ds_width, ds_height, is_single_ref);
@@ -325,12 +371,46 @@ MoveDetectionFlow:: ~MoveDetectionFlow() {
 }
 
 int MoveDetectionFlow::Control(unsigned long int request, ...) {
+  int ret = 0;
   va_list ap;
   va_start(ap, request);
-  //auto value = va_arg(ap, std::shared_ptr<ParameterBuffer>);
+
+  switch (request) {
+    case S_MD_ROI_ENABLE: {
+      auto value = va_arg(ap, int);
+      roi_enable = value ? 1 : 0;
+      LOG("MD: %s roi function!\n", roi_enable ? "Enable" : "Disable");
+      break;
+      }
+    case S_MD_SENSITIVITY: {
+      auto value = va_arg(ap, int);
+      assert((value >= 0) && (value <= 100));
+      LOG("MD: TODO(sensitivtiy(%d) to table)...\n", value);
+      update_mask |= MD_UPDATE_SENSITIVITY;
+      break;
+      }
+    case S_MD_ROI_RECTS: {
+      ImageRect *new_rects = va_arg(ap, ImageRect *);
+      int new_rects_cnt = va_arg(ap, int);
+      assert(new_rects && (new_rects_cnt > 0));
+      LOG("MD: new roi image rects cnt:%d\n", new_rects_cnt);
+      for (int i = 0; i < new_rects_cnt; i++) {
+        LOG("MD: ROI RECT[%d]:(%d,%d,%d,%d)\n", i, new_rects[i].x,
+          new_rects[i].y, new_rects[i].w, new_rects[i].h);
+        new_roi.push_back(std::move(new_rects[i]));
+      }
+
+      update_mask |= MD_UPDATE_ROI_RECTS;
+      break;
+      }
+    default:
+      ret = -1;
+      LOG("ERROR: MD: not support type:%d\n", request);
+      break;
+  }
+
   va_end(ap);
-  //assert(value);
-  return 0;
+  return ret;
 }
 
 DEFINE_FLOW_FACTORY(MoveDetectionFlow, Flow)
