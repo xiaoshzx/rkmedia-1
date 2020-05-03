@@ -16,9 +16,10 @@
 _API void LOG_INIT();
 _API void LOGD(const char *format, ...);
 _API void LOG(const char *format, ...);
-_API void LOG_NO_MEMORY();
-_API void LOG_FILE_FUNC_LINE();
-_API void LOG_TODO();
+
+#define LOG_NO_MEMORY() LOG("No memory %s: %d\n", __FUNCTION__, __LINE__)
+#define LOG_FILE_FUNC_LINE() LOG("%s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__)
+#define LOG_TODO() LOG("TODO, %s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__)
 
 #define UPALIGNTO(value, align) ((value + align - 1) & (~(align - 1)))
 

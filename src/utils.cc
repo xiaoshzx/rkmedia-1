@@ -83,33 +83,6 @@ void LOG(const char *format, ...) {
   } while (0);
 }
 
-void LOG_NO_MEMORY() {
-  do {
-    if (rkmedia_log_method == LOG_METHOD_PRINT)
-      fprintf(stderr, "No memory %s: %d\n", __FUNCTION__, __LINE__);
-    else
-      minilog_info("No memory %s: %d\n", __FUNCTION__, __LINE__);
-  } while (0);
-}
-
-void LOG_FILE_FUNC_LINE() {
-  do {
-    if (rkmedia_log_method == LOG_METHOD_PRINT)
-      fprintf(stderr, "%s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-    else
-      minilog_info("%s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-  } while (0);
-}
-
-void LOG_TODO() {
-  do {
-    if (rkmedia_log_method == LOG_METHOD_PRINT)
-      fprintf(stderr, "TODO, %s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-    else
-      minilog_debug("TODO, %s : %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-  } while (0);
-}
-
 namespace easymedia {
 
 bool parse_media_param_map(const char *param,
