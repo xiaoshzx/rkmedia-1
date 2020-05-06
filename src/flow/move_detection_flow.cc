@@ -81,6 +81,7 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
       mdf->roi_in[i].down_right[1] = mdf->new_roi[i].x + mdf->new_roi[i].w; // x
     }
     mdf->update_mask &= (~MD_UPDATE_ROI_RECTS);
+    mdf->new_roi.clear();
   }
 
   for (int i = 0; i < mdf->roi_cnt; i++) {

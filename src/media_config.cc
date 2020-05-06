@@ -633,6 +633,38 @@ int video_encoder_set_roi_regions(
   return 0;
 }
 
+int video_move_detect_set_rects(std::shared_ptr<Flow> &md_flow,
+  ImageRect *rects, int rect_cnt) {
+  if (!md_flow || !rects || !rect_cnt)
+    return -EINVAL;
+
+  return md_flow->Control(easymedia::S_MD_ROI_RECTS, rects, rect_cnt);
+}
+
+int video_move_detect_set_rects(
+  std::shared_ptr<Flow> &md_flow, std::string rects_param) {
+  if (!md_flow)
+    return -EINVAL;
+
+  std::vector<ImageRect> rect_vector;
+  rect_vector = StringToImageRect(rects_param);
+  if (rect_vector.empty())
+    return -EINVAL;
+
+  int rect_cnt = (int)rect_vector.size();
+  ImageRect *rects = (ImageRect *)malloc(rect_cnt * sizeof(ImageRect));
+  if (!rects)
+    return -ENOSPC;
+
+  int i = 0;
+  for(auto iter : rect_vector)
+    memcpy((void *)&rects[i++], (void *)&iter, sizeof(ImageRect));
+
+  int ret = md_flow->Control(easymedia::S_MD_ROI_RECTS, rects, rect_cnt);
+  free(rects);
+  return ret;
+}
+
 int video_encoder_set_split(
   std::shared_ptr<Flow> &enc_flow, unsigned int mode, unsigned int size) {
   if (!enc_flow)
