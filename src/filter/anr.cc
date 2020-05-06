@@ -76,9 +76,8 @@ ANRFilter::ANRFilter(const char *param) : anr_on(true), anr_handle(nullptr) {
 
   RKAP_ANR_State state;
   /* set parameter */
-  state.pfAnrBasicInfo.isEnabled = 1;
-  state.pfAnrBasicInfo.swSampleRate = sample_rate; //8-48k
-  state.pfAnrBasicInfo.swFrameLen = nb_samples; // 10ms|16ms|20ms
+  state.swSampleRate = sample_rate; //8-48k
+  state.swFrameLen = nb_samples; // 10ms|16ms|20ms
   state.fGmin = -30;
   state.fPostAddGain = 0;
   state.fNoiseFactor = 0.98f;
