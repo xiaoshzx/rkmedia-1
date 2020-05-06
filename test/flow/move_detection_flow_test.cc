@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
   video_md_flow->Control(easymedia::S_MD_SENSITIVITY, 3);
   easymedia::msleep(3000);
 
-  LOG("#Set new roi rects....\n");
+  LOG("#Set new roi rects with ImageRect....\n");
   ImageRect retcs[2];
   retcs[0].x = 0;
   retcs[0].y = 0;
@@ -201,7 +201,13 @@ int main(int argc, char **argv) {
   retcs[1].y = 32;
   retcs[1].w = 32;
   retcs[1].h = 32;
-  video_md_flow->Control(easymedia::S_MD_ROI_RECTS, retcs, 2);
+  //video_md_flow->Control(easymedia::S_MD_ROI_RECTS, retcs, 2);
+  video_move_detect_set_rects(video_md_flow, retcs, 2);
+  easymedia::msleep(3000);
+
+  LOG("#Set new roi rects with String....\n");
+  std::string retcs_str = "(0,0,64,64)(64,64,64,64)(128,128,64,64)";
+  video_move_detect_set_rects(video_md_flow, retcs_str);
 
   while(!quit) {
     easymedia::msleep(10);
