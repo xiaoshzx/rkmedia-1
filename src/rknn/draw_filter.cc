@@ -38,6 +38,7 @@ public:
   void DoHwDrawRect(OsdRegionData *region_data, int enable = 1);
   void DoHwDraw(std::list<RknnResult> &nn_result);
 
+  void ConvertRect(std::list<RknnResult>& nn_list);
   void PushRequest(std::list<RknnResult>& request);
   std::list<RknnResult> PopRequest(void);
 
@@ -55,6 +56,9 @@ private:
   bool need_hw_draw_;
   int draw_rect_thick_;
   int draw_frame_rate_;
+  int min_rect_size_;
+  float offset_x_;
+  float offset_y_;
 
   std::mutex mutex_;
   std::condition_variable cond_;
@@ -94,6 +98,21 @@ DrawFilter::DrawFilter(const char *param)
   } else {
     draw_frame_rate_ = atoi(params[KEY_FRAME_RATE].c_str());
   }
+
+  min_rect_size_ = 0;
+  const std::string &min_rect = params[KEY_DRAW_MIN_RECT];
+  if (!min_rect.empty())
+    min_rect_size_ = atoi(min_rect.c_str());
+
+  offset_x_ = 0.0;
+  const std::string &offset_x = params[KEY_DRAW_OFFSET_X];
+  if (!offset_x.empty())
+    offset_x_ = atof(offset_x.c_str());
+
+  offset_y_ = 0.0;
+  const std::string &offset_y = params[KEY_DRAW_OFFSET_Y];
+  if (!offset_y.empty())
+    offset_y_ = atof(offset_y.c_str());
 }
 
 void DrawFilter::DoDrawRect(std::shared_ptr<ImageBuffer> &buffer, Rect &rect) {
@@ -205,13 +224,28 @@ std::list<RknnResult> DrawFilter::PopRequest(void) {
   if (nn_results_list_.empty()) {
     uint32_t milliseconds = 1000 / draw_frame_rate_;
     if (wait_for(lock, milliseconds) == false) {
-      LOG("request timeout\n");
+      // LOG("request timeout\n");
       return std::move(list);
     }
   }
   list = nn_results_list_.front();
   nn_results_list_.pop();
   return std::move(list);
+}
+
+void DrawFilter::ConvertRect(std::list<RknnResult>& nn_list) {
+  for (RknnResult& nn : nn_list) {
+    if (nn.type != NNRESULT_TYPE_FACE)
+      continue;
+    rockface_rect_t* rect = &nn.face_info.base.box;
+    rect->left = rect->left + offset_x_;
+    rect->top = rect->top + offset_y_;
+    rect->right = rect->right + offset_x_;
+    rect->bottom = rect->bottom + offset_y_;
+    int rect_size = (rect->right - rect->left) * (rect->bottom - rect->top);
+    if (rect_size < min_rect_size_)
+      memset(rect, 0, sizeof(rockface_rect_t));
+  }
 }
 
 int DrawFilter::Process(std::shared_ptr<MediaBuffer> input,
@@ -228,6 +262,7 @@ int DrawFilter::Process(std::shared_ptr<MediaBuffer> input,
   std::list<RknnResult> written_list = PopRequest();
   if (written_list.empty())
     return 0;
+  ConvertRect(written_list);
 
   input->BeginCPUAccess(false);
   if (handler_ && need_hw_draw_)
