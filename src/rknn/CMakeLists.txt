@@ -21,7 +21,8 @@ if(ROCKFACE)
   set(EASY_MEDIA_NN_SOURCE_FILES ${EASY_MEDIA_NN_SOURCE_FILES}
                                    rknn/draw_filter.cc
                                    rknn/rockface_detect.cc
-                                   rknn/rockface_bodydetect.cc)
+                                   rknn/rockface_bodydetect.cc
+                                   rknn/rockface_evaluate.cc)
   set(EASY_MEDIA_NN_DEPENDENT_LIBS ${EASY_MEDIA_NN_DEPENDENT_LIBS}
                                      rknn_api rockface)
 endif()
