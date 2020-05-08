@@ -85,6 +85,10 @@ if(ROCKFACE)
     add_definitions(-DUSE_ROCKFACE)
 endif()
 
+if(DEFINED CONFIG_OEM)
+    add_definitions(-DCONFIG_OEM=${CONFIG_OEM})
+endif()
+
 if(ROCKX)
   add_definitions(-DUSE_ROCKX)
   include_directories(${ROCKX_HEADER_DIR})
