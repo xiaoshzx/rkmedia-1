@@ -137,9 +137,12 @@ if(LIBION_FOUND)
 endif()
 endif()
 
+if (MINILOGGER)
 find_package(MiniLogger REQUIRED)
 set(EASY_MEDIA_DEPENDENT_LIBS
   ${EASY_MEDIA_DEPENDENT_LIBS} MiniLogger::MiniLogger)
+add_definitions(-DRKMEDIA_SUPPORT_MINILOG)
+endif()
 
 include_directories(include/easymedia)
 add_subdirectory(src)

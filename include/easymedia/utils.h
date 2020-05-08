@@ -5,8 +5,6 @@
 #ifndef EASYMEDIA_UTILS_H_
 #define EASYMEDIA_UTILS_H_
 
-#include "minilogger/log.h"
-
 #define _UNUSED __attribute__((unused))
 #define UNUSED(x) (void)x
 

@@ -12,6 +12,10 @@
 #include <algorithm>
 #include <sstream>
 
+#ifdef RKMEDIA_SUPPORT_MINILOG
+#include "minilogger/log.h"
+#endif
+
 enum {
   LOG_LEVEL_INFO,
   LOG_LEVEL_DBG,
@@ -26,16 +30,20 @@ static int rkmedia_log_method = LOG_METHOD_PRINT;
 static int rkmedia_log_level = LOG_LEVEL_INFO;
 
 _API void LOG_INIT() {
-  __minilog_log_init("RKMEDIA", NULL, false, false, "RKMEDIA", "1.1");
-  rkmedia_log_method = LOG_METHOD_MINILOG;
-  char *ptr = getenv("RKMEDIA_LOG_METHOD");
+  char *ptr = NULL;
+
+  rkmedia_log_method = LOG_METHOD_PRINT;
+#ifdef RKMEDIA_SUPPORT_MINILOG
+  ptr = getenv("RKMEDIA_LOG_METHOD");
   if (ptr && strstr(ptr, "MINILOG")) {
     fprintf(stderr, "##RKMEDIA Method: MINILOG\n");
+    __minilog_log_init("RKMEDIA", NULL, false, false, "RKMEDIA", "0.1");
     rkmedia_log_method = LOG_METHOD_MINILOG;
   } else {
     fprintf(stderr, "##RKMEDIA Method: PRINT\n");
     rkmedia_log_method = LOG_METHOD_PRINT;
   }
+#endif //#ifdef RKMEDIA_SUPPORT_MINILOG
 
   ptr = getenv("RKMEDIA_LOG_LEVEL");
   if (ptr && strstr(ptr, "DBG")) {
@@ -50,15 +58,19 @@ _API void LOG_INIT() {
 static void LogPrintf(const char *prefix, const char *fmt, va_list vl) {
   char line[1024];
   if (rkmedia_log_level >= LOG_LEVEL_DBG) {
+#ifdef RKMEDIA_SUPPORT_MINILOG
     if (rkmedia_log_method == LOG_METHOD_PRINT) {
+#endif
       fprintf(stderr, "%s", (char *)prefix);
       vsnprintf(line, sizeof(line), fmt, vl);
       fprintf(stderr, "%s", line);
+#ifdef RKMEDIA_SUPPORT_MINILOG
     } else {
       //minilog_debug("%s", (char *)prefix);
       vsnprintf(line, sizeof(line), fmt, vl);
       minilog_debug("%s%s", (char *)prefix, line);
     }
+#endif
   }
 }
 
@@ -75,10 +87,14 @@ void LOG(const char *format, ...) {
     va_start(vl, format);
     char line[1024];
     vsnprintf(line, sizeof(line), format, vl);
+#ifdef RKMEDIA_SUPPORT_MINILOG
     if (rkmedia_log_method == LOG_METHOD_PRINT)
+#endif
       fprintf(stderr, "%s", line);
+#ifdef RKMEDIA_SUPPORT_MINILOG
     else
       minilog_info("%s", line);
+#endif
     va_end(vl);
   } while (0);
 }
