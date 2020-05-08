@@ -16,6 +16,12 @@
 #define RKAIQ_FLASH_NUM_MAX 2
 static rk_aiq_sys_ctx_t *aiq_ctx = NULL;
 const char *mdev_path = "/dev/media0";
+#if CONFIG_OEM
+const char *iq_file_dir = "oem/etc/iqfiles/";
+#else
+const char *iq_file_dir = "/etc/iqfiles/";
+#endif
+
 rk_aiq_working_mode_t mode = RK_AIQ_WORKING_MODE_ISP_HDR2;
 static int WIDTH = 2688;
 static int HEIGHT = 1520;
@@ -406,7 +412,7 @@ int V4L2CaptureStream::Open() {
       LOG("Bad media topology\n");
     LOG("sensor_entity_name = %s\n", media_info.cams[1].sensor_entity_name);
     aiq_ctx = rk_aiq_uapi_sysctl_init(media_info.cams[1].sensor_entity_name,
-                                      NULL, NULL, NULL);
+                                      iq_file_dir, NULL, NULL);
     LOG("rkaiq prepare width = %d, height = %d, mode = %d\n", WIDTH, HEIGHT,
         mode);
     int ret_val = rk_aiq_uapi_sysctl_prepare(aiq_ctx, WIDTH, WIDTH, mode);
