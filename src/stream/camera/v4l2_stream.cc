@@ -310,15 +310,15 @@ int V4L2Stream::Open() {
 }
 
 int V4L2Stream::Close() {
-  if (v4l2_medctl) {
-    v4l2_medctl->SetupLink(devname, false);
-    v4l2_medctl = nullptr;
-  }
   if (v4l2_ctx) {
     v4l2_ctx->SetStarted(false);
     v4l2_ctx = nullptr; // release reference
   }
   fd = -1;
+  if (v4l2_medctl) {
+    v4l2_medctl->SetupLink(devname, false);
+    v4l2_medctl = nullptr;
+  }
   return 0;
 }
 
