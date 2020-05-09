@@ -103,7 +103,8 @@ FilterFlow::FilterFlow(const char *param)
   }
   if (filters[0]->SendInput(nullptr) == -1 && errno == ENOSYS) {
     support_async = false;
-    if (!ParseImageInfoFromMap(params, out_img_info, false)) {
+    if (input_pix_fmt != PIX_FMT_NONE &&
+        !ParseImageInfoFromMap(params, out_img_info, false)) {
       if (filters.size() > 1) {
         LOG("missing out image info for multi filters\n");
         SetError(-EINVAL);
