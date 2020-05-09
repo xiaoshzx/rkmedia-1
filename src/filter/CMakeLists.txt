@@ -25,3 +25,22 @@ if (ANR)
 
 endif()
 
+option(AEC "compile: AEC filter" OFF)
+
+if (AEC)
+  set(EASY_MEDIA_AEC_SOURCE_FILES
+       filter/aec.cc)
+
+  set(EASY_MEDIA_SOURCE_FILES
+       ${EASY_MEDIA_SOURCE_FILES}
+       ${EASY_MEDIA_AEC_SOURCE_FILES}
+       PARENT_SCOPE)
+
+  set(EASY_MEDIA_DEPENDENT_LIBS
+       ${EASY_MEDIA_DEPENDENT_LIBS}
+       RKAP_AEC
+       RKAP_Common
+       PARENT_SCOPE)
+
+endif()
+
