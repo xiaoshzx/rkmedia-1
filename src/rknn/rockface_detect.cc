@@ -98,8 +98,8 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
 
   AutoDuration duration;
   rockface_image_t input_image;
-  input_image.width = image->GetWidth();
-  input_image.height = image->GetHeight();
+  input_image.width = image->GetVirWidth();
+  input_image.height = image->GetVirHeight();
   input_image.pixel_format = pixel_fmt_;
   input_image.is_prealloc_buf = 1;
   input_image.data = (uint8_t *)image->GetPtr();
