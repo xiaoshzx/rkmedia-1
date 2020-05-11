@@ -11,7 +11,7 @@
 #include "v4l2_stream.h"
 static rk_aiq_sys_ctx_t *aiq_ctx = NULL;
 #if CONFIG_OEM
-const char *iq_file_dir = "oem/etc/iqfiles/";
+const char *iq_file_dir = "/oem/etc/iqfiles/";
 #else
 const char *iq_file_dir = "/etc/iqfiles/";
 #endif
