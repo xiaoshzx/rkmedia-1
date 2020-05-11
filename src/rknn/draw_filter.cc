@@ -38,49 +38,25 @@ public:
   void DoHwDrawRect(OsdRegionData *region_data, int enable = 1);
   void DoHwDraw(std::list<RknnResult> &nn_result);
 
-  void ConvertRect(std::list<RknnResult>& nn_list);
-  void PushRequest(std::list<RknnResult>& request);
-  std::list<RknnResult> PopRequest(void);
-
-  bool wait_for(std::unique_lock<std::mutex> &lock, uint32_t milliseconds) {
-    if (cond_.wait_for(lock, std::chrono::milliseconds(milliseconds)) ==
-        std::cv_status::timeout)
-      return false;
-    else
-      return true;
-  }
-  void signal(void) { cond_.notify_all(); }
+  void ConvertRect(std::list<RknnResult> &nn_list);
 
 private:
-  bool need_async_draw_;
   bool need_hw_draw_;
   int draw_rect_thick_;
   int draw_frame_rate_;
   int min_rect_size_;
   float offset_x_;
   float offset_y_;
-
-  std::mutex mutex_;
-  std::condition_variable cond_;
-
-  std::queue<std::list<RknnResult>> nn_results_list_;
   ReadWriteLockMutex draw_mtx_;
-  RknnHandler handler_;
+  RknnHandler draw_handler_;
 };
 
 DrawFilter::DrawFilter(const char *param)
-    : need_async_draw_(false), need_hw_draw_(false), draw_rect_thick_(2),
-      handler_(nullptr) {
+    : need_hw_draw_(false), draw_rect_thick_(2), draw_handler_(nullptr) {
   std::map<std::string, std::string> params;
   if (!parse_media_param_map(param, params)) {
     SetError(-EINVAL);
     return;
-  }
-
-  if (params[KEY_NEED_ASYNC_DRAW].empty()) {
-    need_async_draw_ = false;
-  } else {
-    need_async_draw_ = atoi(params[KEY_NEED_ASYNC_DRAW].c_str());
   }
 
   if (params[KEY_NEED_HW_DRAW].empty()) {
@@ -120,7 +96,7 @@ void DrawFilter::DoDrawRect(std::shared_ptr<ImageBuffer> &buffer, Rect &rect) {
 }
 
 void DrawFilter::DoHwDrawRect(OsdRegionData *region_data, int enable) {
-  Flow *flow = (Flow *)handler_;
+  Flow *flow = (Flow *)draw_handler_;
   if (region_data->enable &&
       ((region_data->width % 16) || (region_data->height % 16))) {
     LOG("ERROR: osd region size must be a multiple of 16x16.");
@@ -208,36 +184,11 @@ void DrawFilter::DoDraw(std::shared_ptr<ImageBuffer> &buffer,
   }
 }
 
-void DrawFilter::PushRequest(std::list<RknnResult>& request) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  while (!nn_results_list_.empty())
-    nn_results_list_.pop();
-  if (nn_results_list_.empty())
-    nn_results_list_.push(request);
-  if (nn_results_list_.size() > 0)
-    signal();
-}
-
-std::list<RknnResult> DrawFilter::PopRequest(void) {
-  std::unique_lock<std::mutex> lock(mutex_);
-  std::list<RknnResult> list;
-  if (nn_results_list_.empty()) {
-    uint32_t milliseconds = 1000 / draw_frame_rate_;
-    if (wait_for(lock, milliseconds) == false) {
-      // LOG("request timeout\n");
-      return std::move(list);
-    }
-  }
-  list = nn_results_list_.front();
-  nn_results_list_.pop();
-  return std::move(list);
-}
-
-void DrawFilter::ConvertRect(std::list<RknnResult>& nn_list) {
-  for (RknnResult& nn : nn_list) {
+void DrawFilter::ConvertRect(std::list<RknnResult> &nn_list) {
+  for (RknnResult &nn : nn_list) {
     if (nn.type != NNRESULT_TYPE_FACE)
       continue;
-    rockface_rect_t* rect = &nn.face_info.base.box;
+    rockface_rect_t *rect = &nn.face_info.base.box;
     rect->left = rect->left + offset_x_;
     rect->top = rect->top + offset_y_;
     rect->right = rect->right + offset_x_;
@@ -259,13 +210,13 @@ int DrawFilter::Process(std::shared_ptr<MediaBuffer> input,
   auto src = std::static_pointer_cast<easymedia::ImageBuffer>(input);
   auto dst = std::static_pointer_cast<easymedia::ImageBuffer>(output);
 
-  std::list<RknnResult> written_list = PopRequest();
+  std::list<RknnResult> &written_list = src->GetRknnResult();
   if (written_list.empty())
     return 0;
   ConvertRect(written_list);
 
   input->BeginCPUAccess(false);
-  if (handler_ && need_hw_draw_)
+  if (draw_handler_ && need_hw_draw_)
     DoHwDraw(written_list);
   else
     DoDraw(dst, written_list);
@@ -282,25 +233,11 @@ int DrawFilter::IoCtrl(unsigned long int request, ...) {
   int ret = 0;
   AutoLockMutex rw_mtx(draw_mtx_);
   switch (request) {
-  case S_NN_HANDLER: {
-    handler_ = (RknnHandler)arg;
+  case S_NN_DRAW_HANDLER: {
+    draw_handler_ = (RknnHandler)arg;
   } break;
-  case G_NN_HANDLER: {
-    arg = (void *)handler_;
-  } break;
-
-  case S_SUB_REQUEST: {
-    SubRequest *req = (SubRequest *)arg;
-    if (S_NN_INFO == req->sub_request) {
-      int size = req->size;
-      std::list<RknnResult> infos_list;
-      RknnResult *infos = (RknnResult *)req->arg;
-      if (infos) {
-        for (int i = 0; i < size; i++)
-          infos_list.push_back(infos[i]);
-      }
-      PushRequest(infos_list);
-    }
+  case G_NN_DRAW_HANDLER: {
+    arg = (void *)draw_handler_;
   } break;
   default:
     ret = -1;
