@@ -221,13 +221,13 @@ int MuxerFlow::Control(unsigned long int request, ...) {
 
   switch (request) {
   case S_START_SRTEAM: {
-      StartStream();
-    } break;
+    StartStream();
+  } break;
   case S_STOP_SRTEAM: {
-      StopStream();
-    } break;
+    StopStream();
+  } break;
   default:
-      ret = -1;
+    ret = -1;
     break;
   }
 
@@ -235,13 +235,9 @@ int MuxerFlow::Control(unsigned long int request, ...) {
   return ret;
 }
 
-void MuxerFlow::StartStream() {
-  enable_streaming = true;
-}
+void MuxerFlow::StartStream() { enable_streaming = true; }
 
-void MuxerFlow::StopStream() {
-  enable_streaming = false;
-}
+void MuxerFlow::StopStream() { enable_streaming = false; }
 
 bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
   MuxerFlow *flow = static_cast<MuxerFlow *>(f);
@@ -277,7 +273,7 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
 
     if (!recoder->Write(flow, aud_buffer)) {
       recoder.reset();
-        flow->enable_streaming = false;
+      flow->enable_streaming = false;
       return true;
     }
   } while (0);
@@ -318,7 +314,7 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
 
     if (!recoder->Write(flow, vid_buffer)) {
       recoder.reset();
-        flow->enable_streaming = false;
+      flow->enable_streaming = false;
       return true;
     }
 
@@ -332,7 +328,6 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
 
     if (vid_buffer->GetUSTimeStamp() - flow->last_ts >= duration_us * 1000000) {
       recoder.reset();
-        flow->enable_streaming = false;
       recoder = nullptr;
     }
   } while (0);
