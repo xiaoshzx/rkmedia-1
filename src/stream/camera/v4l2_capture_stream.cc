@@ -302,7 +302,7 @@ int V4L2CaptureStream::Open() {
   int aiq_flag = 1;
   if (ispp_dev) {
     LOG("rkispp dev name: %s \n", ispp_dev);
-    if (!strcmp(dev, "rkispp_scale0"))
+    if (!strcmp(dev, ispp_dev))
       aiq_flag = 1;
     else
       aiq_flag = 0;
