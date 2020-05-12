@@ -20,6 +20,7 @@ endif()
 if(ROCKFACE)
   set(EASY_MEDIA_NN_SOURCE_FILES ${EASY_MEDIA_NN_SOURCE_FILES}
                                    rknn/nn_result_input.cc
+                                   rknn/face_capture.cc
                                    rknn/draw_filter.cc
                                    rknn/rockface_detect.cc
                                    rknn/rockface_bodydetect.cc
