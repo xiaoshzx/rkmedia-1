@@ -34,6 +34,7 @@ private:
   std::string path;
   std::string oformat;
   AVFormatContext *context;
+  AVDictionary *opt;
   std::vector<AVStream *> streams;
   int nb_streams;
   std::vector<int64_t> first_timestamp;
@@ -51,15 +52,43 @@ private:
 std::shared_ptr<MediaBuffer> FFMPEGMuxer::empty =
     std::make_shared<MediaBuffer>();
 
+static bool _convert_to_avdictionary(std::string avdictionary,
+                                     AVDictionary **opt) {
+  std::list<std::string> avdics;
+  parse_media_param_list(avdictionary.c_str(), avdics, ',');
+
+  for (auto &avdic : avdics) {
+    std::list<std::string> values;
+    parse_media_param_list(avdic.c_str(), values, '-');
+    if (values.size() != 2) {
+      LOG("ffmpeg_muxer:: avdictionary error: %s.\n", avdic.c_str());
+      continue;
+    }
+    std::string name, value;
+    name = values.front();
+    values.pop_front();
+    value = values.front();
+    values.pop_front();
+    av_dict_set(opt, name.c_str(), value.c_str(), 0);
+  }
+  return true;
+}
+
 FFMPEGMuxer::FFMPEGMuxer(const char *param)
-    : Muxer(param), context(NULL), nb_streams(0) {
+    : Muxer(param), context(NULL), opt(NULL), nb_streams(0) {
   std::map<std::string, std::string> params;
+  std::string muxer_ffmpeg_avdictionary;
   std::list<std::pair<const std::string, std::string &>> req_list;
   req_list.push_back(
       std::pair<const std::string, std::string &>(KEY_PATH, path));
   req_list.push_back(
       std::pair<const std::string, std::string &>(KEY_OUTPUTDATATYPE, oformat));
+  req_list.push_back(std::pair<const std::string, std::string &>(
+      KEY_MUXER_FFMPEG_AVDICTIONARY, muxer_ffmpeg_avdictionary));
+
   parse_media_param_match(param, params, req_list);
+
+  _convert_to_avdictionary(muxer_ffmpeg_avdictionary, &opt);
 }
 
 FFMPEGMuxer::~FFMPEGMuxer() {
@@ -259,7 +288,8 @@ std::shared_ptr<MediaBuffer> FFMPEGMuxer::WriteHeader(int stream_no) {
     if (url && !(context->url = av_strdup(url)))
       return nullptr;
   }
-  ret = avformat_write_header(context, NULL);
+  ret = avformat_write_header(context, &opt);
+
   if (ret < 0) {
     PrintAVError(ret, "Fail to write header", path.c_str());
     return nullptr;

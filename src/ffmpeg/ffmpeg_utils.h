@@ -8,6 +8,7 @@
 extern "C" {
 #define __STDC_CONSTANT_MACROS
 #include <libavformat/avformat.h>
+#include <libavutil/opt.h>
 }
 
 #include "image.h"
