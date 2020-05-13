@@ -107,11 +107,6 @@ set_target_properties(${LIBRARY_NAME}
 set_target_properties(${LIBRARY_NAME} PROPERTIES VERSION ${LIBRARY_VERSION})
 set_target_properties(${LIBRARY_NAME} PROPERTIES SOVERSION 1)
 
-if(SANITIZER)
-  add_definitions(-fsanitize=address -static-libasan -g)
-  target_link_libraries(${LIBRARY_NAME} libasan.a)
-endif()
-
 if(USE_RKAIQ)
 set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} RkAiq::RkAiq)
 endif()
