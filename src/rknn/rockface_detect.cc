@@ -15,7 +15,7 @@ namespace easymedia {
 class RockFaceDetect : public Filter {
 public:
    RockFaceDetect(const char *param);
-  virtual ~ RockFaceDetect() = default;
+  virtual ~RockFaceDetect();
   static const char *GetFilterName() { return "rockface_detect"; }
   virtual int Process(std::shared_ptr<MediaBuffer> input,
                       std::shared_ptr<MediaBuffer> &output) override;
@@ -88,6 +88,11 @@ RockFaceDetect::RockFaceDetect(const char *param)
   }
   if (auth_status_ != SUCCESS)
     LOG("rockface detect authorize failed.\n");
+}
+
+RockFaceDetect::~RockFaceDetect() {
+  if (face_handle_)
+    rockface_release_handle(face_handle_);
 }
 
 int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
