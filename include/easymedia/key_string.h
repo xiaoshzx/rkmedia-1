@@ -163,7 +163,7 @@
 #define KEY_TENSOR_FMT "tensor_fmt"
 #define KEY_NCHW "NCHW"
 #define KEY_NHWC "NHWC"
-#define KEY_FACE_DETECT_TRACK "detect_track"
+#define KEY_FACE_DETECT_TRACK_FRAME "track_frame"
 #define KEY_FACE_DETECT_LANDMARK "detect_landmark"
 #define KEY_NEED_ASYNC_DRAW "need_async_draw"
 #define KEY_NEED_HW_DRAW "need_hw_draw"
