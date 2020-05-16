@@ -170,7 +170,7 @@ int ROCKXFilter::ProcessRockxFaceDetect(
   }
   if (face_array.count <= 0)
     return -1;
-  ret = rockx_object_track(object_track_handle, input_img.width, input_img.height, 1,
+  ret = rockx_object_track(object_track_handle, input_img.width, input_img.height, 5,
                            &face_array, &face_array_track);
   if (ret != ROCKX_RET_SUCCESS) {
     fprintf(stderr, "rockx_object_track error %d\n", ret);
@@ -196,6 +196,14 @@ int ROCKXFilter::ProcessRockxFaceDetect(
 int ROCKXFilter::ProcessRockxFaceLandmark(
     std::shared_ptr<easymedia::ImageBuffer> input_buffer,
     rockx_image_t input_img, std::vector<rockx_handle_t> handles) {
+  if(enable_skip_frame){
+    int static count = 0;
+    int static divisor = atoi(enable_skip_frame);
+    if(count++ % divisor != 0)
+      return -1;
+    if(count == 1000)
+      count = 0;
+  }
   rockx_handle_t &face_det_handle = handles[0];
   rockx_handle_t &face_landmark_handle = handles[1];
   rockx_object_array_t face_array;
@@ -239,7 +247,8 @@ int ROCKXFilter::ProcessRockxPoseBody(
     rockx_image_t input_img, std::vector<rockx_handle_t> handles) {
   if(enable_skip_frame){
     int static count = 0;
-    if(count++ % 2 != 0)
+    int static divisor = atoi(enable_skip_frame);
+    if(count++ % divisor != 0)
       return -1;
     if(count == 1000)
       count = 0;
