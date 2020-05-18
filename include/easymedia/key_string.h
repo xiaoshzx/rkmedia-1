@@ -159,6 +159,7 @@
 #define KEY_FEATURE "FEATURE"
 
 // rknn
+#define KEY_DETECT_RECT "detect_rect"
 #define KEY_OUTPUT_WANT_FLOAT "rknn_output_want_float"
 #define KEY_TENSOR_TYPE "tensor_type"
 #define KEY_TENSOR_FMT "tensor_fmt"

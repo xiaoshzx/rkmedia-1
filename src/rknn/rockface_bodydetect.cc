@@ -106,7 +106,7 @@ BodyDetect::BodyDetect(const char *param) : callback_(nullptr) {
   if (!percentage_str.empty())
     percentage_thr = std::stof(percentage_str);
 
-  auto &&rects = StringToImageRect(params[KEY_BUFFER_RECT]);
+  auto &&rects = StringToImageRect(params[KEY_DETECT_RECT]);
   if (rects.empty()) {
     LOG("missing rects\n");
     SetError(-EINVAL);
