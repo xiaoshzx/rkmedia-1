@@ -137,7 +137,9 @@ _API int video_encoder_set_qp(
   std::shared_ptr<Flow> &enc_flow, VideoEncoderQp &qps);
 _API int video_encoder_force_idr(std::shared_ptr<Flow> &enc_flow);
 _API int video_encoder_set_fps(
-  std::shared_ptr<Flow> &enc_flow, uint8_t num, uint8_t den);
+  std::shared_ptr<Flow> &enc_flow,
+  uint8_t out_num, uint8_t out_den,
+  uint8_t in_num = 0, uint8_t in_den = 0);
 _API int video_encoder_set_osd_plt(
   std::shared_ptr<Flow> &enc_flow, uint32_t *yuv_plt);
 _API int video_encoder_set_osd_region(

@@ -8,8 +8,7 @@
 #include "encoder.h"
 #include "mpp_inc.h"
 #include "mpp_rc_api.h"
-
-#define  RK_MPP_VERSION_NEW 1
+#include "rk_venc_cfg.h"
 
 namespace easymedia {
 
