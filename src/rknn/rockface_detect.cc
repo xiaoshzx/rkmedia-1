@@ -4,38 +4,46 @@
 
 #include "buffer.h"
 #include "filter.h"
-#include "rknn_utils.h"
 #include "lock.h"
+#include "rknn_utils.h"
 #include "rockface/rockface.h"
 
 #define DEFAULT_LIC_PATH "/userdata/key.lic"
 
 namespace easymedia {
 
+#define FACE_TRACK_START_FRAME (4)
+
 class RockFaceDetect : public Filter {
 public:
-   RockFaceDetect(const char *param);
+  RockFaceDetect(const char *param);
   virtual ~RockFaceDetect();
   static const char *GetFilterName() { return "rockface_detect"; }
   virtual int Process(std::shared_ptr<MediaBuffer> input,
                       std::shared_ptr<MediaBuffer> &output) override;
   virtual int IoCtrl(unsigned long int request, ...) override;
 
-  void SendNNResult(std::list<RknnResult>& list, std::shared_ptr<ImageBuffer> image);
+  bool FaceDetect(std::shared_ptr<easymedia::ImageBuffer> image,
+                  rockface_det_array_t *face_array);
+  void SendNNResult(std::list<RknnResult> &list,
+                    std::shared_ptr<ImageBuffer> image);
+
+protected:
+  bool CheckFaceReturn(const char *fun, int ret);
 
 private:
-  bool enable_track_;
-  bool enable_landmark_;
+  int track_frame_;
   float score_threshod_;
-  AuthorizedStatus auth_status_;
+
   rockface_pixel_format pixel_fmt_;
   rockface_handle_t face_handle_;
+
+  RknnResult authorized_result_;
   RknnCallBack callback_;
   ReadWriteLockMutex cb_mtx_;
 };
 
-RockFaceDetect::RockFaceDetect(const char *param)
-    : callback_(nullptr) {
+RockFaceDetect::RockFaceDetect(const char *param) : callback_(nullptr) {
   std::map<std::string, std::string> params;
   if (!parse_media_param_map(param, params)) {
     SetError(-EINVAL);
@@ -63,30 +71,27 @@ RockFaceDetect::RockFaceDetect(const char *param)
   if (!score_threshod.empty())
     score_threshod_ = std::stof(score_threshod);
 
-  enable_track_ = false;
-  const std::string &enable_track = params[KEY_FACE_DETECT_TRACK];
-  if (!enable_track.empty())
-    enable_track_ = atoi(enable_track.c_str());
-
-  enable_landmark_ = false;
-  const std::string &enable_landmark = params[KEY_FACE_DETECT_LANDMARK];
-  if (!enable_landmark.empty())
-    enable_landmark_ = atoi(enable_landmark.c_str());
+  track_frame_ = 3;
+  const std::string &track_frame = params[KEY_FACE_DETECT_TRACK_FRAME];
+  if (!track_frame.empty())
+    track_frame_ = atoi(track_frame.c_str());
 
   rockface_ret_t ret;
   face_handle_ = rockface_create_handle();
+
+  authorized_result_.type = NNRESULT_TYPE_AUTHORIZED_STATUS;
   ret = rockface_set_licence(face_handle_, license_path.c_str());
   if (ret != ROCKFACE_RET_SUCCESS)
-    auth_status_ = FAILURE;
+    authorized_result_.status = FAILURE;
   else
-    auth_status_ = SUCCESS;
+    authorized_result_.status = SUCCESS;
 
   ret = rockface_init_detector(face_handle_);
   if (ret != ROCKFACE_RET_SUCCESS) {
     LOG("rockface_init_detector failed. ret = %d\n", ret);
     return;
   }
-  if (auth_status_ != SUCCESS)
+  if (authorized_result_.status != SUCCESS)
     LOG("rockface detect authorize failed.\n");
 }
 
@@ -95,13 +100,12 @@ RockFaceDetect::~RockFaceDetect() {
     rockface_release_handle(face_handle_);
 }
 
-int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
-                            std::shared_ptr<MediaBuffer> &output) {
-  auto image = std::static_pointer_cast<easymedia::ImageBuffer>(input);
-  if (!image)
-    return -1;
+bool RockFaceDetect::FaceDetect(std::shared_ptr<easymedia::ImageBuffer> image,
+                                rockface_det_array_t *face_array) {
+  if (!image || !face_array)
+    return false;
 
-  AutoDuration duration;
+  static int64_t frame_idx = 0;
   rockface_image_t input_image;
   input_image.width = image->GetVirWidth();
   input_image.height = image->GetVirHeight();
@@ -109,62 +113,86 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
   input_image.is_prealloc_buf = 1;
   input_image.data = (uint8_t *)image->GetPtr();
   input_image.size = image->GetValidSize();
+  if (authorized_result_.status == TIMEOUT)
+    return false;
+
+  rockface_ret_t ret;
+  AutoDuration cost_time;
+  bool auto_track = (frame_idx < FACE_TRACK_START_FRAME) ? 0
+                        : (frame_idx % (track_frame_ + 1) == 0 ? 0 : 1);
+  if (!auto_track) {
+    rockface_det_array_t det_array;
+    ret = rockface_detect(face_handle_, &input_image, &det_array);
+    if (!CheckFaceReturn("rockface_detect", ret))
+      return false;
+    *face_array = det_array;
+  }
+  LOGD("rockface_detect cost timt %lldus\n", cost_time.GetAndReset());
+
+  rockface_det_array_t track_array;
+  ret = rockface_track(face_handle_, &input_image, 4, face_array, &track_array,
+                       auto_track);
+  if (!CheckFaceReturn("rockface_track", ret))
+    return false;
+  *face_array = track_array;
+  LOGD("rockface_track cost timt %lldus\n", cost_time.GetAndReset());
+
+  frame_idx++;
+  return true;
+}
+
+int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
+                            std::shared_ptr<MediaBuffer> &output) {
+  auto image = std::static_pointer_cast<easymedia::ImageBuffer>(input);
+  if (!image)
+    return -1;
 
   RknnResult nn_result;
   memset(&nn_result, 0, sizeof(RknnResult));
   nn_result.type = NNRESULT_TYPE_FACE;
   auto &nn_list = image->GetRknnResult();
-  if (auth_status_ == TIMEOUT)
+
+  rockface_det_array_t face_array;
+  memset(&face_array, 0, sizeof(rockface_det_array_t));
+  if (!FaceDetect(image, &face_array))
     goto exit;
 
-  rockface_ret_t ret;
-  rockface_det_array_t det_array;
-  rockface_det_array_t track_array;
-  rockface_det_array_t* face_array;
-  ret = rockface_detect(face_handle_, &input_image, &det_array);
-  if (ret != ROCKFACE_RET_SUCCESS) {
-    if (ret == ROCKFACE_RET_AUTH_FAIL) {
-      RknnResult result;
-      result.type = NNRESULT_TYPE_AUTHORIZED_STATUS;
-      result.status = FAILURE;
-      auth_status_ = TIMEOUT;
-      callback_(this, NNRESULT_TYPE_AUTHORIZED_STATUS, &result, 1);
-    }
-    LOG("rockface_face_detect failed, ret = %d\n", ret);
-    return -1;
-  }
-  face_array = &det_array;
-  if (enable_track_) {
-    ret = rockface_track(face_handle_, &input_image, 4, &det_array, &track_array);
-    if (ret == ROCKFACE_RET_SUCCESS)
-      face_array = &track_array;
-  }
-
-  for (int i = 0; i < face_array->count; i++) {
-    rockface_det_t *face = &(face_array->face[i]);
+  for (int i = 0; i < face_array.count; i++) {
+    rockface_det_t *face = &(face_array.face[i]);
     if (face->score - score_threshod_ < 0) {
-      LOG("Drop the face, score = %f\n", face->score);
+      LOGD("Drop the face, score = %f\n", face->score);
       continue;
     }
-    if (enable_landmark_) {
-      rockface_landmark_t* landmark = &nn_result.face_info.landmark;
-      ret = rockface_landmark5(face_handle_, &input_image, &(face->box), landmark);
-      if (ret != ROCKFACE_RET_SUCCESS) {
-        LOG("rockface_landmark5 failed, ret = %d\n", ret);
-        continue;
-      }
-    }
+    LOGD("face[%d] rect[%d, %d, %d, %d]\n", i, face->box.left, face->box.top,
+         face->box.right, face->box.bottom);
+
     nn_result.face_info.base = *face;
     nn_list.push_back(nn_result);
   }
-  LOGD("RockFaceDetect cost time %lld us\n", duration.Get());
 exit:
   SendNNResult(nn_list, image);
   output = input;
   return 0;
 }
 
-void RockFaceDetect::SendNNResult(std::list<RknnResult>& list,
+bool RockFaceDetect::CheckFaceReturn(const char *fun, int ret) {
+  bool check = true;
+  if (ret != ROCKFACE_RET_SUCCESS) {
+    if (ret == ROCKFACE_RET_AUTH_FAIL) {
+      authorized_result_.status = TIMEOUT;
+      if (callback_) {
+        AutoLockMutex lock(cb_mtx_);
+        callback_(this, NNRESULT_TYPE_AUTHORIZED_STATUS, &authorized_result_, 1);
+      }
+    }
+    check = false;
+  }
+  if (!check)
+    LOG("%s run failed, ret = %d\n", fun, ret);
+  return check;
+}
+
+void RockFaceDetect::SendNNResult(std::list<RknnResult> &list,
                                   std::shared_ptr<ImageBuffer> image) {
   AutoLockMutex lock(cb_mtx_);
   if (!callback_)
@@ -190,27 +218,27 @@ void RockFaceDetect::SendNNResult(std::list<RknnResult>& list,
 }
 
 int RockFaceDetect::IoCtrl(unsigned long int request, ...) {
-  va_list vl;
-  va_start(vl, request);
-  void *arg = va_arg(vl, void *);
-  va_end(vl);
-
-  if (!arg)
-    return -1;
-
-  int ret = 0;
   AutoLockMutex lock(cb_mtx_);
+  int ret = 0;
+  va_list vl;
+
+  va_start(vl, request);
   switch (request) {
   case S_NN_CALLBACK: {
+    void *arg = va_arg(vl, void *);
+    if (arg)
       callback_ = (RknnCallBack)arg;
-    } break;
+  } break;
   case G_NN_CALLBACK: {
+    void *arg = va_arg(vl, void *);
+    if (arg)
       arg = (void *)callback_;
-    } break;
+  } break;
   default:
-      ret = -1;
+    ret = -1;
     break;
   }
+  va_end(vl);
   return ret;
 }
 
