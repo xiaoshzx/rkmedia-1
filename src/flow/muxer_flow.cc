@@ -106,6 +106,9 @@ MuxerFlow::MuxerFlow(const char *param)
     LOG("Muxer:: output_data_type is null, no use customio.\n");
     is_use_customio = false;
   }
+
+  ffmpeg_avdictionary = params[KEY_MUXER_FFMPEG_AVDICTIONARY];
+
   for (auto param_str : separate_list) {
     MediaConfig enc_config;
     std::map<std::string, std::string> enc_params;
@@ -159,6 +162,8 @@ std::shared_ptr<VideoRecorder> MuxerFlow::NewRecoder(const char *path) {
   std::shared_ptr<VideoRecorder> vrecorder = nullptr;
   PARAM_STRING_APPEND(param, KEY_OUTPUTDATATYPE, output_format.c_str());
   PARAM_STRING_APPEND(param, KEY_PATH, path);
+  PARAM_STRING_APPEND(param, KEY_MUXER_FFMPEG_AVDICTIONARY, ffmpeg_avdictionary);
+
   if (is_use_customio) {
     vrecorder = std::make_shared<VideoRecorder>(param.c_str(), this);
     LOG("use customio, output foramt is %s.\n", output_format.c_str());

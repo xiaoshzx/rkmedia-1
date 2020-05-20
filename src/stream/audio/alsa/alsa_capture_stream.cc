@@ -10,9 +10,14 @@
 #include "alsa_utils.h"
 #include "alsa_volume.h"
 #include "buffer.h"
+#include "buffer.h"
 #include "media_type.h"
 #include "utils.h"
-#include "buffer.h"
+extern "C" {
+#define __STDC_CONSTANT_MACROS
+#include <libavutil/mathematics.h>
+#include <libavutil/timestamp.h>
+}
 
 namespace easymedia {
 
@@ -45,10 +50,12 @@ private:
   snd_pcm_t *alsa_handle;
   size_t frame_size;
   int interleaved;
+  int64_t buffer_time;
+  int buffer_duration;
 };
 
 AlsaCaptureStream::AlsaCaptureStream(const char *param)
-    : alsa_handle(NULL), frame_size(0) {
+    : alsa_handle(NULL), frame_size(0), buffer_time(-1), buffer_duration(-1) {
   memset(&sample_info, 0, sizeof(sample_info));
   sample_info.fmt = SAMPLE_FMT_NONE;
   std::map<std::string, std::string> params;
@@ -66,6 +73,8 @@ AlsaCaptureStream::AlsaCaptureStream(const char *param)
 AlsaCaptureStream::~AlsaCaptureStream() {
   if (alsa_handle)
     AlsaCaptureStream::Close();
+  buffer_time = -1;
+  buffer_duration = -1;
 }
 
 size_t AlsaCaptureStream::Read(void *ptr, size_t size, size_t nmemb) {
@@ -153,7 +162,6 @@ size_t AlsaCaptureStream::Readn(void *ptr, size_t size, size_t nmemb) {
 std::shared_ptr<MediaBuffer> AlsaCaptureStream::Read() {
   int buffer_size = frame_size * sample_info.nb_samples;
   int read_cnt = -1;
-  struct timespec crt_tm = {0, 0};
 
   auto sample_buffer = std::make_shared<easymedia::SampleBuffer>(
       MediaBuffer::Alloc2(buffer_size), sample_info);
@@ -162,12 +170,18 @@ std::shared_ptr<MediaBuffer> AlsaCaptureStream::Read() {
     LOG("Alloc audio frame buffer failed:%d,%d!\n", buffer_size, frame_size);
     return nullptr;
   }
-
-  clock_gettime(CLOCK_MONOTONIC, &crt_tm);
+  if (buffer_time == -1 || buffer_duration == -1) {
+    struct timespec crt_tm = {0, 0};
+    clock_gettime(CLOCK_MONOTONIC, &crt_tm);
+    buffer_time = crt_tm.tv_sec * 1000000LL + crt_tm.tv_nsec / 1000;
+    buffer_duration = av_rescale(sample_info.nb_samples, AV_TIME_BASE,
+                                 sample_info.sample_rate);
+  }
   read_cnt = Read(sample_buffer->GetPtr(), frame_size, sample_info.nb_samples);
   sample_buffer->SetValidSize(read_cnt * frame_size);
   sample_buffer->SetSamples(read_cnt);
-  sample_buffer->SetUSTimeStamp(crt_tm.tv_sec*1000000LL + crt_tm.tv_nsec/1000);
+  sample_buffer->SetUSTimeStamp(buffer_time);
+  buffer_time += buffer_duration;
 
   return sample_buffer;
 }
@@ -227,6 +241,8 @@ err:
 }
 
 int AlsaCaptureStream::Close() {
+  buffer_time = -1;
+  buffer_duration = -1;
   if (alsa_handle) {
     snd_pcm_drop(alsa_handle);
     snd_pcm_close(alsa_handle);
