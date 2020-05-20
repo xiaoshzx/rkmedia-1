@@ -502,22 +502,27 @@ int video_encoder_force_idr(std::shared_ptr<Flow> &enc_flow) {
   return 0;
 }
 
-int video_encoder_set_fps(
-  std::shared_ptr<Flow> &enc_flow, uint8_t num, uint8_t den) {
+int video_encoder_set_fps(std::shared_ptr<Flow> &enc_flow,
+  uint8_t out_num, uint8_t out_den, uint8_t in_num, uint8_t in_den) {
   if (!enc_flow)
     return -EINVAL;
 
-  if (!den || !num || (den > 16) || (num > 120)) {
+  if (!out_den || !out_num ||
+    (out_den > 16) || (out_num > 120) ||
+    (in_den > 16) || (in_num > 120)) {
     LOG("ERROR: fps(%d/%d) is invalid! num:[1,120], den:[1, 16].\n",
-      num, den);
+      out_num, out_den);
     return -EINVAL;
   }
 
   auto pbuff = std::make_shared<ParameterBuffer>(0);
-  uint8_t *fps_array = (uint8_t *)malloc(2 * sizeof(uint8_t));
-  fps_array[0] = num;
-  fps_array[1] = den;
-  pbuff->SetPtr(fps_array, 2);
+  uint8_t *fps_array = (uint8_t *)malloc(4 * sizeof(uint8_t));
+  fps_array[0] = in_num;
+  fps_array[1] = in_den;
+  fps_array[2] = out_num;
+  fps_array[3] = out_den;
+
+  pbuff->SetPtr(fps_array, 4);
   enc_flow->Control(VideoEncoder::kFrameRateChange, pbuff);
 
   return 0;
