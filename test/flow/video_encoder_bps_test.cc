@@ -274,7 +274,7 @@ int main(int argc, char **argv) {
   int bpsstep = (bpsmax - bpsmin / 4);
   for (int i = 0; i < 4; i++) {
     LOG("[%d] bps:%d keep 10s...\n", i, bpsmin + i * bpsstep);
-    easymedia::video_encoder_set_maxbps(video_encoder_flow, bpsmin + i * bpsstep);
+    easymedia::video_encoder_set_bps(video_encoder_flow, bpsmin + i * bpsstep);
     easymedia::msleep(10000);
   }
 

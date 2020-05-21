@@ -5,6 +5,7 @@
 #include "media_config.h"
 
 #include <strings.h>
+#include <sstream>
 
 #include "key_string.h"
 #include "media_type.h"
@@ -35,6 +36,43 @@ static const char *ConvertRcMode(const std::string &s) {
   return convert2constchar(s, rc_mode_strings, ARRAY_ELEMS(rc_mode_strings));
 }
 
+static int ParseMediaConfigFps(std::map<std::string, std::string> &params,
+  VideoConfig &vid_cfg) {
+  std::string value = params[KEY_FPS];
+  char *num = NULL;
+  char *den = NULL;
+
+  if (value.empty()) {
+    LOG("ERROR: MediaCfg: fps: KEY_FPS is null!\n");
+    return -1;
+  }
+  num = strtok((char *)value.c_str(), "/");
+  den = strtok(NULL, "/");
+  if (!num || !den || (strlen(num) > 2) || (strlen(den) > 2)) {
+    LOG("ERROR: MediaCfg: fps: KEY_FPS=%s is invalid!\n", value.c_str());
+    return -1;
+  }
+  vid_cfg.frame_rate = std::atoi(num);
+  vid_cfg.frame_rate_den = std::atoi(den);
+
+  value = params[KEY_FPS_IN];
+  if (value.empty()) {
+    LOG("ERROR: MediaCfg: fps: KEY_FPS_IN is null!\n");
+    return -1;
+  }
+  num = strtok((char *)value.c_str(), "/");
+  den = strtok(NULL, "/");
+  if (!num || !den || (strlen(num) > 2) || (strlen(den) > 2)) {
+    LOG("ERROR: MediaCfg: fps: KEY_FPS_IN(%s) is null!\n", value.c_str());
+    return -1;
+  }
+
+  vid_cfg.frame_in_rate = std::atoi(num);
+  vid_cfg.frame_in_rate_den = std::atoi(den);
+
+  return 0;
+}
+
 bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
                              MediaConfig &mc) {
   std::string value = params[KEY_OUTPUTDATATYPE];
@@ -51,14 +89,18 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
   }
   ImageInfo info;
   int qp_init;
-  CodecType codec_type;
+  CodecType codec_type = StringToCodecType(value.c_str());
+  if (codec_type == CODEC_TYPE_NONE) {
+    LOG("ERROR: unsupport outtype %s\n", value.c_str());
+    return false;
+  }
+
   if (image_in || video_in) {
     if (!ParseImageInfoFromMap(params, info))
       return false;
-    CHECK_EMPTY(value, params, KEY_COMPRESS_QP_INIT)
-    qp_init = std::stoi(value);
-    CHECK_EMPTY(value, params, KEY_CODECTYPE)
-    codec_type = (CodecType)std::stoi(value);
+    GET_STRING_TO_INT(qp_init, params, KEY_COMPRESS_QP_INIT, 0)
+    //CHECK_EMPTY(value, params, KEY_CODECTYPE)
+    //codec_type = (CodecType)std::stoi(value);
   } else {
     // audio
     AudioConfig &aud_cfg = mc.aud_cfg;
@@ -68,8 +110,8 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     aud_cfg.bit_rate = std::stoi(value);
     CHECK_EMPTY(value, params, KEY_FLOAT_QUALITY)
     aud_cfg.quality = std::stof(value);
-    CHECK_EMPTY(value, params, KEY_CODECTYPE)
-    aud_cfg.codec_type = (CodecType)std::stoi(value);
+    //CHECK_EMPTY(value, params, KEY_CODECTYPE)
+    aud_cfg.codec_type = codec_type;
     mc.type = Type::Audio;
     return true;
   }
@@ -85,34 +127,35 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     img_cfg.image_info = info;
     img_cfg.qp_init = qp_init;
     img_cfg.codec_type = codec_type;
-    CHECK_EMPTY(value, params, KEY_COMPRESS_QP_STEP)
-    vid_cfg.qp_step = std::stoi(value);
-    CHECK_EMPTY(value, params, KEY_COMPRESS_QP_MIN)
-    vid_cfg.qp_min = std::stoi(value);
-    CHECK_EMPTY(value, params, KEY_COMPRESS_QP_MAX)
-    vid_cfg.qp_max = std::stoi(value);
-    CHECK_EMPTY(value, params, KEY_COMPRESS_BITRATE)
-    vid_cfg.bit_rate = std::stoi(value);
-    CHECK_EMPTY(value, params, KEY_FPS)
-    vid_cfg.frame_rate = std::stoi(value);
-    CHECK_EMPTY(value, params, KEY_LEVEL)
-    vid_cfg.level = std::stoi(value);
-    CHECK_EMPTY(value, params, KEY_VIDEO_GOP)
-    vid_cfg.gop_size = std::stoi(value);
-    CHECK_EMPTY(value, params, KEY_PROFILE)
-    vid_cfg.profile = std::stoi(value);
-    CHECK_EMPTY_WITH_DECLARE(const std::string &, rc_q, params,
-                             KEY_COMPRESS_RC_QUALITY)
-    vid_cfg.rc_quality = ConvertRcQuality(rc_q);
-    CHECK_EMPTY_WITH_DECLARE(const std::string &, rc_m, params,
-                             KEY_COMPRESS_RC_MODE)
-    vid_cfg.rc_mode = ConvertRcMode(rc_m);
-    CHECK_EMPTY(value, params, KEY_H265_MAX_I_QP)
-    vid_cfg.max_i_qp = std::stoi(value);
-    CHECK_EMPTY(value, params, KEY_H265_MIN_I_QP)
-    vid_cfg.min_i_qp = std::stoi(value);
-    CHECK_EMPTY(value, params, KEY_H264_TRANS_8x8)
-    vid_cfg.trans_8x8 = std::stoi(value);
+    GET_STRING_TO_INT(vid_cfg.qp_step, params, KEY_COMPRESS_QP_STEP, 0)
+    GET_STRING_TO_INT(vid_cfg.qp_min, params, KEY_COMPRESS_QP_MIN, 0)
+    GET_STRING_TO_INT(vid_cfg.qp_max, params, KEY_COMPRESS_QP_MAX, 0)
+    GET_STRING_TO_INT(vid_cfg.bit_rate, params, KEY_COMPRESS_BITRATE, 0)
+    GET_STRING_TO_INT(vid_cfg.bit_rate_min, params, KEY_COMPRESS_BITRATE_MIN, 0)
+    GET_STRING_TO_INT(vid_cfg.bit_rate_max, params, KEY_COMPRESS_BITRATE_MAX, 0)
+    GET_STRING_TO_INT(vid_cfg.qp_max_i, params, KEY_COMPRESS_QP_MAX_I, 0)
+    GET_STRING_TO_INT(vid_cfg.qp_min_i, params, KEY_COMPRESS_QP_MIN_I, 0)
+    GET_STRING_TO_INT(vid_cfg.trans_8x8, params, KEY_H264_TRANS_8x8, 0)
+    GET_STRING_TO_INT(vid_cfg.level, params, KEY_LEVEL, 0)
+    GET_STRING_TO_INT(vid_cfg.gop_size, params, KEY_VIDEO_GOP, 0)
+    GET_STRING_TO_INT(vid_cfg.profile, params, KEY_PROFILE, 0)
+    GET_STRING_TO_INT(vid_cfg.full_range, params, KEY_FULL_RANGE, 0)
+
+    if (ParseMediaConfigFps(params, vid_cfg) < 0)
+      return false;
+
+    const std::string rc_q = params[KEY_COMPRESS_RC_QUALITY];
+    if (rc_q.empty())
+      vid_cfg.rc_quality = NULL;
+    else
+      vid_cfg.rc_quality = ConvertRcQuality(rc_q);
+
+    const std::string rc_m = params[KEY_COMPRESS_RC_MODE];
+    if (rc_m.empty())
+      vid_cfg.rc_mode = NULL;
+    else
+      vid_cfg.rc_mode = ConvertRcMode(rc_m);
+
     mc.type = Type::Video;
   }
   return true;
@@ -192,14 +235,30 @@ std::string to_param_string(const VideoConfig &vid_cfg) {
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_MIN, vid_cfg.qp_min);
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_MAX, vid_cfg.qp_max);
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_BITRATE, vid_cfg.bit_rate);
-  PARAM_STRING_APPEND_TO(ret, KEY_FPS, vid_cfg.frame_rate);
+  PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_BITRATE_MAX, vid_cfg.bit_rate_max);
+  PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_BITRATE_MIN, vid_cfg.bit_rate_min);
+  std::stringstream str_stream;
+  std::string fps;
+  str_stream << vid_cfg.frame_rate;
+  str_stream << "/";
+  str_stream << vid_cfg.frame_rate_den;
+  str_stream >> fps;
+  PARAM_STRING_APPEND(ret, KEY_FPS, fps);
+  str_stream.clear();
+  str_stream << vid_cfg.frame_in_rate;
+  str_stream << "/";
+  str_stream << vid_cfg.frame_in_rate_den;
+  str_stream >> fps;
+  PARAM_STRING_APPEND(ret, KEY_FPS_IN, fps);
   PARAM_STRING_APPEND_TO(ret, KEY_LEVEL, vid_cfg.level);
   PARAM_STRING_APPEND_TO(ret, KEY_VIDEO_GOP, vid_cfg.gop_size);
   PARAM_STRING_APPEND_TO(ret, KEY_PROFILE, vid_cfg.profile);
-  PARAM_STRING_APPEND(ret, KEY_COMPRESS_RC_QUALITY, vid_cfg.rc_quality);
-  PARAM_STRING_APPEND(ret, KEY_COMPRESS_RC_MODE, vid_cfg.rc_mode);
-  PARAM_STRING_APPEND_TO(ret, KEY_H265_MAX_I_QP, vid_cfg.max_i_qp);
-  PARAM_STRING_APPEND_TO(ret, KEY_H265_MIN_I_QP, vid_cfg.min_i_qp);
+  if (vid_cfg.rc_quality)
+    PARAM_STRING_APPEND(ret, KEY_COMPRESS_RC_QUALITY, vid_cfg.rc_quality);
+  if (vid_cfg.rc_mode)
+    PARAM_STRING_APPEND(ret, KEY_COMPRESS_RC_MODE, vid_cfg.rc_mode);
+  PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_MAX_I, vid_cfg.qp_max_i);
+  PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_MIN_I, vid_cfg.qp_min_i);
   PARAM_STRING_APPEND_TO(ret, KEY_H264_TRANS_8x8, vid_cfg.trans_8x8);
   return ret;
 }
@@ -288,123 +347,52 @@ std::string get_video_encoder_config_string (
   img_cfg.codec_type = StringToCodecType(cfg.type);
 
   if (cfg.fps)
-    vid_cfg.frame_rate = cfg.fps;
+    vid_cfg.frame_rate = vid_cfg.frame_in_rate = cfg.fps;
   else {
-    vid_cfg.frame_rate = 30;
+    vid_cfg.frame_rate = vid_cfg.frame_in_rate = 30;
     LOG("INFO: VideoEnc: frame rate use defalut value:30\n");
   }
 
-  if (cfg.gop)
-    vid_cfg.gop_size = cfg.gop;
-  else {
-    vid_cfg.gop_size = 30;
-    LOG("INFO: VideoEnc: GOP use defalut value:30\n");
-  }
+  vid_cfg.gop_size = cfg.gop;
 
   if (cfg.max_bps) {
-    vid_cfg.bit_rate = cfg.max_bps;
+    vid_cfg.bit_rate_max = cfg.max_bps;
   } else {
     int den, num;
     GetPixFmtNumDen(info.pix_fmt, num, den);
     int wh_product = info.width * info.height;
     if (wh_product > 2073600)
-      vid_cfg.bit_rate = wh_product * vid_cfg.frame_rate * num / den / 20;
+      vid_cfg.bit_rate_max = wh_product * vid_cfg.frame_rate * num / den / 20;
     else if (wh_product > 921600)
-      vid_cfg.bit_rate = wh_product * vid_cfg.frame_rate * num / den / 17;
+      vid_cfg.bit_rate_max = wh_product * vid_cfg.frame_rate * num / den / 17;
     else if (wh_product > 101376)
-      vid_cfg.bit_rate = wh_product * vid_cfg.frame_rate * num / den / 15;
+      vid_cfg.bit_rate_max = wh_product * vid_cfg.frame_rate * num / den / 15;
     else
-      vid_cfg.bit_rate = wh_product * vid_cfg.frame_rate * num / den / 8;
+      vid_cfg.bit_rate_max = wh_product * vid_cfg.frame_rate * num / den / 8;
     LOG("INFO: VideoEnc: maxbps use defalut value:%d\n", vid_cfg.bit_rate);
   }
 
-  if (img_cfg.codec_type == CODEC_TYPE_H264) {
-    /*
-     * H.264 profile_idc parameter
-     * 66  - Baseline profile
-     * 77  - Main profile
-     * 100 - High profile
-     */
-    if ((cfg.profile == 66) || (cfg.profile == 77) ||
-      (cfg.profile == 100))
-      vid_cfg.profile = cfg.profile;
-    else {
-      vid_cfg.profile = 100;
-      LOG("INFO: VideoEnc: AVC profile use defalut value:100\n");
-    }
-    /*
-     * H.264 level_idc parameter
-     * 10 / 11 / 12 / 13    - qcif@15fps / cif@7.5fps / cif@15fps / cif@30fps
-     * 20 / 21 / 22         - cif@30fps / half-D1@@25fps / D1@12.5fps
-     * 30 / 31 / 32         - D1@25fps / 720p@30fps / 720p@60fps
-     * 40 / 41 / 42         - 1080p@30fps / 1080p@30fps / 1080p@60fps
-     * 50 / 51 / 52         - 4K@30fps
-     */
-    if (((cfg.enc_levle >= 10) && (cfg.enc_levle <= 13)) ||
-      ((cfg.enc_levle >= 20) && (cfg.enc_levle <= 22)) ||
-      ((cfg.enc_levle >= 30) && (cfg.enc_levle <= 32)) ||
-      ((cfg.enc_levle >= 40) && (cfg.enc_levle <= 42)) ||
-      ((cfg.enc_levle >= 50) && (cfg.enc_levle <= 52)))
-      vid_cfg.level = cfg.enc_levle;
-    else {
-      vid_cfg.level = 40;
-      LOG("INFO: VideoEnc: AVC level use defalut value:40\n");
-    }
-  }
-
-  if (cfg.rc_quality)
-    vid_cfg.rc_quality = cfg.rc_quality;
-  else {
-    vid_cfg.rc_quality = KEY_MEDIUM;
-    LOG("INFO: VideoEnc: rc_quality use defalut value: Middle\n");
-  }
-
-  // for jpeg
-  if (img_cfg.codec_type == CODEC_TYPE_JPEG) {
-    if (!strcmp(vid_cfg.rc_quality, KEY_BEST))
-      img_cfg.qp_init = 10;
-    else if (!strcmp(vid_cfg.rc_quality, KEY_BETTER))
-      img_cfg.qp_init = 8;
-    else if (!strcmp(vid_cfg.rc_quality, KEY_MEDIUM))
-      img_cfg.qp_init = 6;
-    else if (!strcmp(vid_cfg.rc_quality, KEY_WORSE))
-      img_cfg.qp_init = 3;
-    else if (!strcmp(vid_cfg.rc_quality, KEY_WORST))
-      img_cfg.qp_init = 1;
-  } else {
-    //defalut qp config for h264/h265
-    img_cfg.qp_init = 26;
-    vid_cfg.max_i_qp = 46;
-    vid_cfg.min_i_qp = 10;
-    vid_cfg.qp_max = 51;
-    vid_cfg.qp_min = 1;
-    vid_cfg.qp_step = 4;
-  }
-
-  if (cfg.rc_mode)
-    vid_cfg.rc_mode = cfg.rc_mode;
-  else {
-    vid_cfg.rc_mode = KEY_VBR;
-    LOG("INFO: VideoEnc: rc_mode use defalut value: KEY_VBR\n");
-  }
+  vid_cfg.rc_quality = cfg.rc_quality;
+  vid_cfg.rc_mode = cfg.rc_mode;
 
   std::string enc_param = "";
   enc_param.append(easymedia::to_param_string(enc_config, cfg.type));
   return enc_param;
 }
 
-int video_encoder_set_maxbps(
-  std::shared_ptr<Flow> &enc_flow, unsigned int bpsmax) {
+int video_encoder_set_bps(
+  std::shared_ptr<Flow> &enc_flow, unsigned int target,
+  unsigned int min, unsigned int max) {
   if (!enc_flow)
     return -EINVAL;
 
-  if (bpsmax >= 98 * 1000 * 1000) {
-    LOG("ERROR: bpsmax should be less then 98Mb\n");
-    return -EINVAL;
-  }
-
   auto pbuff = std::make_shared<ParameterBuffer>(0);
-  pbuff->SetValue(bpsmax);
+  int *bps_array = (int *)malloc(3 * sizeof(int));
+  bps_array[0] = min;
+  bps_array[1] = target;
+  bps_array[2] = max;
+
+  pbuff->SetPtr(bps_array, 3 * sizeof(int));
   enc_flow->Control(VideoEncoder::kBitRateChange, pbuff);
 
   return 0;
@@ -464,10 +452,10 @@ int video_encoder_set_qp(
   // qp_max       - 8 ~ 51
   // qp_min       - 0 ~ 48
   if ((qps.qp_max && ((qps.qp_max > 51) || (qps.qp_max < 8))) ||
-    (qps.max_i_qp && ((qps.max_i_qp > 51) || (qps.max_i_qp < 8))) ||
+    (qps.qp_max_i && ((qps.qp_max_i > 51) || (qps.qp_max_i < 8))) ||
     (qps.qp_min < 0) || (qps.qp_min > 48) ||
-    (qps.min_i_qp < 0) || (qps.min_i_qp > 48) ||
-    (qps.qp_min > qps.qp_max) || (qps.min_i_qp > qps.max_i_qp)) {
+    (qps.qp_min_i < 0) || (qps.qp_min_i > 48) ||
+    (qps.qp_min > qps.qp_max) || (qps.qp_min_i > qps.qp_max_i)) {
     LOG("ERROR: qp range error. qp_min:[0, 48]; qp_max:[8, 51]\n");
     return -EINVAL;
   }

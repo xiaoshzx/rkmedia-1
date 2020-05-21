@@ -54,6 +54,12 @@ public:
 
 namespace easymedia {
 
+#define GET_STRING_TO_INT(var, map, key, defalut)    \
+  if (!map[key].empty())                                \
+    var = std::stoi(map[key]);                          \
+  else                                                  \
+    var = defalut;
+
 #define CHECK_EMPTY_SETERRNO_RETURN(v_type, v, map, k, seterrno, ret)          \
   v_type v = map[k];                                                           \
   if (v.empty()) {                                                             \
