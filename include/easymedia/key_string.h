@@ -175,6 +175,9 @@
 #define KEY_FRAME_INTERVAL "frame_interval"
 #define KEY_SCORE_THRESHOD "score_threshod"
 #define KEY_FRAME_RATE "frame_rate"
+#define KEY_ENABLE "enable"
+#define KEY_BODY_PERCENTAGE "percentage"
+#define KEY_BODY_DURATION "duration"
 
 //rockx
 #define KEY_ROCKX_MODEL "rockx_model"

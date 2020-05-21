@@ -6,6 +6,7 @@
 #define EASYMEDIA_CONTROL_H_
 
 #include <stdint.h>
+#include <image.h>
 
 namespace easymedia {
 
@@ -19,6 +20,14 @@ typedef struct {
   int size;
   void *arg;
 } SubRequest;
+
+typedef struct {
+  bool enable;
+  int interval;
+  int duration; /* second */
+  float percentage; /* 0-100 */
+  ImageRect rect;
+} BodyDetectArg;
 
 enum {
   S_FIRST_CONTROL = 10000,
