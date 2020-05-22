@@ -11,6 +11,7 @@
 #include "lock.h"
 #include "media_config.h"
 #include "rga_filter.h"
+#include "rknn_utils.h"
 #include "stream.h"
 
 namespace easymedia {
@@ -20,6 +21,7 @@ public:
   FaceCapture(const char *param);
   virtual ~FaceCapture();
   static const char *GetFilterName() { return "face_capture"; }
+  virtual int IoCtrl(unsigned long int request, ...) override;
 
   std::string GenFilePath(time_t curtime = 0, int face_id = 0);
 
@@ -44,6 +46,9 @@ private:
   std::string file_suffix_;
   size_t file_index_;
   int last_face_id_;
+  RknnCallBack callback_;
+  ReadWriteLockMutex cb_mtx_;
+  std::string filepath_;
 };
 
 FaceCapture::FaceCapture(const char *param) : last_face_id_(-1) {
@@ -231,8 +236,12 @@ int FaceCapture::DoEncode(std::shared_ptr<MediaBuffer> src,
 }
 
 int FaceCapture::DoWrite(std::shared_ptr<MediaBuffer> buffer, int face_id) {
+  int ret = 0;
   time_t curtime = buffer->GetUSTimeStamp() / 1000000LL;
-  fstream_->NewStream(GenFilePath(curtime, face_id));
+  filepath_ = GenFilePath(curtime, face_id);
+  ret = fstream_->NewStream(filepath_);
+  if (ret < 0)
+    return ret;
   return fstream_->WriteAndClose(buffer->GetPtr(), 1, buffer->GetValidSize());
 }
 
@@ -287,9 +296,38 @@ int FaceCapture::Process(std::shared_ptr<MediaBuffer> input,
   std::shared_ptr<MediaBuffer> enc_buffer;
   if (DoEncode(rga_buffer, enc_buffer))
     return 0;
-  DoWrite(enc_buffer, min_face_id);
+  if (DoWrite(enc_buffer, min_face_id))
+    return 0;
 
+  if (callback_)
+    callback_(this, NNRESULT_TYPE_FACE_PICTURE_UPLOAD,
+              (void *)(filepath_.c_str()), filepath_.size());
   return 0;
+}
+
+int FaceCapture::IoCtrl(unsigned long int request, ...) {
+  AutoLockMutex lock(cb_mtx_);
+  int ret = 0;
+  va_list vl;
+
+  va_start(vl, request);
+  switch (request) {
+  case S_NN_CALLBACK: {
+    void *arg = va_arg(vl, void *);
+    if (arg)
+      callback_ = (RknnCallBack)arg;
+  } break;
+  case G_NN_CALLBACK: {
+    void *arg = va_arg(vl, void *);
+    if (arg)
+      arg = (void *)callback_;
+  } break;
+  default:
+    ret = -1;
+    break;
+  }
+  va_end(vl);
+  return ret;
 }
 
 DEFINE_COMMON_FILTER_FACTORY(FaceCapture)
