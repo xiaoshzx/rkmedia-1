@@ -85,10 +85,6 @@ if(ROCKFACE)
     add_definitions(-DUSE_ROCKFACE)
 endif()
 
-if(DEFINED CONFIG_OEM)
-    add_definitions(-DCONFIG_OEM=${CONFIG_OEM})
-endif()
-
 if(ROCKX)
   add_definitions(-DUSE_ROCKX)
   include_directories(${ROCKX_HEADER_DIR})
@@ -106,7 +102,7 @@ set_target_properties(${LIBRARY_NAME} PROPERTIES VERSION ${LIBRARY_VERSION})
 set_target_properties(${LIBRARY_NAME} PROPERTIES SOVERSION 1)
 
 if(USE_RKAIQ)
-set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} RkAiq::RkAiq)
+  set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} RkAiq::RkAiq)
 endif()
 
 if(EASY_MEDIA_COMPILE_DEFINITIONS)
