@@ -179,12 +179,23 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
     return;
   }
 
-  const std::string &enc_param_str = separate_list.back();
+  std::string &enc_param_str = separate_list.back();
   std::map<std::string, std::string> enc_params;
+
   if (!parse_media_param_map(enc_param_str.c_str(), enc_params)) {
     SetError(-EINVAL);
     return;
   }
+  // copy data type to enc params.
+  std::string::size_type idx;
+  idx = enc_param_str.find(KEY_OUTPUTDATATYPE);
+  if (idx == enc_param_str.npos)
+    PARAM_STRING_APPEND(enc_param_str, KEY_OUTPUTDATATYPE, params[KEY_OUTPUTDATATYPE]);
+  if (enc_params[KEY_INPUTDATATYPE].empty())
+    enc_params[KEY_INPUTDATATYPE] = params[KEY_INPUTDATATYPE];
+  if (enc_params[KEY_OUTPUTDATATYPE].empty())
+    enc_params[KEY_OUTPUTDATATYPE] = params[KEY_OUTPUTDATATYPE];
+
   MediaConfig mc;
   if (!ParseMediaConfigFromMap(enc_params, mc)) {
     SetError(-EINVAL);

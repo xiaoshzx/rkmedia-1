@@ -25,14 +25,26 @@ typedef struct {
   int qp_step;
   int qp_min;
   int qp_max;
-  int max_i_qp; // h265 encoder.
-  int min_i_qp; // h265 encoder.
+  int qp_max_i;
+  int qp_min_i;
   int bit_rate;
+  int bit_rate_max;
+  int bit_rate_min;
+  // The frame rate may be a fraction:
+  //   @frame_rate: numerator of the output fps
+  //   @frame_rate_den: denominator of the output fps.
+  //   @frame_in_rate: numerator of the input fps.
+  //   @frame_in_rate_den: denominator of the input fps.
   int frame_rate;
-  int trans_8x8; // h264 encoder.
-  int level;
+  int frame_rate_den;
+  int frame_in_rate;
+  int frame_in_rate_den;
+  int trans_8x8; // h264 encoder
+  int level; // h264 encoder
   int gop_size;
-  int profile;
+  int profile; // h264 encoder
+  // encoder work in fullrage mode.
+  int full_range;
   // quality - quality parameter
   //    (extra CQP level means special constant-qp (CQP) mode)
   //    (extra AQ_ONLY means special aq only mode)
@@ -104,8 +116,8 @@ typedef struct {
   int qp_step;
   int qp_min; //0~48
   int qp_max; //8-51
-  int min_i_qp;
-  int max_i_qp;
+  int qp_min_i;
+  int qp_max_i;
 } VideoEncoderQp;
 
 #include <map>
@@ -122,28 +134,27 @@ _API std::string to_param_string(const VideoConfig &vid_cfg);
 _API std::string to_param_string(const AudioConfig &aud_cfg);
 _API std::string to_param_string(const MediaConfig &mc,
                                  const std::string &out_type);
-_API std::string get_video_encoder_config_string (
+_API std::string get_video_encoder_config_string(
   const ImageInfo &info, const VideoEncoderCfg &cfg);
-_API int video_encoder_set_maxbps(
-  std::shared_ptr<Flow> &enc_flow, unsigned int bpsmax);
+_API int video_encoder_set_bps (std::shared_ptr<Flow> &enc_flow,
+  unsigned int target, unsigned int min = 0, unsigned int max = 0);
 // rc_quality Ranges:
 //   KEY_WORST/KEY_WORSE/KEY_MEDIUM/KEY_BETTER/KEY_BEST
-_API int video_encoder_set_rc_quality(
-  std::shared_ptr<Flow> &enc_flow, const char *rc_quality);
+_API int video_encoder_set_rc_quality(std::shared_ptr<Flow> &enc_flow,
+  const char *rc_quality);
 // rc_mode Ranges:KEY_VBR/KEY_CBR
-_API int video_encoder_set_rc_mode(
-  std::shared_ptr<Flow> &enc_flow, const char *rc_mode);
-_API int video_encoder_set_qp(
-  std::shared_ptr<Flow> &enc_flow, VideoEncoderQp &qps);
+_API int video_encoder_set_rc_mode(std::shared_ptr<Flow> &enc_flow,
+  const char *rc_mode);
+_API int video_encoder_set_qp(std::shared_ptr<Flow> &enc_flow,
+  VideoEncoderQp &qps);
 _API int video_encoder_force_idr(std::shared_ptr<Flow> &enc_flow);
-_API int video_encoder_set_fps(
-  std::shared_ptr<Flow> &enc_flow,
+_API int video_encoder_set_fps(std::shared_ptr<Flow> &enc_flow,
   uint8_t out_num, uint8_t out_den,
   uint8_t in_num = 0, uint8_t in_den = 0);
-_API int video_encoder_set_osd_plt(
-  std::shared_ptr<Flow> &enc_flow, uint32_t *yuv_plt);
-_API int video_encoder_set_osd_region(
-  std::shared_ptr<Flow> &enc_flow, OsdRegionData *region_data);
+_API int video_encoder_set_osd_plt(std::shared_ptr<Flow> &enc_flow,
+  uint32_t *yuv_plt);
+_API int video_encoder_set_osd_region(std::shared_ptr<Flow> &enc_flow,
+  OsdRegionData *region_data);
 _API int video_encoder_set_move_detection(std::shared_ptr<Flow> &enc_flow,
   std::shared_ptr<Flow> &md_flow);
 _API int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
@@ -166,10 +177,10 @@ _API int video_move_detect_set_rects(std::shared_ptr<Flow> &md_flow,
 // When split by byte number this value is the max byte number for each slice.
 // When split by macroblock / ctu number this value is the MB/CTU number
 // for each slice.
-_API int video_encoder_set_split(
-  std::shared_ptr<Flow> &enc_flow, unsigned int mode, unsigned int size);
-_API int video_encoder_enable_statistics(
-  std::shared_ptr<Flow> &enc_flow, int enable);
+_API int video_encoder_set_split(std::shared_ptr<Flow> &enc_flow,
+  unsigned int mode, unsigned int size);
+_API int video_encoder_enable_statistics(std::shared_ptr<Flow> &enc_flow,
+  int enable);
 } // namespace easymedia
 
 #endif // #ifndef EASYMEDIA_MEDIA_CONFIG_H_

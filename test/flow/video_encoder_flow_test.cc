@@ -222,6 +222,7 @@ RESTART:
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, video_enc_type);
 
+#if 0
   VideoEncoderCfg vcfg;
   memset(&vcfg, 0, sizeof(vcfg));
   vcfg.type = (char *)video_enc_type.c_str();
@@ -234,6 +235,20 @@ RESTART:
   image_info.vir_width = vir_width;
   image_info.vir_height = vir_height;
   enc_param = easymedia::get_video_encoder_config_string(image_info, vcfg);
+#else
+  int bps = video_width * video_height * video_fps / 14;
+  enc_param = "";
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_WIDTH, video_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, video_height);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, vir_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT, vir_height);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE, bps);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, bps * 17 / 16);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, bps / 16);
+  PARAM_STRING_APPEND(enc_param, KEY_FPS, "30/0");
+  PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "30/0");
+#endif
+
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   printf("\n#VideoEncoder flow param:\n%s\n", flow_param.c_str());
   video_encoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(

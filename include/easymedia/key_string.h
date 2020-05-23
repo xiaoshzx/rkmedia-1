@@ -38,8 +38,16 @@
 #define KEY_COMPRESS_QP_STEP "qp_step"
 #define KEY_COMPRESS_QP_MIN "qp_min"
 #define KEY_COMPRESS_QP_MAX "qp_max"
+#define KEY_COMPRESS_QP_MAX_I "qp_max_i"
+#define KEY_COMPRESS_QP_MIN_I "qp_min_i"
 #define KEY_COMPRESS_BITRATE "bitrate"
+#define KEY_COMPRESS_BITRATE_MAX "bitrate_max"
+#define KEY_COMPRESS_BITRATE_MIN "bitrate_min"
+// output frame rate, string formate: "num/den"
+// such as: KEY_FPS="30/1".
 #define KEY_FPS "framerate"
+// input frame rate, string formate: "num/den"
+#define KEY_FPS_IN "framerate_in"
 #define KEY_LEVEL "level"
 #define KEY_VIDEO_GOP "gop"
 #define KEY_PROFILE "profile"
@@ -47,9 +55,7 @@
 #define KEY_COMPRESS_RC_MODE "rc_mode"
 #define KEY_NEED_EXTRA_OUTPUT "need_extra_output"
 #define KEY_NEED_EXTRA_MERGE "need_extra_merge"
-
-#define KEY_H265_MAX_I_QP "h265_max_i_qp"
-#define KEY_H265_MIN_I_QP "h265_min_i_qp"
+#define KEY_FULL_RANGE "full_range"
 #define KEY_H264_TRANS_8x8 "h264_trans_8x8"
 
 #define KEY_ROI_REGIONS "roi_regions"
