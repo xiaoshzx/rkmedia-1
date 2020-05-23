@@ -428,6 +428,11 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
     return false;
   }
 
+  // save bps to vconfig.
+  vconfig.bit_rate_max = bps_max;
+  vconfig.bit_rate_min = bps_min;
+  vconfig.bit_rate = bps_target;
+
   LOG("MPP Encoder: w x h(%d[%d] x %d[%d])\n", image_info.width,
     line_size, image_info.height, image_info.vir_height);
 
