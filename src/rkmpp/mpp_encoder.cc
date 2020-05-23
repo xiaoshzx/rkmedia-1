@@ -292,7 +292,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
   if (encoder_sta_en) {
     MediaConfig &cfg = GetConfig();
     int target_fps = cfg.vid_cfg.frame_rate;
-    int target_bps = cfg.vid_cfg.bit_rate;
+    int target_bpsmax = cfg.vid_cfg.bit_rate_max;
     frame_cnt_1s += 1;
     stream_size_1s += packet_len;
     //Refresh every second
@@ -308,7 +308,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
         frame_cnt_1s = 0;
         LOG("[INFO: MPP ENCODER] bps:%d, actual_bps:%d, "
           "fps:%d, actual_fps:%f\n",
-          target_bps, encoded_bps, target_fps, encoded_fps);
+          target_bpsmax, encoded_bps, target_fps, encoded_fps);
     }
   } else if (cur_ts) {
     // clear tmp statistics variable.
