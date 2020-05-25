@@ -53,23 +53,20 @@ private:
   MediaBufferVector in_vector;
   decltype(&FlowCoroutine::SyncFetchInput) fetch_input_func;
   decltype(&FlowCoroutine::SendBufferDown) send_down_func;
-//#ifndef NDEBUG
+
 public:
   void SetMarkName(std::string s) { name = s; }
   void SetExpectProcessTime(int time) { expect_process_time = time; }
 
   std::string name;
   int expect_process_time; // ms
-//#endif
 };
 
 FlowCoroutine::FlowCoroutine(Flow *f, Model sync_model, FunctionProcess func,
                              float inter)
-    : flow(f), model(sync_model), interval(inter), th(nullptr), th_run(func)
-#ifndef NDEBUG
-      ,
+    : flow(f), model(sync_model), interval(inter), th(nullptr), th_run(func),
       expect_process_time(0)
-#endif
+
 {
 }
 
@@ -78,7 +75,7 @@ FlowCoroutine::~FlowCoroutine() {
     th->join();
     delete th;
   }
-  LOGD("%s quit\n", name.c_str());
+  LOG("%s quit\n", name.c_str());
 }
 
 void FlowCoroutine::Bind(std::vector<int> &in, std::vector<int> &out) {
@@ -157,10 +154,8 @@ void FlowCoroutine::RunOnce() {
 }
 
 void FlowCoroutine::WhileRun() {
-#ifndef NDEBUG
   prctl(PR_SET_NAME, this->name.c_str());
   LOGD("flow-name %s\n", this->name.c_str());
-#endif
   while (!flow->quit)
     RunOnce();
 }
@@ -169,10 +164,9 @@ void FlowCoroutine::WhileRunSleep() {
   int64_t times = 0;
   AutoDuration ad;
   assert(interval > 0);
-#ifndef NDEBUG
   prctl(PR_SET_NAME, this->name.c_str());
   LOGD("flow-name %s\n", this->name.c_str());
-#endif
+
   while (!flow->quit) {
     if (times == 0)
       ad.Reset();
@@ -372,6 +366,74 @@ bool Flow::IsAllBuffEmpty() {
   return true;
 }
 
+void Flow::DumpBase(std::string &dump_info) {
+  int idx = 0;
+  char str_line[1024] = {0};
+
+  dump_info = "";
+  sprintf(str_line, "#Dump Flow(%s) base info:\r\n", GetFlowTag());
+  dump_info.append(str_line);
+  memset(str_line, 0, sizeof(str_line));
+  sprintf(str_line, "  InSlotNum: %d\r\n", input_slot_num);
+  dump_info.append(str_line);
+  memset(str_line, 0, sizeof(str_line));
+  sprintf(str_line, "  OutSlotNum: %d\r\n", out_slot_num);
+  dump_info.append(str_line);
+
+  for (auto &input : v_input) {
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "  ->Input[%d] info:\r\n", idx);
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "    Valid: %s\r\n", input.valid ? "True" : "False");
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    if (input.thread_model == Model::ASYNCCOMMON)
+      sprintf(str_line, "    ThreadMode: ASYNCCOMMON\r\n");
+    else if (input.thread_model == Model::ASYNCATOMIC)
+      sprintf(str_line, "    ThreadMode: ASYNCATOMIC\r\n");
+    else if (input.thread_model == Model::SYNC)
+      sprintf(str_line, "    ThreadMode: SYNC\r\n");
+    else
+      sprintf(str_line, "    ThreadMode: NONE\r\n");
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    if (input.mode_when_full == InputMode::BLOCKING)
+      sprintf(str_line, "    InputMode: BLOCKING\r\n");
+    else if (input.mode_when_full == InputMode::DROPCURRENT)
+      sprintf(str_line, "    InputMode: DROPCURRENT\r\n");
+    else if (input.mode_when_full == InputMode::DROPFRONT)
+      sprintf(str_line, "    InputMode: DROPFRONT\r\n");
+    else
+      sprintf(str_line, "    InputMode: NONE\r\n");
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "    BufferCnt: current:%d, max:%d\r\n",
+      input.cached_buffers.size(), input.max_cache_num);
+    dump_info.append(str_line);
+  }
+
+  idx = 0;
+  for (auto &fm : downflowmap) {
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "  ->FlowMap[%d] info:\r\n", idx);
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "    Valid: %s\r\n", fm.valid ? "True" : "False");
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "    BufferCnt: %d\r\n", fm.cached_buffers.size());
+    dump_info.append(str_line);
+
+    dump_info.append("    NextFlow: ");
+    for (auto &nflow : fm.flows) {
+      dump_info.append(nflow.flow->GetFlowTag());
+      dump_info.append(" ");
+    }
+    dump_info.append("\r\n");
+  }
+}
+
 static bool check_slots(std::vector<int> &slots, const char *debugstr) {
   if (slots.empty())
     return true;
@@ -552,13 +614,9 @@ bool Flow::InstallSlotMap(SlotMap &map, const std::string &mark,
       out_slot_num++;
     }
   }
-#ifndef NDEBUG
+
   c->SetMarkName(mark);
   c->SetExpectProcessTime(exp_process_time);
-#else
-  UNUSED(mark);
-  UNUSED(exp_process_time);
-#endif
   c->Start();
   return true;
 }
@@ -742,6 +800,7 @@ void Flow::Input::ASyncSendInputAtomicBehavior(
 }
 
 bool Flow::Input::ASyncFullBlockingBehavior(volatile bool &pred) {
+  AutoDuration ad;
   do {
     msleep(5);
     mtx.unlock();
@@ -752,15 +811,23 @@ bool Flow::Input::ASyncFullBlockingBehavior(volatile bool &pred) {
     mtx.lock();
   } while (pred);
 
+  if (ad.Get() > 5000/*ms*/)
+    LOG("WARN: Flow[%s]: Input[block mode]: block too long(%.2fms) > 5ms\n",
+      flow ? flow->GetFlowTag() : "Name is null", ad.Get() / 1000.0);
+
   return pred;
 }
 
 bool Flow::Input::ASyncFullDropFrontBehavior(volatile bool &pred _UNUSED) {
+  LOG("WARN: Flow[%s]: Input: drop front buffer!\n",
+    flow ? flow->GetFlowTag() : "Name is null");
   cached_buffers.pop_front();
   return true;
 }
 
 bool Flow::Input::ASyncFullDropCurrentBehavior(volatile bool &pred _UNUSED) {
+  LOG("WARN: Flow[%s]: Input: drop current buffer!\n",
+    flow ? flow->GetFlowTag() : "Name Is Null");
   return false;
 }
 

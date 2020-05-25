@@ -52,7 +52,7 @@ LinkFlow::LinkFlow(const char *param) {
     LOG("Fail to InstallSlotMap for LinkFLow\n");
     return;
   }
-
+  SetFlowTag("LinkFLow");
   std::string &type = params[KEY_INPUTDATATYPE];
   link_type_ = LINK_NONE;
   if (type.find(VIDEO_PREFIX) != std::string::npos) {

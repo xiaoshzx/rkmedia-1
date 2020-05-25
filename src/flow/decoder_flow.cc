@@ -66,6 +66,7 @@ VideoDecoderFlow::VideoDecoderFlow(const char *param)
   }
   if (decoder->SendInput(nullptr) < 0 && errno == ENOSYS)
     support_async = false;
+  SetFlowTag("VideoDecoderFlow");
 }
 
 bool do_decode(Flow *f, MediaBufferVector &input_vector) {

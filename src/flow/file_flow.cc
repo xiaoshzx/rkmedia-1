@@ -72,7 +72,7 @@ FileReadFlow::FileReadFlow(const char *param)
   value = params[KEY_LOOP_TIME];
   if (!value.empty())
     loop_time = std::stoi(value);
-  if (!SetAsSource(std::vector<int>({0}), void_transaction00, path)) {
+  if (!SetAsSource(std::vector<int>({0}), void_transaction00, "FileReadFlow")) {
     SetError(-EINVAL);
     return;
   }
@@ -83,6 +83,7 @@ FileReadFlow::FileReadFlow(const char *param)
     SetError(-EINVAL);
     return;
   }
+  SetFlowTag("FileReadFlow");
 }
 
 FileReadFlow::~FileReadFlow() {
@@ -255,7 +256,6 @@ FileWriteFlow::FileWriteFlow(const char *param)
     return;
   }
 
-
   SlotMap sm;
   sm.input_slots.push_back(0);
   sm.thread_model = Model::ASYNCCOMMON;
@@ -267,6 +267,7 @@ FileWriteFlow::FileWriteFlow(const char *param)
     LOG("Fail to InstallSlotMap for FileWriteFlow\n");
     return;
   }
+  SetFlowTag("FileWriteFlow");
 }
 
 FileWriteFlow::~FileWriteFlow() {

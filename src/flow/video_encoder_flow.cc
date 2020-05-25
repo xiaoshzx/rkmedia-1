@@ -33,6 +33,7 @@ public:
   }
   static const char *GetFlowName() { return "video_enc"; }
   int Control(unsigned long int request, ...);
+  void Dump(std::string &dump_info) override;
 
   MediaConfig GetConfig() {
     MediaConfig cfg;
@@ -272,6 +273,7 @@ VideoEncoderFlow::VideoEncoderFlow(const char *param) : extra_output(false),
     SetError(-EINVAL);
     return;
   }
+  SetFlowTag("VideoEncoderFlow");
 
   if (extra_data && extra_data_size > 0 &&
       (output_dt == VIDEO_H264 || output_dt == VIDEO_H265)) {
@@ -322,6 +324,90 @@ int VideoEncoderFlow::Control(unsigned long int request, ...) {
 
   enc->RequestChange(request, value);
   return 0;
+}
+
+void VideoEncoderFlow::Dump(std::string &dump_info) {
+  const MediaConfig mc = GetConfig();
+  char str_line[1024] = {0};
+
+  DumpBase(dump_info);
+  sprintf(str_line, "#Dump Flow(%s) advanced info:\r\n", GetFlowTag());
+  dump_info.append(str_line);
+  memset(str_line, 0, sizeof(str_line));
+  sprintf(str_line, "  Name:%s\r\n", GetFlowName());
+  dump_info.append(str_line);
+
+  memset(str_line, 0, sizeof(str_line));
+  if (mc.type == Type::Image) {
+    dump_info.append("  CodecType: JPEG\r\n");
+    sprintf(str_line, "  Input: %d(%d)x%d(%d) fmt:%s\r\n",
+      mc.img_cfg.image_info.width, mc.img_cfg.image_info.vir_width,
+      mc.img_cfg.image_info.height, mc.img_cfg.image_info.vir_height,
+      PixFmtToString(mc.img_cfg.image_info.pix_fmt));
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "  Quant:%d\n", mc.img_cfg.qp_init);
+    dump_info.append(str_line);
+  } else if (mc.type == Type::Video) {
+    const VideoConfig &vcfg = mc.vid_cfg;
+    const ImageConfig &imgcfg = vcfg.image_cfg;
+
+    if (imgcfg.codec_type == CODEC_TYPE_H264)
+      dump_info.append("  CodecType: H264\r\n");
+    else if (imgcfg.codec_type == CODEC_TYPE_H265)
+      dump_info.append("  CodecType: H265\r\n");
+    else {
+      LOG("ERROR: VEnc Flow: config fatal error!\n");
+      return;
+    }
+    sprintf(str_line, "  Input: %d(%d)x%d(%d) fmt:%s\r\n",
+      imgcfg.image_info.width, imgcfg.image_info.vir_width,
+      imgcfg.image_info.height, imgcfg.image_info.vir_height,
+      PixFmtToString(imgcfg.image_info.pix_fmt));
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "  QpArray: min:%d, max:%d, step:%d, min_i:%d, max_i:%d\r\n",
+      vcfg.qp_min, vcfg.qp_max, vcfg.qp_step, vcfg.qp_min_i, vcfg.qp_max_i);
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "  BitRate: target:%d, min:%d, max:%d\r\n",
+      vcfg.bit_rate, vcfg.bit_rate_min, vcfg.bit_rate_max);
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "  FrameRate: in:%d/%d, out:%d/%d\r\n",
+      vcfg.frame_in_rate, vcfg.frame_in_rate_den,
+      vcfg.frame_rate, vcfg.frame_rate_den);
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "  GopSize: %d\r\n", vcfg.gop_size);
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "  RcQuality: %s\r\n", vcfg.rc_quality);
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "  RcMode: %s\r\n", vcfg.rc_mode);
+    dump_info.append(str_line);
+    memset(str_line, 0, sizeof(str_line));
+    sprintf(str_line, "  FullRange: %s\r\n", vcfg.full_range ? "Enable" : "Disable");
+    dump_info.append(str_line);
+
+    if (imgcfg.codec_type == CODEC_TYPE_H264) {
+      memset(str_line, 0, sizeof(str_line));
+      sprintf(str_line, "  Trans8x8: %s\r\n", vcfg.trans_8x8 ? "Enable" : "Disable");
+      dump_info.append(str_line);
+      memset(str_line, 0, sizeof(str_line));
+      sprintf(str_line, "  H264Level: %d\r\n", vcfg.level);
+      dump_info.append(str_line);
+      memset(str_line, 0, sizeof(str_line));
+      sprintf(str_line, "  H264Profile: %d\r\n", vcfg.profile);
+      dump_info.append(str_line);
+    }
+  } else {
+    LOG("ERROR: VEnc Flow: Dump: to do...!\n");
+    return;
+  }
+
+  return;
 }
 
 DEFINE_FLOW_FACTORY(VideoEncoderFlow, Flow)

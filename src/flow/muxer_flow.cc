@@ -150,6 +150,7 @@ MuxerFlow::MuxerFlow(const char *param)
     LOG("Fail to InstallSlotMap for MuxerFlow\n");
     return;
   }
+  SetFlowTag("MuxerFlow");
 }
 
 MuxerFlow::~MuxerFlow() { StopAllThread(); }
