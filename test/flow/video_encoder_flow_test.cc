@@ -247,6 +247,7 @@ RESTART:
   PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, bps / 16);
   PARAM_STRING_APPEND(enc_param, KEY_FPS, "30/0");
   PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "30/0");
+  PARAM_STRING_APPEND_TO(enc_param, KEY_FULL_RANGE, 1);
 #endif
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);

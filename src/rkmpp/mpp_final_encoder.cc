@@ -347,7 +347,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
   ret |= mpp_enc_cfg_set_s32(enc_cfg, "prep:ver_stride", image_info.vir_height);
   ret |= mpp_enc_cfg_set_s32(enc_cfg, "prep:format", pic_type);
   if (full_range)
-    ret |= mpp_enc_cfg_set_s32(enc_cfg, "prep:range", full_range);
+    ret |= mpp_enc_cfg_set_s32(enc_cfg, "prep:range", MPP_FRAME_RANGE_JPEG);
 
   // rccfg set.
   ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:mode", rc_mode);
