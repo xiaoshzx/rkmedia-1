@@ -6,7 +6,7 @@
 #define EASYMEDIA_CONTROL_H_
 
 #include <stdint.h>
-#include <image.h>
+#include "image.h"
 
 namespace easymedia {
 
