@@ -260,6 +260,7 @@ std::string to_param_string(const VideoConfig &vid_cfg) {
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_MAX_I, vid_cfg.qp_max_i);
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_MIN_I, vid_cfg.qp_min_i);
   PARAM_STRING_APPEND_TO(ret, KEY_H264_TRANS_8x8, vid_cfg.trans_8x8);
+  PARAM_STRING_APPEND_TO(ret, KEY_FULL_RANGE, vid_cfg.full_range);
   return ret;
 }
 
