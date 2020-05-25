@@ -6,21 +6,8 @@
 #include <vector>
 
 #include "buffer.h"
-#include "rkaiq/uAPI/rk_aiq_user_api_sysctl.h"
 #include "utils.h"
 #include "v4l2_stream.h"
-static rk_aiq_sys_ctx_t *aiq_ctx = NULL;
-#if CONFIG_OEM
-const char *iq_file_dir = "/oem/etc/iqfiles/";
-#else
-const char *iq_file_dir = "/etc/iqfiles/";
-#endif
-
-rk_aiq_working_mode_t mode = RK_AIQ_WORKING_MODE_ISP_HDR2;
-static int WIDTH = 2688;
-static int HEIGHT = 1520;
-static int cam_open_cnt = 0;
-sensor_t rkcam_info;
 
 namespace easymedia {
 
@@ -100,29 +87,6 @@ int V4L2CaptureStream::BufferExport(enum v4l2_buf_type bt, int index,
   }
   *dmafd = expbuf.fd;
 
-  return 0;
-}
-
-int get_sensor_info(sensor_t *cam_info) {
-  uint32_t nents, j = 0;
-  const char *devpath = "/dev/media0";
-  struct media_device *device = NULL;
-  const struct media_entity_desc *entity_info = NULL;
-  struct media_entity *entity = NULL;
-
-  device = media_device_new(devpath);
-
-  /* Enumerate entities, pads and links. */
-  media_device_enumerate(device);
-
-  nents = media_get_entities_count(device);
-  for (j = 0; j < nents; ++j) {
-    entity = media_get_entity(device, j);
-    entity_info = media_entity_get_info(entity);
-    if ((NULL != entity_info) &&
-        (entity_info->type == MEDIA_ENT_T_V4L2_SUBDEV_SENSOR))
-      cam_info->sensor_name = std::string(entity_info->name);
-  }
   return 0;
 }
 
@@ -298,54 +262,12 @@ int V4L2CaptureStream::Open() {
     }
   }
 
-  char *ispp_dev = getenv("RKISPP_DEV");
-  int aiq_flag = 1;
-  if (ispp_dev) {
-    LOG("rkispp dev name: %s \n", ispp_dev);
-    if (!strcmp(dev, ispp_dev))
-      aiq_flag = 1;
-    else
-      aiq_flag = 0;
-  }
-
-  if (aiq_ctx == NULL && (aiq_flag == 1)) {
-    char *hdr_mode = getenv("HDR_MODE");
-    if (hdr_mode) {
-      LOG("hdr mode: %s \n", hdr_mode);
-      if (0 == atoi(hdr_mode))
-        mode = RK_AIQ_WORKING_MODE_NORMAL;
-      else if (1 == atoi(hdr_mode))
-        mode = RK_AIQ_WORKING_MODE_ISP_HDR2;
-      else if (2 == atoi(hdr_mode))
-        mode = RK_AIQ_WORKING_MODE_ISP_HDR3;
-    }
-    if (!get_sensor_info(&rkcam_info))
-      LOG("sensor_entity_name = %s\n", rkcam_info.sensor_name.c_str());
-    aiq_ctx = rk_aiq_uapi_sysctl_init(rkcam_info.sensor_name.c_str(), iq_file_dir,
-                                      NULL, NULL);
-    LOG("rkaiq prepare width = %d, height = %d, mode = %d\n", WIDTH, HEIGHT,
-        mode);
-    int ret_val = rk_aiq_uapi_sysctl_prepare(aiq_ctx, WIDTH, HEIGHT, mode);
-    if (ret_val)
-      LOG("rk_aiq_uapi_sysctl_prepare failed: %d\n", ret_val);
-    rk_aiq_uapi_sysctl_start(aiq_ctx);
-    LOG("rkaiq start\n");
-  }
-  cam_open_cnt++;
   SetReadable(true);
   return 0;
 }
 int V4L2CaptureStream::Close() {
   started = false;
-  int ret = V4L2Stream::Close();
-  cam_open_cnt--;
-  if (aiq_ctx && (cam_open_cnt == 0)) {
-    rk_aiq_uapi_sysctl_stop(aiq_ctx);
-    rk_aiq_uapi_sysctl_deinit(aiq_ctx);
-    aiq_ctx = NULL;
-  }
-
-  return ret;
+  return V4L2Stream::Close();
 }
 
 class V4L2AutoQBUF {

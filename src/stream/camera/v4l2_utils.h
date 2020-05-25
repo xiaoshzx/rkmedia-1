@@ -43,11 +43,6 @@ typedef struct {
   char isp_self_path[DEV_PATH_LEN];
 } isp_t;
 
-typedef struct {
-  std::string device_name;
-  std::string sensor_name;
-} sensor_t;
-
 namespace easymedia {
 
 __u32 GetV4L2Type(const char *v4l2type);
