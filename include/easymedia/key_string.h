@@ -140,6 +140,7 @@
 #define KEY_FILE_INDEX "file_index"
 #define KEY_FILE_TIME "file_time"
 #define KEY_MUXER_FFMPEG_AVDICTIONARY "muxer_ffmpeg_avdictionary"
+#define KEY_ENABLE_STREAMING "enable_streaming"
 
 // drm
 #define KEY_CONNECTOR_ID "connector_id"
