@@ -70,7 +70,7 @@ RtspConnection::RtspConnection(int port, std::string username,
     goto err;
   }
 
-  rtspServer = RTSPServer::createNew(*env, port, authDB, 1000);
+  rtspServer = RTSPServer::createNew(*env, port, authDB, 10);
 
   if (!rtspServer) {
     goto err;
