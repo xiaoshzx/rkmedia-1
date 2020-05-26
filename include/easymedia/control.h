@@ -86,6 +86,7 @@ enum {
   // MUXER controls
   S_START_SRTEAM = 10800,
   S_STOP_SRTEAM,
+  G_MUXER_GET_STATUS,
 };
 
 } // namespace easymedia

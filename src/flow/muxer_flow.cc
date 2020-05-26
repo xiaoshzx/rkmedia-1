@@ -231,6 +231,11 @@ int MuxerFlow::Control(unsigned long int request, ...) {
   case S_STOP_SRTEAM: {
     StopStream();
   } break;
+  case G_MUXER_GET_STATUS: {
+    int *value = va_arg(vl, int *);
+    if (value)
+      *value = enable_streaming ? 1 : 0;
+  } break;
   default:
     ret = -1;
     break;
