@@ -107,6 +107,15 @@ MuxerFlow::MuxerFlow(const char *param)
     is_use_customio = false;
   }
 
+  std::string enable_streaming_s =  params[KEY_ENABLE_STREAMING];
+  if (!enable_streaming_s.empty()) {
+    if (!enable_streaming_s.compare("false"))
+      enable_streaming = false;
+    else
+      enable_streaming = true;
+  }
+  LOG("Muxer:: enable_streaming is %d\n", enable_streaming);
+
   ffmpeg_avdictionary = params[KEY_MUXER_FFMPEG_AVDICTIONARY];
 
   for (auto param_str : separate_list) {
