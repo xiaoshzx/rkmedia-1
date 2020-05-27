@@ -354,6 +354,7 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
     SetError(-EINVAL);
     return;
   }
+  SetFlowTag("MDFlow");
 }
 
 MoveDetectionFlow:: ~MoveDetectionFlow() {

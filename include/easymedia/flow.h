@@ -85,6 +85,10 @@ public:
   Flow();
   virtual ~Flow();
   static const char *GetFlowName() { return nullptr; }
+  // The GetFlowName interface is occupied by the reflector,
+  // so GetFlowTag is used to distinguish Flow.
+  const char *GetFlowTag() { return flow_tag.c_str(); }
+  void SetFlowTag(std::string tag) { flow_tag = tag; }
 
   // TODO: Right now out_slot_index and in_slot_index is decided by exact
   //       subclass, automatically get these value or ignore them in future.
@@ -148,6 +152,10 @@ public:
   UserCallBack GetUserCallBack() { return user_callback_; }
 
   bool IsAllBuffEmpty();
+  void DumpBase(std::string &dump_info);
+  virtual void Dump(std::string &dump_info) {
+    DumpBase(dump_info);
+  }
 
 protected:
   class FlowInputMap {
@@ -262,6 +270,10 @@ private:
 
   UserHandler user_handler_;
   UserCallBack user_callback_;
+
+  // FlowTag is used to distinguish Flow.
+  std::string flow_tag;
+
   DEFINE_ERR_GETSET()
   DECLARE_PART_FINAL_EXPOSE_PRODUCT(Flow)
 };

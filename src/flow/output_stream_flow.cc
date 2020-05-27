@@ -59,14 +59,15 @@ OutPutStreamFlow::OutPutStreamFlow(const char *param) {
   sm.input_maxcachenum.push_back(input_maxcachenum);
   // sm.output_slots.push_back(0);
   sm.process = send_buffer;
-  std::string slot_name = "stream:";
-  slot_name.append(stream_name);
-  if (!InstallSlotMap(sm, slot_name, -1)) {
-    LOG("Fail to InstallSlotMap for %s\n", slot_name.c_str());
+  std::string tag = "OutputStreamFlow:";
+  tag.append(stream_name);
+  if (!InstallSlotMap(sm, tag, -1)) {
+    LOG("Fail to InstallSlotMap for %s\n", tag.c_str());
     SetError(-EINVAL);
     return;
   }
   out_stream = stream;
+  SetFlowTag(tag);
 }
 
 bool send_buffer(Flow *f, MediaBufferVector &input_vector) {

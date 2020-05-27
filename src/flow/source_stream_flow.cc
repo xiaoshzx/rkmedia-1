@@ -48,7 +48,9 @@ SourceStreamFlow::SourceStreamFlow(const char *param)
     SetError(-EINVAL);
     return;
   }
-  if (!SetAsSource(std::vector<int>({0}), void_transaction00, name)) {
+  std::string tag = "SourceStreamFlow:";
+  tag.append(name);
+  if (!SetAsSource(std::vector<int>({0}), void_transaction00, tag)) {
     SetError(-EINVAL);
     return;
   }
@@ -59,6 +61,7 @@ SourceStreamFlow::SourceStreamFlow(const char *param)
     SetError(-EINVAL);
     return;
   }
+  SetFlowTag(tag);
 }
 
 SourceStreamFlow::~SourceStreamFlow() {

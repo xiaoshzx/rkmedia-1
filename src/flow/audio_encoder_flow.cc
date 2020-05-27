@@ -118,13 +118,11 @@ AudioEncoderFlow::AudioEncoderFlow(const char *param) {
     return;
   }
 
-#if 1
   if (!REFLECTOR(Encoder)::IsMatch(ccodec_name, rule.c_str())) {
     LOG("Unsupport for audio encoder %s : [%s]\n", ccodec_name, rule.c_str());
     SetError(-EINVAL);
     return;
   }
-#endif
 
   const std::string &enc_param_str = separate_list.back();
   std::map<std::string, std::string> enc_params;
@@ -169,6 +167,8 @@ AudioEncoderFlow::AudioEncoderFlow(const char *param) {
     SetError(-EINVAL);
     return;
   }
+
+  SetFlowTag("AudioEncoderFlow");
 }
 
 int AudioEncoderFlow::GetInputSize() {
