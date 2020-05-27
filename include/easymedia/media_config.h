@@ -45,6 +45,8 @@ typedef struct {
   int profile; // h264 encoder
   // encoder work in fullrage mode.
   int full_range;
+  // reference frame config.
+  int ref_frm_cfg;
   // quality - quality parameter
   //    (extra CQP level means special constant-qp (CQP) mode)
   //    (extra AQ_ONLY means special aq only mode)
@@ -179,6 +181,8 @@ _API int video_move_detect_set_rects(std::shared_ptr<Flow> &md_flow,
 // for each slice.
 _API int video_encoder_set_split(std::shared_ptr<Flow> &enc_flow,
   unsigned int mode, unsigned int size);
+_API int video_encoder_set_ref_frm_cfg(std::shared_ptr<Flow> &enc_flow,
+  int reference_mode);
 _API int video_encoder_enable_statistics(std::shared_ptr<Flow> &enc_flow,
   int enable);
 } // namespace easymedia

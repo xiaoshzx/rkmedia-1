@@ -457,6 +457,23 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
   }
 #endif
 
+  if (vconfig.ref_frm_cfg) {
+    MppEncRefCfg ref = NULL;
+
+    LOG("MPP Encoder: enable tsvc mode...\n");
+    if (mpp_enc_ref_cfg_init(&ref)) {
+      LOG("ERROR: MPP Encoder: ref cfg init failed!\n");
+      return false;
+    }
+    if (mpi_enc_gen_ref_cfg(ref)) {
+      LOG("ERROR: MPP Encoder: ref cfg gen failed!\n");
+      mpp_enc_ref_cfg_deinit(&ref);
+      return false;
+    }
+    ret = mpp_enc.EncodeControl(MPP_ENC_SET_REF_CFG, ref);
+    mpp_enc_ref_cfg_deinit(&ref);
+  }
+
   int header_mode = MPP_ENC_HEADER_MODE_EACH_IDR;
   ret = mpp_enc.EncodeControl(MPP_ENC_SET_HEADER_MODE, &header_mode);
   if (ret) {
@@ -701,6 +718,32 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
 
     if (mpp_enc.EncodeControl(MPP_ENC_SET_CFG, enc_cfg) != 0) {
       LOG("ERROR: MPP Encoder: set split mode failed!\n");
+      return false;
+    }
+  } else if (change & VideoEncoder::kRefFrmCfgChange) {
+    int enable_ref = val->GetValue();
+    MppEncRefCfg ref = NULL;
+
+    if (enable_ref) {
+      LOG("MPP Encoder: enable tsvc mode...\n");
+      if (mpp_enc_ref_cfg_init(&ref)) {
+        LOG("ERROR: MPP Encoder: ref cfg init failed!\n");
+        return false;
+      }
+      if (mpi_enc_gen_ref_cfg(ref)) {
+        LOG("ERROR: MPP Encoder: ref cfg gen failed!\n");
+        mpp_enc_ref_cfg_deinit(&ref);
+        return false;
+      }
+      ret = mpp_enc.EncodeControl(MPP_ENC_SET_REF_CFG, ref);
+      mpp_enc_ref_cfg_deinit(&ref);
+    } else {
+      LOG("MPP Encoder: disenable tsvc mode...\n");
+      ret = mpp_enc.EncodeControl(MPP_ENC_SET_REF_CFG, NULL);
+    }
+
+    if (ret) {
+      LOG("ERROR: MPP Encoder: set ref cfg failed!\n");
       return false;
     }
   }

@@ -38,6 +38,9 @@ MPP_RET init_mpp_buffer(MppBuffer &buffer,
 // may time-consuming
 MPP_RET init_mpp_buffer_with_content(MppBuffer &buffer,
                                      const std::shared_ptr<MediaBuffer> &mb);
+
+MPP_RET mpi_enc_gen_ref_cfg(MppEncRefCfg ref);
+
 } // namespace easymedia
 
 #endif // EASYMEDIA_MPP_INC_H_

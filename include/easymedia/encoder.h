@@ -81,6 +81,7 @@ public:
   static const uint32_t kRcQualityChange = (1 << 9);
   static const uint32_t kSplitChange = (1 << 10);
   static const uint32_t kGopChange = (1 << 11);
+  static const uint32_t kRefFrmCfgChange = (1 << 12);
   //enable fps/bps statistics.
   static const uint32_t kEnableStatistics = (1 << 31);
 

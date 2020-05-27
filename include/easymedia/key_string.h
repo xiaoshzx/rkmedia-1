@@ -71,6 +71,8 @@
 #define KEY_VBR "vbr"
 #define KEY_CBR "cbr"
 
+#define KEY_REF_FRM_CFG "reference_frame_config"
+
 // mpp special
 #define KEY_MPP_GROUP_MAX_FRAMES "fg_max_frames" // framegroup max frame num
 #define KEY_MPP_SPLIT_MODE "split_mode"

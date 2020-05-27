@@ -140,6 +140,7 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     GET_STRING_TO_INT(vid_cfg.gop_size, params, KEY_VIDEO_GOP, 0)
     GET_STRING_TO_INT(vid_cfg.profile, params, KEY_PROFILE, 0)
     GET_STRING_TO_INT(vid_cfg.full_range, params, KEY_FULL_RANGE, 0)
+    GET_STRING_TO_INT(vid_cfg.ref_frm_cfg, params, KEY_REF_FRM_CFG, 0)
 
     if (ParseMediaConfigFps(params, vid_cfg) < 0)
       return false;
@@ -261,6 +262,7 @@ std::string to_param_string(const VideoConfig &vid_cfg) {
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_MIN_I, vid_cfg.qp_min_i);
   PARAM_STRING_APPEND_TO(ret, KEY_H264_TRANS_8x8, vid_cfg.trans_8x8);
   PARAM_STRING_APPEND_TO(ret, KEY_FULL_RANGE, vid_cfg.full_range);
+  PARAM_STRING_APPEND_TO(ret, KEY_REF_FRM_CFG, vid_cfg.ref_frm_cfg);
   return ret;
 }
 
@@ -670,6 +672,18 @@ int video_encoder_set_split(
   auto pbuff = std::make_shared<ParameterBuffer>(0);
   pbuff->SetPtr(param, 2 * sizeof(uint32_t));
   enc_flow->Control(VideoEncoder::kSplitChange, pbuff);
+
+  return 0;
+}
+
+int video_encoder_set_ref_frm_cfg(std::shared_ptr<Flow> &enc_flow,
+  int reference_mode) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetValue(reference_mode);
+  enc_flow->Control(VideoEncoder::kRefFrmCfgChange, pbuff);
 
   return 0;
 }
