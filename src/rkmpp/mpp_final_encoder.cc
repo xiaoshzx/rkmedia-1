@@ -25,6 +25,28 @@
 
 namespace easymedia {
 
+#if 0
+static float smartp_mode_get_bps_factor(int bps, int w, int h) {
+  float den = 1.0;
+  //Reference 1080p resolution:
+  //5Mb:    [bpsMax / 4,   bpsMax]
+  //4Mb:    [bpsMax / 3,   bpsMax]
+  //3Mb:    [bpsMax / 2,   bpsMax]
+  //Others: [bpsMax * 0.8, bpsMax]
+  int relatively_bps = (int)(bps * (2073600.0) / (w * h));
+  if (relatively_bps >= 5242880) //5Mb
+    den = 0.25; //1/4
+  else if (relatively_bps >= 4194304) //4Mb
+    den = 0.333; //1/3
+  else if (relatively_bps >= 3145728) //3Mb
+    den = 0.5; //1/2
+  else
+    den = 0.8;
+
+  return den;
+}
+#endif
+
 class MPPConfig {
 public:
   MPPConfig();
@@ -774,7 +796,63 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
     }
   }
 #endif
-  else {
+  else if (change & VideoEncoder::kMoveDetectionFlow) {
+    RcApiBrief brief;
+
+    if (val->GetPtr()) {
+#if 0
+      int bps_max = vconfig.bit_rate_max;
+      int bps_min = vconfig.bit_rate_min;
+      int bps_target = vconfig.bit_rate;
+      int w = vconfig.image_cfg.image_info.vir_width;
+      int h = vconfig.image_cfg.image_info.vir_height;
+      float bps_factor = smartp_mode_get_bps_factor(vconfig.bit_rate_max, w, h);
+      bps_min = (int)(vconfig.bit_rate_max * bps_factor);
+
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:mode", MPP_ENC_RC_MODE_VBR);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:bps_min", bps_min);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:bps_max", bps_max);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:bps_target", bps_target);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:gop", 300);
+
+      LOG("MPP Encoder: smartp mode: factor:%f, bps:[%d,%d,%d] gop:%d\n",
+        bps_factor, bps_max, bps_target, bps_min, 300);
+      if (mpp_enc.EncodeControl(MPP_ENC_SET_CFG, enc_cfg) != 0) {
+        LOG("ERROR: MPP Encoder: rc control for smartp failed!\n");
+        return false;
+      }
+
+      //save to vconfig
+      vconfig.gop_size = 300;
+      vconfig.rc_mode = KEY_VBR;
+      vconfig.bit_rate_min = bps_min;
+#endif
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:mode", MPP_ENC_RC_MODE_VBR);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:gop", 300);
+      if (mpp_enc.EncodeControl(MPP_ENC_SET_CFG, enc_cfg) != 0) {
+        LOG("ERROR: MPP Encoder: rc control for smartp failed!\n");
+        return false;
+      }
+      //save to vconfig
+      vconfig.gop_size = 300;
+      vconfig.rc_mode = KEY_VBR;
+
+      //Enable smart mode.
+      brief.name = "smart";
+      brief.type = code_type;
+      LOG("MPP Encoder: enable smartp mode...\n");
+    } else {
+      brief.name = "defalut";
+      brief.type = code_type;
+      LOG("MPP Encoder: disable smartp mode...\n");
+    }
+
+    if (mpp_enc.EncodeControl(MPP_ENC_SET_RC_API_CURRENT, &brief) != 0) {
+      LOG("ERROR: MPP Encoder: enable smartp control failed!\n");
+      return false;
+    }
+    mpp_enc.rc_api_brief_name = brief.name;
+  } else {
     LOG("Unsupport request change 0x%08x!\n", change);
     return false;
   }
