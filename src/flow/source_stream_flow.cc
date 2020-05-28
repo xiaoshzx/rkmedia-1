@@ -1,6 +1,7 @@
 // Copyright 2019 Fuzhou Rockchip Electronics Co., Ltd. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#include <sys/prctl.h>
 
 #include "buffer.h"
 #include "flow.h"
@@ -29,6 +30,7 @@ private:
   bool loop;
   std::thread *read_thread;
   std::shared_ptr<Stream> stream;
+  std::string tag;
 };
 
 SourceStreamFlow::SourceStreamFlow(const char *param)
@@ -48,7 +50,7 @@ SourceStreamFlow::SourceStreamFlow(const char *param)
     SetError(-EINVAL);
     return;
   }
-  std::string tag = "SourceStreamFlow:";
+  tag = "SourceFlow:";
   tag.append(name);
   if (!SetAsSource(std::vector<int>({0}), void_transaction00, tag)) {
     SetError(-EINVAL);
@@ -82,6 +84,7 @@ SourceStreamFlow::~SourceStreamFlow() {
 }
 
 void SourceStreamFlow::ReadThreadRun() {
+  prctl(PR_SET_NAME, this->tag.c_str());
   source_start_cond_mtx->lock();
   if (down_flow_num == 0 && IsEnable())
     source_start_cond_mtx->wait();
