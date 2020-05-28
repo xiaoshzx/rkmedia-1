@@ -6,6 +6,8 @@
 #include "filter.h"
 #include "rknn_utils.h"
 #include "utils.h"
+#include "lock.h"
+
 #include <assert.h>
 #include <rockx/rockx.h>
 
@@ -13,6 +15,43 @@ namespace easymedia {
 
 static char* enable_skip_frame = NULL;
 static char* enable_rockx_debug = NULL;
+
+
+class RockxContrl {
+public:
+  RockxContrl() = delete;
+  RockxContrl(bool enable, int interval) {
+    SetEnable(enable);
+    SetInterval(interval);
+  }
+  virtual ~RockxContrl() {}
+
+  bool CheckIsRun();
+
+  void SetEnable(int enable) { enable_ = enable; }
+  void SetInterval(int interval) { interval_ = interval; }
+  //bool PercentageFilter(rockface_det_t *body);
+  //bool DurationFilter(std::list<RknnResult> &list, int64_t timeval_ms);
+
+  int GetEnable(void) const { return enable_; }
+  int GetInterval(void) const { return interval_; }
+
+private:
+  bool enable_;
+  int interval_;
+};
+
+bool RockxContrl::CheckIsRun() {
+  bool check = false;
+  static int count = 0;
+  if (enable_) {
+    if (count++ >= interval_) {
+      count = 0;
+      check = true;
+    }
+  }
+  return check;
+}
 
 void SavePoseBodyImg(rockx_image_t input_image,
                      rockx_keypoints_array_t *body_array) {
@@ -78,6 +117,9 @@ private:
   std::shared_ptr<easymedia::MediaBuffer> tmp_image_;
   std::string input_type_;
   RknnCallBack callback_;
+  std::shared_ptr<RockxContrl> contrl_;
+  ReadWriteLockMutex cb_mtx_;
+
   int ProcessRockxFaceDetect(
       std::shared_ptr<easymedia::ImageBuffer> input_buffer,
       rockx_image_t input_img, std::vector<rockx_handle_t> handles);
@@ -143,6 +185,25 @@ ROCKXFilter::ROCKXFilter(const char *param) : model_name_("") {
     }
     rockx_handles_.push_back(npu_handle);
   }
+
+  bool enable = false;
+  const std::string &enable_str = params[KEY_ENABLE];
+  if (!enable_str.empty())
+    enable = std::stoi(enable_str);
+
+  int interval = 0;
+  const std::string &interval_str = params[KEY_FRAME_INTERVAL];
+  if (!interval_str.empty())
+    interval = std::stoi(interval_str);
+
+  contrl_ = std::make_shared<RockxContrl>(enable, interval);
+
+  if (!contrl_) {
+    LOG("rockx contrl is nullptr.\n");
+    return;
+  }
+
+  callback_=nullptr;
 
   enable_rockx_debug = getenv("ENABLE_ROCKX_DEBUG");
   enable_skip_frame = getenv("ENABLE_SKIP_FRAME");
@@ -297,19 +358,21 @@ int ROCKXFilter::Process(std::shared_ptr<MediaBuffer> input,
   input_img.pixel_format = StrToRockxPixelFMT(input_type_.c_str());
   input_img.data = (uint8_t *)input_buffer->GetPtr();
 
+  output = input;
+
+  if (!contrl_->CheckIsRun())
+    return 0;
+
   auto &name = model_name_;
   auto &handles = rockx_handles_;
   if(enable_rockx_debug)
     LOG("ROCKXFilter::Process %s begin \n", model_name_.c_str());
   if (name == "rockx_face_detect") {
     ProcessRockxFaceDetect(input_buffer, input_img, handles);
-    output = input;
   } else if (name == "rockx_face_landmark") {
     ProcessRockxFaceLandmark(input_buffer, input_img, handles);
-    output = input;
   } else if (name == "rockx_pose_body" || name == "rockx_pose_body_v2") {
     ProcessRockxPoseBody(input_buffer, input_img, handles);
-    output = input;
   } else {
     assert(0);
   }
@@ -319,26 +382,40 @@ int ROCKXFilter::Process(std::shared_ptr<MediaBuffer> input,
 }
 
 int ROCKXFilter::IoCtrl(unsigned long int request, ...) {
-  va_list vl;
-  va_start(vl, request);
-  void *arg = va_arg(vl, void *);
-  va_end(vl);
-
-  if (!arg)
-    return -1;
-
-  int ret = 0;
-  switch (request) {
-  case S_NN_CALLBACK:
-    callback_ = (RknnCallBack)arg;
-    break;
-  case G_NN_CALLBACK:
-    arg = (void *)callback_;
-    break;
+ AutoLockMutex lock(cb_mtx_);
+ int ret = 0;
+ va_list vl;
+ va_start(vl, request);
+ switch (request) {
+  case S_NN_CALLBACK:{
+    void *arg = va_arg(vl, void *);
+      if (arg)
+        callback_ = (RknnCallBack)arg;
+    } break;
+  case G_NN_CALLBACK:{
+    void *arg = va_arg(vl, void *);
+    if (arg)
+      arg = (void *)callback_;
+    } break;
+  case S_NN_INFO: {
+    RockxFilterArg *arg = va_arg(vl, RockxFilterArg *);
+    if (arg) {
+      contrl_->SetEnable(arg->enable);
+      contrl_->SetInterval(arg->interval);
+    }
+  } break;
+  case G_NN_INFO: {
+    RockxFilterArg *arg = va_arg(vl, RockxFilterArg *);
+    if (arg) {
+      arg->enable = contrl_->GetEnable();
+      arg->interval = contrl_->GetInterval();
+    }
+  } break;
   default:
     ret = -1;
     break;
   }
+  va_end(vl);
   return ret;
 }
 

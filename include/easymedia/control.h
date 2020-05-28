@@ -61,6 +61,11 @@ typedef struct {
   char pic_path[RKNN_PICTURE_PATH_LEN];
 } FaceRegArg;
 
+typedef struct {
+  bool enable;
+  int interval;
+} RockxFilterArg;
+
 enum {
   S_FIRST_CONTROL = 10000,
   S_SUB_REQUEST, // many devices have their kernel controls

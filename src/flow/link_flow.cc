@@ -36,6 +36,7 @@ LinkFlow::LinkFlow(const char *param) {
   SetVideoHandler(nullptr);
   SetAudioHandler(nullptr);
   SetCaptureHandler(nullptr);
+  SetUserCallBack(nullptr, nullptr);
 
   SlotMap sm;
   sm.input_slots.push_back(0);
