@@ -65,6 +65,8 @@ public:
   void SetStartAudioStreamCallback(const StartStreamCallback &cb);
   StartStreamCallback GetStartAudioStreamCallback();
 
+  unsigned getMaxIdrSize();
+
 protected:
   virtual ~Live555MediaInput();
 
@@ -84,6 +86,7 @@ private:
 
   friend class VideoFramedSource;
   friend class CommonFramedSource;
+  unsigned m_max_idr_size;
 };
 
 class ListSource : public FramedSource {
