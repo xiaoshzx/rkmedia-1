@@ -7,8 +7,8 @@
 #include <liveMedia/H265VideoRTPSink.hh>
 #include <liveMedia/H265VideoStreamDiscreteFramer.hh>
 
-#include "utils.h"
 #include "media_type.h"
+#include "utils.h"
 
 namespace easymedia {
 H265ServerMediaSubsession *
@@ -141,11 +141,13 @@ H265ServerMediaSubsession::createNewStreamSource(unsigned clientSessionId,
                                                  unsigned &estBitrate) {
   LOG("%s:%s:%p - clientSessionId: 0x%08x\n", __FILE__, __func__, this,
       clientSessionId);
-  estBitrate = fEstimatedKbps;
+  estBitrate = fMediaInput.getMaxIdrSize();
+  if (estBitrate < fEstimatedKbps)
+    estBitrate = fEstimatedKbps;
   // Create a framer for the Video Elementary Stream:
   FramedSource *source = H265VideoStreamDiscreteFramer::createNew(
       envir(), fMediaInput.videoSource(CODEC_TYPE_H265));
-  LOG("H265 framedsource : %p\n", source);
+  LOG("H265 framedsource : %p, estBitrate = %u\n", source, estBitrate);
   return source;
 }
 

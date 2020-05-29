@@ -19,7 +19,7 @@ namespace easymedia {
 
 Live555MediaInput::Live555MediaInput(UsageEnvironment &env)
     : Medium(env), connecting(false), video_callback(nullptr),
-      audio_callback(nullptr) {}
+      audio_callback(nullptr), m_max_idr_size(0) {}
 
 Live555MediaInput::~Live555MediaInput() {
   LOG_FILE_FUNC_LINE();
@@ -172,6 +172,10 @@ static void printErr(UsageEnvironment& env, char const* str = NULL) {
 void Live555MediaInput::PushNewVideo(std::shared_ptr<MediaBuffer> &buffer) {
   if (!buffer)
     return;
+  if ((buffer->GetUserFlag() & MediaBuffer::kIntra)) {
+    if (m_max_idr_size < buffer->GetValidSize())
+      m_max_idr_size = buffer->GetValidSize();
+  }
   video_list.remove_if([](Source *s) {
     if (s->GetReadFd() < 0) {
       delete s;
@@ -249,6 +253,9 @@ StartStreamCallback Live555MediaInput::GetStartAudioStreamCallback() {
   return audio_callback;
 }
 
+unsigned Live555MediaInput::getMaxIdrSize() {
+  return (m_max_idr_size * 13 / 10) * 3 * 2 / 25;
+}
 Source::Source() : reduction(nullptr), m_cached_buffers_size(MAX_CACHE_NUMBER) {
   wakeFds[0] = wakeFds[1] = -1;
   LOG("Source :: %p.\n", this);
