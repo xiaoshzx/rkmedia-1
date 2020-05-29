@@ -54,12 +54,12 @@ endif()
 if(CLANG)
   # treat clang roughly like gcc
   set(GCC true)
-  add_definitions(-Wall -g -ggdb
+  add_definitions(-Wall
                   -Wextra
                   -Wshadow
                   -ffast-math)
 elseif(CMAKE_COMPILER_IS_GNUCXX)
-  add_definitions(-Wall -g -ggdb
+  add_definitions(-Wall
                   -Wextra
                   -Wshadow
                   -ffast-math)
