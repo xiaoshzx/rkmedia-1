@@ -30,6 +30,7 @@ public:
 
 private:
   unsigned int frame_caches_;
+  unsigned int frame_max_caches_;
   int frame_rate_;
   RknnHandler handler_;
   ReadWriteLockMutex result_mutex_;
@@ -56,6 +57,7 @@ NNResultInput::NNResultInput(const char *param) {
   } else {
     frame_caches_ = atoi(params[KEY_FRAME_CACHES].c_str());
   }
+  frame_max_caches_ = frame_caches_ + 10;
 }
 
 bool NNResultInput::Wait(std::unique_lock<std::mutex> &lock,
@@ -69,7 +71,7 @@ void NNResultInput::Signal() { cond_.notify_all(); }
 
 void NNResultInput::PushResult(std::list<RknnResult> &results) {
   std::lock_guard<std::mutex> lock(mutex_);
-  while (nn_results_list_.size() > frame_caches_)
+  while (frame_max_caches_ < nn_results_list_.size())
     nn_results_list_.pop();
   nn_results_list_.push(results);
   Signal();
@@ -84,8 +86,9 @@ std::list<RknnResult> NNResultInput::PopResult(void) {
       return std::move(list);
     }
   }
-  list = nn_results_list_.front();
-  nn_results_list_.pop();
+  list = nn_results_list_.back();
+  while (nn_results_list_.size() > frame_caches_)
+    nn_results_list_.pop();
   return std::move(list);
 }
 
