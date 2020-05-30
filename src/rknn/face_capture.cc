@@ -38,6 +38,7 @@ public:
                       std::shared_ptr<MediaBuffer> &output) override;
 
 private:
+  bool enable_;
   std::shared_ptr<VideoEncoder> enc_;
   std::shared_ptr<Filter> rga_;
   std::shared_ptr<Stream> fstream_;
@@ -138,6 +139,11 @@ int FaceCapture::InitPlugin(std::map<std::string, std::string> &params) {
         stream_param.c_str());
     exit(EXIT_FAILURE);
   }
+
+  enable_ = false;
+  const std::string &enable_str = params[KEY_ENABLE];
+  if (!enable_str.empty())
+    enable_ = std::stoi(enable_str);
 
   return 0;
 }
@@ -254,6 +260,9 @@ int FaceCapture::Process(std::shared_ptr<MediaBuffer> input,
 
   output = input;
 
+  if (!enable_)
+    return 0;
+
   auto src = std::static_pointer_cast<easymedia::ImageBuffer>(input);
   auto &nn_results = src->GetRknnResult();
 
@@ -321,6 +330,20 @@ int FaceCapture::IoCtrl(unsigned long int request, ...) {
     void *arg = va_arg(vl, void *);
     if (arg)
       arg = (void *)callback_;
+  } break;
+  case S_NN_INFO: {
+    void *arg = va_arg(vl, void *);
+    if (arg) {
+      FaceCaptureArg *face_cap_arg = (FaceCaptureArg *)arg;
+      enable_ = face_cap_arg->enable;
+    }
+  } break;
+  case G_NN_INFO: {
+    void *arg = va_arg(vl, void *);
+    if (arg) {
+      FaceCaptureArg *face_cap_arg = (FaceCaptureArg *)arg;
+      face_cap_arg->enable = enable_;
+    }
   } break;
   default:
     ret = -1;

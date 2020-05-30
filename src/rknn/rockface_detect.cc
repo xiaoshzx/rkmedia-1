@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "rockface/rockface.h"
 #include "buffer.h"
 #include "filter.h"
 #include "lock.h"
 #include "rknn_utils.h"
-#include "rockface/rockface.h"
 
 #define DEFAULT_LIC_PATH "/userdata/key.lic"
 
@@ -32,6 +32,8 @@ protected:
   bool CheckFaceReturn(const char *fun, int ret);
 
 private:
+  bool enable_;
+
   int track_frame_;
   float score_threshod_;
 
@@ -65,6 +67,11 @@ RockFaceDetect::RockFaceDetect(const char *param) : callback_(nullptr) {
   } else {
     license_path = params[KEY_PATH];
   }
+
+  enable_ = false;
+  const std::string &enable_str = params[KEY_ENABLE];
+  if (!enable_str.empty())
+    enable_ = std::stoi(enable_str);
 
   score_threshod_ = 0.0;
   const std::string &score_threshod = params[KEY_SCORE_THRESHOD];
@@ -118,7 +125,8 @@ bool RockFaceDetect::FaceDetect(std::shared_ptr<easymedia::ImageBuffer> image,
 
   rockface_ret_t ret;
   AutoDuration cost_time;
-  bool auto_track = (frame_idx < FACE_TRACK_START_FRAME) ? 0
+  bool auto_track = (frame_idx < FACE_TRACK_START_FRAME)
+                        ? 0
                         : (frame_idx % (track_frame_ + 1) == 0 ? 0 : 1);
   if (!auto_track) {
     rockface_det_array_t det_array;
@@ -152,6 +160,9 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
   nn_result.type = NNRESULT_TYPE_FACE;
   auto &nn_list = image->GetRknnResult();
 
+  if (!enable_)
+    goto exit;
+
   rockface_det_array_t face_array;
   memset(&face_array, 0, sizeof(rockface_det_array_t));
   if (!FaceDetect(image, &face_array))
@@ -182,7 +193,8 @@ bool RockFaceDetect::CheckFaceReturn(const char *fun, int ret) {
       authorized_result_.status = TIMEOUT;
       if (callback_) {
         AutoLockMutex lock(cb_mtx_);
-        callback_(this, NNRESULT_TYPE_AUTHORIZED_STATUS, &authorized_result_, 1);
+        callback_(this, NNRESULT_TYPE_AUTHORIZED_STATUS, &authorized_result_,
+                  1);
       }
     }
     check = false;
@@ -233,6 +245,18 @@ int RockFaceDetect::IoCtrl(unsigned long int request, ...) {
     void *arg = va_arg(vl, void *);
     if (arg)
       arg = (void *)callback_;
+  } break;
+  case S_NN_INFO: {
+    FaceDetectArg *arg = va_arg(vl, FaceDetectArg *);
+    if (arg) {
+      enable_ = arg->enable;
+    }
+  } break;
+  case G_NN_INFO: {
+    FaceDetectArg *arg = va_arg(vl, FaceDetectArg *);
+    if (arg) {
+      arg->enable = enable_;
+    }
   } break;
   default:
     ret = -1;

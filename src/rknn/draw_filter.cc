@@ -41,6 +41,7 @@ public:
   void ConvertRect(std::list<RknnResult> &nn_list);
 
 private:
+  bool enable_;
   bool need_hw_draw_;
   int draw_rect_thick_;
   int draw_frame_rate_;
@@ -89,6 +90,11 @@ DrawFilter::DrawFilter(const char *param)
   const std::string &offset_y = params[KEY_DRAW_OFFSET_Y];
   if (!offset_y.empty())
     offset_y_ = atof(offset_y.c_str());
+
+  enable_ = false;
+  const std::string &enable_str = params[KEY_ENABLE];
+  if (!enable_str.empty())
+    enable_ = std::stoi(enable_str);
 }
 
 void DrawFilter::DoDrawRect(std::shared_ptr<ImageBuffer> &buffer, Rect &rect) {
@@ -207,6 +213,10 @@ int DrawFilter::Process(std::shared_ptr<MediaBuffer> input,
     return -EINVAL;
 
   output = input;
+
+  if (!enable_)
+    return 0;
+
   auto src = std::static_pointer_cast<easymedia::ImageBuffer>(input);
   auto dst = std::static_pointer_cast<easymedia::ImageBuffer>(output);
 
@@ -239,6 +249,19 @@ int DrawFilter::IoCtrl(unsigned long int request, ...) {
   case G_NN_DRAW_HANDLER: {
     arg = (void *)draw_handler_;
   } break;
+  case S_NN_INFO: {
+    if (arg) {
+      DrawFilterArg *draw_arg = (DrawFilterArg *)arg;
+      enable_ = draw_arg->enable;
+    }
+  } break;
+  case G_NN_INFO: {
+    if (arg) {
+      DrawFilterArg *draw_arg = (DrawFilterArg *)arg;
+      draw_arg->enable = enable_;
+    }
+  } break;
+
   default:
     ret = -1;
     break;

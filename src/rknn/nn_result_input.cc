@@ -5,6 +5,7 @@
 #include <queue>
 
 #include "buffer.h"
+#include "control.h"
 #include "encoder.h"
 #include "filter.h"
 #include "lock.h"
@@ -29,6 +30,7 @@ public:
   virtual int IoCtrl(unsigned long int request, ...) override;
 
 private:
+  bool enable_;
   unsigned int frame_caches_;
   unsigned int frame_max_caches_;
   int frame_rate_;
@@ -58,6 +60,11 @@ NNResultInput::NNResultInput(const char *param) {
     frame_caches_ = atoi(params[KEY_FRAME_CACHES].c_str());
   }
   frame_max_caches_ = frame_caches_ + 10;
+
+  enable_ = false;
+  const std::string &enable_str = params[KEY_ENABLE];
+  if (!enable_str.empty())
+    enable_ = std::stoi(enable_str);
 }
 
 bool NNResultInput::Wait(std::unique_lock<std::mutex> &lock,
@@ -98,14 +105,18 @@ int NNResultInput::Process(std::shared_ptr<MediaBuffer> input,
     return -EINVAL;
   if (!output || output->GetType() != Type::Image)
     return -EINVAL;
-  AutoLockMutex rw_mtx(result_mutex_);
-  auto src = std::static_pointer_cast<easymedia::ImageBuffer>(input);
-  auto &nn_results = src->GetRknnResult();
-  auto input_nn_results = PopResult();
-  nn_results.clear();
-  for (auto &iter : input_nn_results) {
-    nn_results.push_back(iter);
+
+  if (enable_) {
+    AutoLockMutex rw_mtx(result_mutex_);
+    auto src = std::static_pointer_cast<easymedia::ImageBuffer>(input);
+    auto &nn_results = src->GetRknnResult();
+    auto input_nn_results = PopResult();
+    nn_results.clear();
+    for (auto &iter : input_nn_results) {
+      nn_results.push_back(iter);
+    }
   }
+
   output = input;
   return 0;
 }
@@ -130,6 +141,18 @@ int NNResultInput::IoCtrl(unsigned long int request, ...) {
           infos_list.push_back(infos[i]);
       }
       PushResult(infos_list);
+    }
+  } break;
+  case S_NN_INFO: {
+    if (arg) {
+      NNinputArg *nn_input_arg = (NNinputArg *)arg;
+      enable_ = nn_input_arg->enable;
+    }
+  } break;
+  case G_NN_INFO: {
+    if (arg) {
+      NNinputArg *nn_input_arg = (NNinputArg *)arg;
+      nn_input_arg->enable = enable_;
     }
   } break;
   default:

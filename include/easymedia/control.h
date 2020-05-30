@@ -23,6 +23,22 @@ typedef struct {
 
 typedef struct {
   bool enable;
+} NNinputArg;
+
+typedef struct {
+  bool enable;
+} FaceDetectArg;
+
+typedef struct {
+  bool enable;
+} FaceCaptureArg;
+
+typedef struct {
+  bool enable;
+} DrawFilterArg;
+
+typedef struct {
+  bool enable;
   int interval;
   int duration; /* second */
   float percentage; /* 0-100 */
