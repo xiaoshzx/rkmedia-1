@@ -331,9 +331,12 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
   //  2. Only bps_max: Generate three values based on bps_max.
   //  3. Only bps_target: Generate three values based on bps_target.
   if (bps_max && bps_min && bps_target) {
-    VALUE_SCOPE_CHECK(bps_max, MPPCommonConfig::kMPPMinBps, MPPCommonConfig::kMPPMaxBps);
-    VALUE_SCOPE_CHECK(bps_min, MPPCommonConfig::kMPPMinBps, MPPCommonConfig::kMPPMaxBps);
-    VALUE_SCOPE_CHECK(bps_target, bps_min, bps_max);
+    if ((bps_max < MPPCommonConfig::kMPPMinBps) ||
+      (bps_max > MPPCommonConfig::kMPPMaxBps) ||
+      (bps_min < MPPCommonConfig::kMPPMinBps) ||
+      (bps_min > MPPCommonConfig::kMPPMaxBps) ||
+      (bps_target < bps_min) || (bps_target > bps_max))
+      ret = -1;
   } else if (bps_max && !bps_target && !bps_min)
     ret = CalcMppBpsWithMax(rc_mode, bps_max, bps_min, bps_target);
   else if (bps_target && !bps_max && !bps_min)
