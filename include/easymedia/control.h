@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include "image.h"
 
+#include "rknn_user.h"
+
 namespace easymedia {
 
 typedef struct {
@@ -44,6 +46,20 @@ typedef struct {
   float percentage; /* 0-100 */
   ImageRect rect;
 } BodyDetectArg;
+
+typedef enum {
+  USER_ADD_CAM = 0,
+  USER_ADD_PIC,
+  USER_REG_PIC,
+  USER_DEL,
+  USER_CLR,
+} FaceRegArgType;
+
+typedef struct {
+  FaceRegArgType type;
+  int user_id; /* it is used to delete user */
+  char pic_path[RKNN_PICTURE_PATH_LEN];
+} FaceRegArg;
 
 enum {
   S_FIRST_CONTROL = 10000,
