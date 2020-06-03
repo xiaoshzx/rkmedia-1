@@ -179,68 +179,6 @@ int V4L2MediaCtl::InitHwInfos() {
   return 0;
 }
 
-int V4L2MediaCtl::SetupLink(const std::string devname, bool enable) {
-  media_device *device = NULL;
-  media_entity *entity = NULL;
-  media_link *link = NULL;
-  media_pad *src_pad = NULL, *sink_pad = NULL;
-  const char *entity_name = NULL;
-
-  if (!strcmp(devname.c_str(), rkisp_hw_info.isp_main_path) ||
-      !strcmp(devname.c_str(), rkisp_hw_info.isp_self_path))
-    return 0;
-  if (!strcmp(devname.c_str(), rkispp_hw_info.ispp_m_bypass_path))
-    entity_name = MB_ENTITY_NAME;
-  else if (!strcmp(devname.c_str(), rkispp_hw_info.ispp_scale0_path))
-    entity_name = S0_ENTITY_NAME;
-  else if (!strcmp(devname.c_str(), rkispp_hw_info.ispp_scale1_path))
-    entity_name = S1_ENTITY_NAME;
-  else if (!strcmp(devname.c_str(), rkispp_hw_info.ispp_scale2_path))
-    entity_name = S2_ENTITY_NAME;
-
-  device = media_device_new(rkispp_hw_info.media_dev_path);
-
-  /* Enumerate entities, pads and links. */
-  media_device_enumerate(device);
-  entity = media_get_entity_by_name(device, "rkispp-subdev",
-                                    strlen("rkispp-subdev"));
-  if (entity) {
-    src_pad = (media_pad *)media_entity_get_pad(entity, 2);
-    if (!src_pad) {
-      LOG("get rkispp-subdev sink pad failed!\n");
-      goto FAIL;
-    }
-  }
-  entity = media_get_entity_by_name(device, entity_name, strlen(entity_name));
-  if (entity) {
-    link = (media_link *)media_entity_get_link(entity, 0);
-    if (!link) {
-      LOG("get %s link failed!\n", entity_name);
-      goto FAIL;
-    }
-
-    sink_pad = (media_pad *)media_entity_get_pad(entity, 0);
-    if (!sink_pad) {
-      LOG("get %s source pad failed!\n", entity_name);
-      goto FAIL;
-    }
-  }
-
-  if (enable) {
-    media_setup_link(device, src_pad, sink_pad, MEDIA_LNK_FL_ENABLED);
-  } else {
-    media_setup_link(device, src_pad, sink_pad,
-                     link->flags & ~MEDIA_LNK_FL_ENABLED);
-  }
-
-  media_device_unref(device);
-  return 0;
-
-FAIL:
-  media_device_unref(device);
-  return -1;
-}
-
 V4L2Stream::V4L2Stream(const char *param)
     : use_libv4l2(false), fd(-1), capture_type(V4L2_BUF_TYPE_VIDEO_CAPTURE) {
   memset(&vio, 0, sizeof(vio));
@@ -293,11 +231,6 @@ int V4L2Stream::Open() {
     devname = std::string(rkisp_hw_info.isp_self_path);
   else
     devname = device;
-
-  int ret = v4l2_medctl->SetupLink(devname, true);
-  if (ret)
-    return ret;
-
   v4l2_ctx = std::make_shared<V4L2Context>(capture_type, vio, devname);
   if (!v4l2_ctx)
     return -ENOMEM;
@@ -315,10 +248,6 @@ int V4L2Stream::Close() {
     v4l2_ctx = nullptr; // release reference
   }
   fd = -1;
-  if (v4l2_medctl) {
-    v4l2_medctl->SetupLink(devname, false);
-    v4l2_medctl = nullptr;
-  }
   return 0;
 }
 
