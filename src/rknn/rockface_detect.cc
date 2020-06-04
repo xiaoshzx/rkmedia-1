@@ -207,26 +207,23 @@ bool RockFaceDetect::CheckFaceReturn(const char *fun, int ret) {
 void RockFaceDetect::SendNNResult(std::list<RknnResult> &list,
                                   std::shared_ptr<ImageBuffer> image) {
   AutoLockMutex lock(cb_mtx_);
-  if (!callback_)
+  if (!callback_ || list.empty())
     return;
-  if (list.empty()) {
-    callback_(this, NNRESULT_TYPE_FACE, nullptr, 0);
-  } else {
-    int count = 0;
-    int size = list.size();
-    RknnResult nn_array[size];
-    for (auto &iter : list) {
-      if (iter.type != NNRESULT_TYPE_FACE)
-        continue;
-      nn_array[count].timeval = image->GetAtomicClock();
-      nn_array[count].img_w = image->GetWidth();
-      nn_array[count].img_h = image->GetHeight();
-      nn_array[count].face_info.base = iter.face_info.base;
-      nn_array[count].type = NNRESULT_TYPE_FACE;
-      count++;
-    }
-    callback_(this, NNRESULT_TYPE_FACE, nn_array, count);
+
+  int count = 0;
+  int size = list.size();
+  RknnResult nn_array[size];
+  for (auto &iter : list) {
+    if (iter.type != NNRESULT_TYPE_FACE)
+      continue;
+    nn_array[count].timeval = image->GetAtomicClock();
+    nn_array[count].img_w = image->GetWidth();
+    nn_array[count].img_h = image->GetHeight();
+    nn_array[count].face_info.base = iter.face_info.base;
+    nn_array[count].type = NNRESULT_TYPE_FACE;
+    count++;
   }
+  callback_(this, NNRESULT_TYPE_FACE, nn_array, count);
 }
 
 int RockFaceDetect::IoCtrl(unsigned long int request, ...) {

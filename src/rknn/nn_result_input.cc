@@ -20,26 +20,28 @@ public:
   static const char *GetFilterName() { return "nn_result_input"; }
 
   void PushResult(std::list<RknnResult> &results);
-  std::list<RknnResult> PopResult(void);
-
-  bool Wait(std::unique_lock<std::mutex> &lock, uint32_t milliseconds);
-  void Signal(void);
+  std::list<RknnResult> PopResult(int64_t atomic_clock);
 
   virtual int Process(std::shared_ptr<MediaBuffer> input,
                       std::shared_ptr<MediaBuffer> &output) override;
   virtual int IoCtrl(unsigned long int request, ...) override;
 
 private:
+  static uint32_t kImagePoolSize;
+
   bool enable_;
-  unsigned int frame_caches_;
-  unsigned int frame_max_caches_;
-  int frame_rate_;
-  RknnHandler handler_;
-  ReadWriteLockMutex result_mutex_;
+  uint32_t cache_size_;
+  uint32_t clock_delta_ms_; // millisecond
+
   std::mutex mutex_;
   std::condition_variable cond_;
-  std::queue<std::list<RknnResult>> nn_results_list_;
+  ReadWriteLockMutex result_mutex_;
+
+  std::deque<std::list<RknnResult>> nn_cache_;
+  std::deque<std::shared_ptr<ImageBuffer>> image_pool_;
 };
+
+uint32_t NNResultInput::kImagePoolSize = 1;
 
 NNResultInput::NNResultInput(const char *param) {
   std::map<std::string, std::string> params;
@@ -48,18 +50,15 @@ NNResultInput::NNResultInput(const char *param) {
     return;
   }
 
-  if (params[KEY_FRAME_RATE].empty()) {
-    frame_rate_ = 30;
-  } else {
-    frame_rate_ = atoi(params[KEY_FRAME_RATE].c_str());
-  }
+  cache_size_  = 10;
+  const std::string &cache_size_str = params[KEY_CACHE_SIZE];
+  if (!cache_size_str.empty())
+    cache_size_ = std::stoi(cache_size_str);
 
-  if (params[KEY_FRAME_CACHES].empty()) {
-    frame_caches_ = 1;
-  } else {
-    frame_caches_ = atoi(params[KEY_FRAME_CACHES].c_str());
-  }
-  frame_max_caches_ = frame_caches_ + 10;
+  clock_delta_ms_ = 90;
+  const std::string &clock_delta_str = params[KEY_CLOCK_DELTA];
+  if (!clock_delta_str.empty())
+    clock_delta_ms_ = std::stoi(clock_delta_str);
 
   enable_ = false;
   const std::string &enable_str = params[KEY_ENABLE];
@@ -67,36 +66,33 @@ NNResultInput::NNResultInput(const char *param) {
     enable_ = std::stoi(enable_str);
 }
 
-bool NNResultInput::Wait(std::unique_lock<std::mutex> &lock,
-                         uint32_t milliseconds) {
-  if (cond_.wait_for(lock, std::chrono::milliseconds(milliseconds)) ==
-      std::cv_status::timeout)
-    return false;
-  return true;
-}
-void NNResultInput::Signal() { cond_.notify_all(); }
-
 void NNResultInput::PushResult(std::list<RknnResult> &results) {
   std::lock_guard<std::mutex> lock(mutex_);
-  while (frame_max_caches_ < nn_results_list_.size())
-    nn_results_list_.pop();
-  nn_results_list_.push(results);
-  Signal();
+  if (nn_cache_.size() > cache_size_)
+    nn_cache_.pop_front();
+  nn_cache_.push_back(results);
 }
 
-std::list<RknnResult> NNResultInput::PopResult(void) {
+std::list<RknnResult> NNResultInput::PopResult(int64_t atomic_clock) {
   std::unique_lock<std::mutex> lock(mutex_);
-  std::list<RknnResult> list;
-  if (nn_results_list_.empty()) {
-    uint32_t milliseconds = 1000 / frame_rate_;
-    if (Wait(lock, milliseconds) == false) {
-      return std::move(list);
+
+  int64_t min_delta = 10000000LL;
+  std::list<RknnResult> result;
+
+  for (auto &iter : nn_cache_) {
+    for (RknnResult &tmp : iter) {
+      int64_t delta = std::llabs(tmp.timeval - atomic_clock);
+      if (delta < min_delta) {
+        min_delta = delta;
+        result = iter;
+      }
+      break;
     }
   }
-  list = nn_results_list_.back();
-  while (nn_results_list_.size() > frame_caches_)
-    nn_results_list_.pop();
-  return std::move(list);
+  int64_t clock_delta = clock_delta_ms_ * 1000;
+  if (!result.empty() && clock_delta < min_delta)
+    result.clear();
+  return std::move(result);
 }
 
 int NNResultInput::Process(std::shared_ptr<MediaBuffer> input,
@@ -106,18 +102,26 @@ int NNResultInput::Process(std::shared_ptr<MediaBuffer> input,
   if (!output || output->GetType() != Type::Image)
     return -EINVAL;
 
-  if (enable_) {
-    AutoLockMutex rw_mtx(result_mutex_);
-    auto src = std::static_pointer_cast<easymedia::ImageBuffer>(input);
-    auto &nn_results = src->GetRknnResult();
-    auto input_nn_results = PopResult();
-    nn_results.clear();
-    for (auto &iter : input_nn_results) {
-      nn_results.push_back(iter);
-    }
-  }
+  if (!enable_) {
+    output = input;
+  } else {
+    auto image = std::static_pointer_cast<easymedia::ImageBuffer>(input);
+    image_pool_.push_back(image);
 
-  output = input;
+    if (image_pool_.size() <= kImagePoolSize)
+      return -1;
+
+    auto output_image = image_pool_.front();
+    image_pool_.pop_front();
+
+    auto tobe_input_result = PopResult(output_image->GetAtomicClock());
+    if (!tobe_input_result.empty()) {
+      auto &nn_results = output_image->GetRknnResult();
+      for (auto &iter : tobe_input_result)
+        nn_results.push_back(iter);
+    }
+    output = output_image;
+  }
   return 0;
 }
 
