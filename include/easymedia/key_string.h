@@ -60,11 +60,14 @@
 
 #define KEY_ROI_REGIONS "roi_regions"
 
-#define KEY_WORST "worst"
-#define KEY_WORSE "worse"
+#define KEY_LOWEST "lowest"
+#define KEY_LOWER "lower"
+#define KEY_LOW "low"
 #define KEY_MEDIUM "medium"
-#define KEY_BETTER "better"
-#define KEY_BEST "best"
+#define KEY_HIGH "high"
+#define KEY_HIGHER "higher"
+#define KEY_HIGHEST "highest"
+
 #define KEY_CQP "cqp"
 #define KEY_AQ_ONLY "aq_only"
 

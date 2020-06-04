@@ -304,7 +304,7 @@ int main(int argc, char **argv) {
   vid_cfg.gop_size = fps;
   vid_cfg.profile = 100;
   // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
-  vid_cfg.rc_quality = KEY_BEST;
+  vid_cfg.rc_quality = KEY_HIGHEST;
   vid_cfg.rc_mode = KEY_CBR;
 
   video_enc_param.append(

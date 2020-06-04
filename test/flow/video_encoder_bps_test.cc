@@ -251,11 +251,11 @@ int main(int argc, char **argv) {
   easymedia::msleep(30000);
 
   LOG("\n#Encoder in BEST Quality for 30s....\n");
-  easymedia::video_encoder_set_rc_quality(video_encoder_flow, KEY_BEST);
+  easymedia::video_encoder_set_rc_quality(video_encoder_flow, KEY_LOWEST);
   easymedia::msleep(30000);
 
   LOG("\n#Encoder in WORST Quality for 30s....\n");
-  easymedia::video_encoder_set_rc_quality(video_encoder_flow, KEY_WORST);
+  easymedia::video_encoder_set_rc_quality(video_encoder_flow, KEY_HIGHEST);
   easymedia::msleep(30000);
 
   LOG("\n#Encoder with new qp for 30s....\n");

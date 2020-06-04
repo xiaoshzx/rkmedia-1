@@ -14,9 +14,9 @@
 
 namespace easymedia {
 
-const char *rc_quality_strings[7] = {KEY_WORST,  KEY_WORSE, KEY_MEDIUM,
-                                     KEY_BETTER, KEY_BEST,  KEY_CQP,
-                                     KEY_AQ_ONLY};
+const char *rc_quality_strings[7] = {KEY_LOWEST,  KEY_LOWER, KEY_LOW,
+  KEY_MEDIUM, KEY_HIGH, KEY_HIGHER, KEY_HIGHEST};
+
 const char *rc_mode_strings[2] = {KEY_VBR, KEY_CBR};
 
 static const char *convert2constchar(const std::string &s, const char *array[],
@@ -27,7 +27,7 @@ static const char *convert2constchar(const std::string &s, const char *array[],
   return nullptr;
 }
 
-static const char *ConvertRcQuality(const std::string &s) {
+const char *ConvertRcQuality(const std::string &s) {
   return convert2constchar(s, rc_quality_strings,
                            ARRAY_ELEMS(rc_quality_strings));
 }
@@ -321,13 +321,15 @@ std::string get_video_encoder_config_string (
   }
 
   if (cfg.rc_quality &&
-    strcmp(cfg.rc_quality, KEY_BEST) &&
-    strcmp(cfg.rc_quality, KEY_BETTER) &&
+    strcmp(cfg.rc_quality, KEY_HIGHEST) &&
+    strcmp(cfg.rc_quality, KEY_HIGHER) &&
+    strcmp(cfg.rc_quality, KEY_HIGH) &&
     strcmp(cfg.rc_quality, KEY_MEDIUM) &&
-    strcmp(cfg.rc_quality, KEY_WORSE) &&
-    strcmp(cfg.rc_quality, KEY_WORST)) {
+    strcmp(cfg.rc_quality, KEY_LOW) &&
+    strcmp(cfg.rc_quality, KEY_LOWER) &&
+    strcmp(cfg.rc_quality, KEY_LOWEST)) {
     LOG("ERROR: %s rc_quality is invalid!"
-      "should be [KEY_WORST, KEY_BEST]\n", __func__);
+      "should be [KEY_LOWEST, KEY_HIGHEST]\n", __func__);
     return NULL;
   }
 
@@ -406,11 +408,12 @@ int video_encoder_set_rc_quality(
   if (!enc_flow || !rc_quality)
     return -EINVAL;
 
-  if (strcmp(rc_quality, KEY_BEST) && strcmp(rc_quality, KEY_BETTER) &&
-    strcmp(rc_quality, KEY_MEDIUM) && strcmp(rc_quality, KEY_WORSE) &&
-    strcmp(rc_quality, KEY_WORST)) {
-    LOG("ERROR: %s rc_quality:%s is invalid! should be [KEY_WORST, KEY_BEST]\n",
-      __func__, rc_quality);
+  if (strcmp(rc_quality, KEY_HIGHEST) && strcmp(rc_quality, KEY_HIGHER) &&
+    strcmp(rc_quality, KEY_HIGH) && strcmp(rc_quality, KEY_MEDIUM) &&
+    strcmp(rc_quality, KEY_LOW) && strcmp(rc_quality, KEY_LOWER) &&
+    strcmp(rc_quality, KEY_LOWEST)) {
+    LOG("ERROR: %s rc_quality:%s is invalid! "
+      "should be [KEY_LOWEST, KEY_HIGHEST]\n", __func__, rc_quality);
     return -EINVAL;
   }
 

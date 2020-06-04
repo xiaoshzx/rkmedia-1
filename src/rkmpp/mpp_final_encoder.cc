@@ -9,9 +9,10 @@
 #include "media_type.h"
 #include "mpp_encoder.h"
 
+#define ENCODER_CFG_INVALID 0x7FFFFFFF
 #define ENCODER_CFG_CHECK(VALUE, MIN, MAX, DEF_VALUE, TAG)              \
   if (!VALUE) {                                                         \
-    if (DEF_VALUE > 0) {                                                \
+    if (DEF_VALUE != ENCODER_CFG_INVALID) {                             \
       LOG("MPP Encoder: %s use default value:%d\n", TAG, DEF_VALUE);   \
       VALUE = DEF_VALUE;                                                \
     } else {                                                            \
@@ -157,7 +158,7 @@ bool MPPMJPEGConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
 
   if (change & VideoEncoder::kQPChange) {
     int quant = val->GetValue();
-    ENCODER_CFG_CHECK(quant, 1, 10, 0, "JPEG:quant");
+    ENCODER_CFG_CHECK(quant, 1, 10, ENCODER_CFG_INVALID, "JPEG:quant");
     int ret = mpp_enc_cfg_set_s32(enc_cfg, "jpeg:quant", quant);
     if (ret) {
       LOG("ERROR: MPP Encoder[JPEG]: cfg set s32 failed! ret=%d\n", ret);
@@ -263,6 +264,42 @@ static int CalcMppBpsWithTarget(MppEncRcMode rc_mode,
   return 0;
 }
 
+static int CalcQpWithRcQuality(const char *level, VideoEncoderQp &qps) {
+  VideoEncoderQp qp_table[7] = {
+    {-1, 6, 20, 51, 24, 51}, // Highest
+    {-1, 6, 24, 51, 24, 51}, // Higher
+    {-1, 6, 26, 51, 24, 51}, // High
+    {-1, 6, 29, 51, 24, 51}, // Medium
+    {-1, 6, 30, 51, 24, 51}, // Low
+    {-1, 6, 35, 51, 24, 51}, // Lower
+    {-1, 6, 38, 51, 24, 51}  // Lowest
+  };
+
+  // Read From qp cfg file.
+  // To Do...
+
+  if (!strcmp(KEY_HIGHEST, level))
+    qps = qp_table[0];
+  else if (!strcmp(KEY_HIGHER, level))
+    qps = qp_table[1];
+  else if (!strcmp(KEY_HIGH, level))
+    qps = qp_table[2];
+  else if (!strcmp(KEY_MEDIUM, level))
+    qps = qp_table[3];
+  else if (!strcmp(KEY_LOW, level))
+    qps = qp_table[4];
+  else if (!strcmp(KEY_LOWER, level))
+    qps = qp_table[5];
+  else if (!strcmp(KEY_LOWEST, level))
+    qps = qp_table[6];
+  else {
+    LOG("ERROR: MPP Encoder: invalid rcQualit:%s\n", level);
+    return -1;
+  }
+
+  return 0;
+}
+
 bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
   VideoConfig vconfig = cfg.vid_cfg;
   ImageConfig &img_cfg = vconfig.image_cfg;
@@ -277,21 +314,49 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
     return false;
   }
 
+  // In VBR mode, and the user has not set qp,
+  // at this time, the qp value is obtained according to RcQuality.
+  if (vconfig.rc_mode && (!strcmp(vconfig.rc_mode, KEY_VBR)) &&
+    (!vconfig.qp_max || !vconfig.qp_min)) {
+    VideoEncoderQp qps;
+    if (CalcQpWithRcQuality(vconfig.rc_quality, qps))
+      return false;
+    LOG("MPP Encoder: [%s:%s] init:%d, setp:%d, min:%d, "
+      "max:%d, min_i:%d, max_i:%d\n", vconfig.rc_mode, vconfig.rc_quality,
+      qps.qp_init, qps.qp_step, qps.qp_min, qps.qp_max, qps.qp_min_i,
+      qps.qp_max_i);
+    vconfig.image_cfg.qp_init = qps.qp_init;
+    vconfig.qp_step = qps.qp_step;
+    vconfig.qp_min = qps.qp_min;
+    vconfig.qp_max = qps.qp_max;
+    vconfig.qp_min_i = qps.qp_min_i;
+    vconfig.qp_max_i = qps.qp_max_i;
+  }
+
   //Encoder param check.
-  ENCODER_CFG_CHECK(vconfig.frame_rate, 1, 60, 0, "fpsNum");
+  ENCODER_CFG_CHECK(vconfig.frame_rate, 1, 60,
+    ENCODER_CFG_INVALID, "fpsNum");
   ENCODER_CFG_CHECK(vconfig.frame_rate_den, 1, 16, 1, "fpsDen");
-  ENCODER_CFG_CHECK(vconfig.frame_in_rate, 1, 60, 0, "fpsInNum");
+  ENCODER_CFG_CHECK(vconfig.frame_in_rate, 1, 60,
+    ENCODER_CFG_INVALID, "fpsInNum");
   ENCODER_CFG_CHECK(vconfig.frame_in_rate_den, 1, 16, 1, "fpsInDen");
-  ENCODER_CFG_CHECK(vconfig.gop_size, 1, 3000, 30, "gopSize");
+  ENCODER_CFG_CHECK(vconfig.gop_size, 1, 3000,
+    (vconfig.frame_rate > 10) ? vconfig.frame_rate : 30, "gopSize");
   ENCODER_CFG_CHECK(vconfig.qp_max, 8, 51, 48, "qpMax");
   ENCODER_CFG_CHECK(vconfig.qp_min, 1, VALUE_MIN(vconfig.qp_max, 48),
     VALUE_MIN(vconfig.qp_max, 8), "qpMin");
-  ENCODER_CFG_CHECK(img_cfg.qp_init, vconfig.qp_min, vconfig.qp_max,
-    (vconfig.qp_min + vconfig.qp_max) / 2, "qpInit");
+  // qp_init = -1: mpp encoder automatically generate
+  // a value for qp_init.
+  if (img_cfg.qp_init != -1) {
+    ENCODER_CFG_CHECK(img_cfg.qp_init, vconfig.qp_min, vconfig.qp_max,
+      (vconfig.qp_min + vconfig.qp_max) / 2, "qpInit");
+  }
   ENCODER_CFG_CHECK(vconfig.qp_step, 1, (vconfig.qp_max - vconfig.qp_min),
     VALUE_MIN((vconfig.qp_max - vconfig.qp_min), 2), "qpStep");
-  ENCODER_CFG_CHECK(img_cfg.image_info.width, 1, 8192, 0, "width");
-  ENCODER_CFG_CHECK(img_cfg.image_info.height, 1, 8192, 0, "height");
+  ENCODER_CFG_CHECK(img_cfg.image_info.width, 1, 8192,
+    ENCODER_CFG_INVALID, "width");
+  ENCODER_CFG_CHECK(img_cfg.image_info.height, 1, 8192,
+    ENCODER_CFG_INVALID, "height");
   ENCODER_CFG_CHECK(img_cfg.image_info.vir_width, 1, 8192,
     img_cfg.image_info.width, "virWidth");
   ENCODER_CFG_CHECK(img_cfg.image_info.vir_height, 1, 8192,
@@ -653,7 +718,56 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
     else
       vconfig.rc_mode = KEY_CBR;
   } else if (change & VideoEncoder::kRcQualityChange) {
-    LOG("WARN: MPP Encoder: rc_quality is deprecated!\n");
+    char *rc_quality = (char *)val->GetPtr();
+    VideoEncoderQp qps;
+
+    if (strcmp(vconfig.rc_mode, KEY_VBR)) {
+      LOG("ERROR: MPP Encoder: only vbr mode support rcQuality changes!\n");
+      return false;
+    }
+
+    if (CalcQpWithRcQuality(rc_quality, qps))
+      return false;
+
+    LOG("MPP Encoder: [%s:%s->%s] init:%d, setp:%d, min:%d, "
+      "max:%d, min_i:%d, max_i:%d\n", vconfig.rc_mode, vconfig.rc_quality,
+      rc_quality, qps.qp_init, qps.qp_step, qps.qp_min, qps.qp_max,
+      qps.qp_min_i, qps.qp_max_i);
+
+    if (code_type == MPP_VIDEO_CodingAVC) {
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_init", qps.qp_init);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_max", qps.qp_max);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_min", qps.qp_min);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_step", qps.qp_step);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_max_i", qps.qp_max_i);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_min_i", qps.qp_min_i);
+    } else if (code_type == MPP_VIDEO_CodingHEVC) {
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_init", qps.qp_init);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_max", qps.qp_max);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_min", qps.qp_min);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_step", qps.qp_step);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_max_i", qps.qp_max_i);
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_min_i", qps.qp_min_i);
+      // when qp changes qp_delta_ip will reset 0,
+      // so we should set default 3 again.
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_delta_ip", 3);
+    }
+    if (ret) {
+      LOG("ERROR: MPP Encoder: qp: cfg set s32 failed ret %d\n", ret);
+      return false;
+    }
+
+    if (mpp_enc.EncodeControl(MPP_ENC_SET_CFG, enc_cfg) != 0) {
+      LOG("ERROR: MPP Encoder: change qp cfg failed!\n");
+      return false;
+    }
+    vconfig.image_cfg.qp_init = qps.qp_init;
+    vconfig.qp_min = qps.qp_min;
+    vconfig.qp_max = qps.qp_max;
+    vconfig.qp_step = qps.qp_step;
+    vconfig.qp_max_i = qps.qp_max_i;
+    vconfig.qp_min_i = qps.qp_min_i;
+    vconfig.rc_quality = ConvertRcQuality(rc_quality);
   } else if (change & VideoEncoder::kGopChange) {
     int new_gop_size = val->GetValue();
     if(new_gop_size < 0) {

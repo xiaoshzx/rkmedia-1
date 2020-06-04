@@ -127,6 +127,7 @@ typedef struct {
 namespace easymedia {
 extern const char *rc_quality_strings[7];
 extern const char *rc_mode_strings[2];
+const char *ConvertRcQuality(const std::string &s);
 bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
                              MediaConfig &mc);
 _API std::vector<EncROIRegion> StringToRoiRegions(
