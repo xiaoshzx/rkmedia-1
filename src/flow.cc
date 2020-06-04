@@ -308,7 +308,7 @@ const FunctionProcess Flow::void_transaction00 = void_transaction<0, 0>;
 Flow::Flow()
     : out_slot_num(0), input_slot_num(0), down_flow_num(0), enable(true),
       quit(false), event_handler_(nullptr), play_video_handler_(nullptr),
-      play_audio_handler_(nullptr) {}
+      play_audio_handler_(nullptr), user_handler_(nullptr), user_callback_(nullptr) {}
 
 Flow::~Flow() { StopAllThread(); }
 
