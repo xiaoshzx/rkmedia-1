@@ -60,14 +60,16 @@ public:
 
   virtual int IoCtrl(unsigned long int request, ...) override;
 
+  void ThreadLoop(void);
+
   int MatchFeature(rockface_feature_t *feature, float *out_similarity);
+
+  FaceReg Recognize(rockface_feature_t &feature,
+                    std::shared_ptr<FaceRecognizeRequest> request);
   bool FindRecognizedWithId(int face_id, FaceReg *face_reg,
                             std::vector<RknnResult> &last_result);
-
   void BatchProcesPicture(RequestType type,
                           std::list<std::string> &picture_list);
-
-  void ThreadLoop(void);
 
   bool PushRequest(std::shared_ptr<FaceRecognizeRequest> request);
   std::shared_ptr<FaceRecognizeRequest> PopRequest(void);
@@ -91,6 +93,7 @@ public:
       else
         return false;
     }
+
   private:
     const RequestType type_;
   };
@@ -246,23 +249,7 @@ int RockFaceRecognize::SendInput(std::shared_ptr<MediaBuffer> input) {
     if (nn_list.empty())
       return -1;
 
-    ImageInfo src_info = image->GetImageInfo();
-    ImageInfo dst_info = src_info;
-
-    size_t size = CalPixFmtSize(dst_info);
-    auto &&mb = MediaBuffer::Alloc2(size, MediaBuffer::MemType::MEM_HARD_WARE);
-    auto input_image = std::make_shared<ImageBuffer>(mb, dst_info);
-    input_image->SetValidSize(size);
-
-    ImageRect src_rect = {0, 0, src_info.vir_width, src_info.vir_height};
-    ImageRect dst_rect = {0, 0, dst_info.vir_width, dst_info.vir_height};
-    int ret = rga_blit(image, input_image, &src_rect, &dst_rect, 0);
-    if (ret < 0) {
-      LOG("rga_blit failed.\n");
-      return 0;
-    }
-
-    auto request = std::make_shared<FaceRecognizeRequest>(this, input_image);
+    auto request = std::make_shared<FaceRecognizeRequest>(this, image);
     auto &face_array = request->GetFaceArray();
 
     for (auto &nn : nn_list) {
@@ -367,13 +354,52 @@ bool RockFaceRecognize::FindRecognizedWithId(
   bool found = false;
   for (RknnResult &iter : last_result) {
     if (iter.face_info.base.id == face_id &&
-        iter.face_info.face_reg.user_id >= 0) {
+        iter.face_info.face_reg.user_id >= 0 &&
+        iter.face_info.face_reg.type == FACE_REG_RECOGNIZE) {
       *face_reg = iter.face_info.face_reg;
       found = true;
       break;
     }
   }
   return found;
+}
+
+FaceReg
+RockFaceRecognize::Recognize(rockface_feature_t &feature,
+                             std::shared_ptr<FaceRecognizeRequest> request) {
+  FaceReg face_reg;
+  FaceRegType type = RequestTypeToRegType(request->GetType());
+
+  float similarity = 99.9;
+  int matched_index = MatchFeature(&feature, &similarity);
+  if (matched_index >= 0) {
+    if (type == FACE_REG_REGISTER) {
+      face_reg.user_id = -1;
+    } else if (type == FACE_REG_RECOGNIZE) {
+      face_reg.user_id = matched_index;
+      face_reg.similarity = similarity;
+    }
+  } else {
+    if (type == FACE_REG_REGISTER) {
+      int user_id = db_manager_->AddUser(&feature);
+      if (user_id >= 0)
+        face_reg.user_id = user_id;
+      else
+        face_reg.user_id = -99;
+    } else if (type == FACE_REG_RECOGNIZE) {
+      face_reg.user_id = -1;
+      face_reg.similarity = similarity;
+    }
+  }
+  face_reg.type = type;
+
+  std::string pic_path = request->GetPicPath();
+  if (!pic_path.empty())
+    strcpy(face_reg.pic_path, pic_path.c_str());
+  else
+    snprintf(face_reg.pic_path, RKNN_PICTURE_PATH_LEN, "%s_%d", "user",
+             face_reg.user_id);
+  return face_reg;
 }
 
 void RockFaceRecognize::ThreadLoop(void) {
@@ -385,7 +411,6 @@ void RockFaceRecognize::ThreadLoop(void) {
     int count = 0;
     static std::vector<RknnResult> last_result;
 
-    RequestType type = request->GetType();
     rockface_image_t &input_image = request->GetInputImage();
     auto face_array = request->GetFaceArray();
 
@@ -395,15 +420,11 @@ void RockFaceRecognize::ThreadLoop(void) {
       nn_array[count].face_info.base = face;
 
       FaceReg *face_reg = &nn_array[count].face_info.face_reg;
-      face_reg->type = RequestTypeToRegType(type);
-
-      if (type == RequestType::NONE &&
+      if (request->GetType() == RequestType::NONE &&
           FindRecognizedWithId(face.id, face_reg, last_result)) {
-        LOG("filter the face %d\n", face.id);
         count++;
         continue;
       }
-
       rockface_ret_t ret;
       rockface_feature_t feature;
       rockface_image_t aligned_image;
@@ -420,39 +441,11 @@ void RockFaceRecognize::ThreadLoop(void) {
       }
       rockface_image_release(&aligned_image);
 
-      float similarity = 99.9;
-      int matched_index = MatchFeature(&feature, &similarity);
+      FaceReg result = Recognize(feature, request);
+      memcpy(face_reg, &result, sizeof(FaceReg));
 
-      if (matched_index >= 0) {
-        if (type == RequestType::REGISTER) {
-          face_reg->user_id = -1;
-        } else if (type == RequestType::RECOGNIZE ||
-                   type == RequestType::NONE) {
-          face_reg->user_id = matched_index;
-          face_reg->similarity = similarity;
-        }
-      } else {
-        if (type == RequestType::REGISTER) {
-          int user_id = db_manager_->AddUser(&feature);
-          if (user_id >= 0)
-            face_reg->user_id = user_id;
-          else
-            face_reg->user_id = -99;
-        } else if (type == RequestType::RECOGNIZE ||
-                   type == RequestType::NONE) {
-          face_reg->user_id = -1;
-          face_reg->similarity = similarity;
-        }
-      }
-      std::string pic_path = request->GetPicPath();
-      if (!pic_path.empty())
-        strcpy(face_reg->pic_path, pic_path.c_str());
-      else
-        snprintf(face_reg->pic_path, RKNN_PICTURE_PATH_LEN, "%s_%d", "user",
-                 face_reg->user_id);
       count++;
     }
-
     if (last_result.size() > 0)
       last_result.clear();
     last_result.assign(nn_array, nn_array + count);
