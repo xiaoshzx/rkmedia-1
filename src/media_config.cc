@@ -691,6 +691,29 @@ int video_encoder_set_ref_frm_cfg(std::shared_ptr<Flow> &enc_flow,
   return 0;
 }
 
+int video_encoder_set_avc_profile(
+  std::shared_ptr<Flow> &enc_flow, int profile_idc, int level) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  if ((profile_idc != 66) && (profile_idc != 77) &&
+    (profile_idc != 100)) {
+    LOG("ERROR: %s profile_idc:%d is invalid!"
+      "Only supprot: 66:Baseline, 77:Main Profile, 100: High Profile\n",
+      __func__, profile_idc);
+    return -EINVAL;
+  }
+
+  int *param = (int *)malloc(2 * sizeof(int));
+  *param = profile_idc;
+  *(param + 1) = level;
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetPtr(param, 2 * sizeof(int));
+  enc_flow->Control(VideoEncoder::kProfileChange, pbuff);
+
+  return 0;
+}
+
 int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable) {
   if (!enc_flow)

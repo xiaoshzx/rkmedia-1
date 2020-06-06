@@ -717,6 +717,54 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       vconfig.rc_mode = KEY_VBR;
     else
       vconfig.rc_mode = KEY_CBR;
+  } else if (change & VideoEncoder::kProfileChange) {
+    if (val->GetSize() < 2 * sizeof(int)) {
+      LOG("ERROR: MPP Encoder: fps should be int array[2]:"
+        "{profile_idc, level}");
+      return false;
+    }
+    int profile_idc = *((int *)val->GetPtr());
+    int level = *((int *)val->GetPtr() + 1);
+    LOG("MPP Encoder: new profile_idc:%d, level:%d\n", profile_idc, level);
+
+    if (vconfig.image_cfg.codec_type != CODEC_TYPE_H264) {
+      LOG("ERROR: MPP Encoder: Current codec:%d not support Profile change.\n",
+        vconfig.image_cfg.codec_type);
+      return false;
+    }
+
+    // H.264 profile_idc parameter
+    // 66  - Baseline profile
+    // 77  - Main profile
+    // 100 - High profile
+    if ((profile_idc != 66) && (profile_idc != 77) && (profile_idc != 100)) {
+      LOG("MPP Encoder: Invalid H264 profile(%d)\n", profile_idc);
+      return false;
+    }
+    ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:profile", profile_idc);
+    ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:cabac_en",
+      (profile_idc == 100) ? 1 : 0);
+
+    // H.264 level_idc parameter
+    // 10 / 11 / 12 / 13    - qcif@15fps / cif@7.5fps / cif@15fps / cif@30fps
+    // 20 / 21 / 22         - cif@30fps / half-D1@@25fps / D1@12.5fps
+    // 30 / 31 / 32         - D1@25fps / 720p@30fps / 720p@60fps
+    // 40 / 41 / 42         - 1080p@30fps / 1080p@30fps / 1080p@60fps
+    // 50 / 51 / 52         - 4K@30fps
+    ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:level", level);
+
+    if (ret) {
+      LOG("ERROR: MPP Encoder: profile: cfg set s32 failed ret %d\n", ret);
+      return false;
+    }
+
+    if (mpp_enc.EncodeControl(MPP_ENC_SET_CFG, enc_cfg) != 0) {
+      LOG("ERROR: MPP Encoder: change rc_mode cfg failed!\n");
+      return false;
+    }
+    // save new value to encoder->vconfig.
+    vconfig.profile = profile_idc;
+    vconfig.level = level;
   } else if (change & VideoEncoder::kRcQualityChange) {
     char *rc_quality = (char *)val->GetPtr();
     VideoEncoderQp qps;
