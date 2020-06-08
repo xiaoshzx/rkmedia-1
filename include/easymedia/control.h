@@ -124,6 +124,9 @@ enum {
   S_START_SRTEAM = 10800,
   S_STOP_SRTEAM,
   G_MUXER_GET_STATUS,
+  S_MUXER_FILE_DURATION,
+  S_MUXER_FILE_PATH,
+  S_MUXER_FILE_PREFIX,
 };
 
 } // namespace easymedia

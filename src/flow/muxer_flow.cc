@@ -246,6 +246,24 @@ int MuxerFlow::Control(unsigned long int request, ...) {
     if (value)
       *value = enable_streaming ? 1 : 0;
   } break;
+  case S_MUXER_FILE_DURATION: {
+    int duration = va_arg(vl, int);
+    LOG("Muxer:: file_duration is %d\n", duration);
+    if (duration)
+      file_duration = duration;
+  } break;
+  case S_MUXER_FILE_PATH: {
+    std::string path = va_arg(vl, std::string);
+    LOG("Muxer:: file_path is %s\n", path.c_str());
+    if (!path.empty())
+      file_path = path;
+  } break;
+  case S_MUXER_FILE_PREFIX: {
+    std::string prefix = va_arg(vl, std::string);
+    LOG("Muxer:: file_prefix is %s\n", prefix.c_str());
+    if (!prefix.empty())
+      file_prefix = prefix;
+  } break;
   default:
     ret = -1;
     break;
