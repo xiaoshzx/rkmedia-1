@@ -243,39 +243,57 @@ int main(int argc, char **argv) {
 
   LOG("%s initial finish\n", argv[0]);
 
-  LOG("\n#Encoder in CBR MODE for 30s....\n");
-  easymedia::msleep(30000);
+  if (video_enc_type == VIDEO_H264) {
+    easymedia::msleep(2000);
+    LOG("Change profile frome 100 to 66...\n");
+    easymedia::video_encoder_set_avc_profile(video_encoder_flow, 66);
+  }
 
-  LOG("\n#Encoder in VBR MODE for 30s....\n");
-  easymedia::video_encoder_set_rc_mode(video_encoder_flow, KEY_VBR);
-  easymedia::msleep(30000);
+  LOG("\n#Encoder in CBR MODE for 5s....\n");
+  easymedia::msleep(5000);
 
-  LOG("\n#Encoder in BEST Quality for 30s....\n");
-  easymedia::video_encoder_set_rc_quality(video_encoder_flow, KEY_LOWEST);
-  easymedia::msleep(30000);
-
-  LOG("\n#Encoder in WORST Quality for 30s....\n");
-  easymedia::video_encoder_set_rc_quality(video_encoder_flow, KEY_HIGHEST);
-  easymedia::msleep(30000);
-
-  LOG("\n#Encoder with new qp for 30s....\n");
+  LOG("\n#Encoder with new qp for 5s....\n");
   VideoEncoderQp qps;
   memset(&qps, 0, sizeof(qps));
   qps.qp_init = 30;
   qps.qp_max = 51;
-  qps.qp_min = 10;
-  qps.qp_step = 10;
+  qps.qp_min = 6;
+  qps.qp_step = 6;
+  qps.qp_max_i = 48;
+  qps.qp_min_i = 10;
   easymedia::video_encoder_set_qp(video_encoder_flow, qps);
-  easymedia::msleep(30000);
+  easymedia::msleep(5000);
+
+  LOG("\n#Encoder in VBR MODE for 5s....\n");
+  easymedia::video_encoder_set_rc_mode(video_encoder_flow, KEY_VBR);
+  easymedia::msleep(5000);
+
+  const char *rc_level[7] = {
+    KEY_HIGHEST,
+    KEY_HIGHER,
+    KEY_HIGH,
+    KEY_MEDIUM,
+    KEY_LOW,
+    KEY_LOWER,
+    KEY_LOWEST
+  };
+
+  for (int i = 0; !quit && (i < 30); i++) {
+    srand((unsigned)time(NULL));
+    int level_id = rand() % 7;
+    LOG("\n#Encoder in [%s] Quality for 20s....\n", rc_level[level_id]);
+    easymedia::video_encoder_set_rc_quality(video_encoder_flow, rc_level[level_id]);
+    easymedia::msleep(20000);
+  }
 
   LOG("\n#Encoder start bps change test....\n");
   bpsmax = video_width * video_height * video_fps / 4;
   int bpsmin = video_width * video_height * video_fps / 60;
   int bpsstep = (bpsmax - bpsmin / 4);
-  for (int i = 0; i < 4; i++) {
-    LOG("[%d] bps:%d keep 10s...\n", i, bpsmin + i * bpsstep);
+  for (int i = 0; !quit && (i < 4); i++) {
+    LOG("[%d] bps:%d keep 5s...\n", i, bpsmin + i * bpsstep);
     easymedia::video_encoder_set_bps(video_encoder_flow, bpsmin + i * bpsstep);
-    easymedia::msleep(10000);
+    easymedia::msleep(5000);
   }
 
   video_read_flow->RemoveDownFlow(video_encoder_flow);

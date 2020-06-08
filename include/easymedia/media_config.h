@@ -170,6 +170,8 @@ _API int video_move_detect_set_rects(std::shared_ptr<Flow> &md_flow,
   ImageRect *rects, int rect_cnt);
 _API int video_move_detect_set_rects(std::shared_ptr<Flow> &md_flow,
   std::string rects_param);
+_API int video_encoder_set_avc_profile(
+  std::shared_ptr<Flow> &enc_flow, int profile_idc, int level = 0);
 
 // mode: slice split mode
 // 0 - No slice is split
