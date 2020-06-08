@@ -192,6 +192,8 @@
 #define KEY_BODY_PERCENTAGE "percentage"
 #define KEY_BODY_DURATION "duration"
 #define KEY_ENBALE_FACE_DETECT "enable_face_detect"
+#define KEY_CACHE_SIZE "cache_size"
+#define KEY_CLOCK_DELTA "clock_delta"
 
 //rockx
 #define KEY_ROCKX_MODEL "rockx_model"
