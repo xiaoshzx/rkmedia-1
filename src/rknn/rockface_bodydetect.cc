@@ -164,6 +164,10 @@ int BodyDetect::Process(std::shared_ptr<MediaBuffer> input,
   if (!contrl_->CheckIsRun() || authorized_result_.status == TIMEOUT)
     return 0;
 
+  // flush cache,  2688x1520 NV12 cost 1399us, 1080P cost 905us
+  image->BeginCPUAccess(false);
+  image->EndCPUAccess(false);
+
   AutoDuration cost_time;
   rockface_ret_t ret;
   rockface_det_person_array_t body_array;
@@ -171,8 +175,7 @@ int BodyDetect::Process(std::shared_ptr<MediaBuffer> input,
 
   ret = rockface_person_detect(body_handle_, &input_img, &body_array);
   if (ret != ROCKFACE_RET_SUCCESS) {
-    if (ret == ROCKFACE_RET_AUTH_FAIL ||
-        ret == ROCKFACE_RET_NOT_SUPPORT) {
+    if (ret == ROCKFACE_RET_AUTH_FAIL) {
       authorized_result_.status = TIMEOUT;
       if (callback_) {
         AutoLockMutex lock(cb_mtx_);

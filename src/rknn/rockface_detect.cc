@@ -135,15 +135,15 @@ bool RockFaceDetect::FaceDetect(std::shared_ptr<easymedia::ImageBuffer> image,
       return false;
     *face_array = det_array;
   }
-  LOGD("rockface_detect cost timt %lldus\n", cost_time.GetAndReset());
+  LOGD("rockface_detect cost time %lldus\n", cost_time.GetAndReset());
 
   rockface_det_array_t track_array;
-  ret = rockface_track(face_handle_, &input_image, 4, face_array, &track_array,
-                       auto_track);
-  if (!CheckFaceReturn("rockface_track", ret))
+  ret = rockface_autotrack(face_handle_, &input_image, 4, face_array, &track_array,
+                           auto_track);
+  if (!CheckFaceReturn("rockface_autotrack", ret))
     return false;
   *face_array = track_array;
-  LOGD("rockface_track cost timt %lldus\n", cost_time.GetAndReset());
+  LOGD("rockface_autotrack cost time %lldus\n", cost_time.GetAndReset());
 
   frame_idx++;
   return true;
@@ -162,6 +162,10 @@ int RockFaceDetect::Process(std::shared_ptr<MediaBuffer> input,
 
   if (!enable_)
     goto exit;
+
+  // flush cache,  2688x1520 NV12 cost 1399us, 1080P cost 905us
+  image->BeginCPUAccess(false);
+  image->EndCPUAccess(false);
 
   rockface_det_array_t face_array;
   memset(&face_array, 0, sizeof(rockface_det_array_t));
