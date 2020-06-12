@@ -283,19 +283,19 @@ void draw_rect(std::shared_ptr<ImageBuffer> &buffer, Rect &rect, int thick) {
   int img_h = buffer->GetHeight();
 
   if (rect.right > img_w - thick) {
-    LOG("draw_rect right > img_w\n");
+    // LOG("draw_rect right > img_w\n");
     rect.right = img_w - thick;
   }
   if (rect.left < 0) {
-    LOG("draw_rect letf < 0\n");
+    // LOG("draw_rect letf < 0\n");
     rect.left = 0;
   }
   if (rect.bottom > img_h - thick) {
-    LOG("draw_rect bottom > img_h\n");
+    // LOG("draw_rect bottom > img_h\n");
     rect.bottom = img_h - thick;
   }
   if (rect.top < 0) {
-    LOG("draw_rect top < 0\n");
+    // LOG("draw_rect top < 0\n");
     rect.top = 0;
   }
 
