@@ -15,6 +15,7 @@
 #include "media_type.h"
 #include "sound.h"
 #include "rknn_user.h"
+#include "lock.h"
 
 typedef int (*DeleteFun)(void *arg);
 
@@ -218,6 +219,70 @@ private:
   }
   ImageInfo image_info;
   std::list<RknnResult> nn_result;
+};
+
+class MediaGroupBuffer {
+public:
+  MediaGroupBuffer()
+      : pool(nullptr), ptr(nullptr), size(0), fd(-1) {}
+  // Set userdata and delete function if you want free resource when destrut.
+  MediaGroupBuffer(void *buffer_ptr, size_t buffer_size, int buffer_fd = -1,
+              void *user_data = nullptr, DeleteFun df = nullptr)
+      : pool(nullptr), ptr(buffer_ptr), size(buffer_size), fd(buffer_fd) {
+    SetUserData(user_data, df);
+  }
+  virtual ~MediaGroupBuffer() = default;
+
+  void SetUserData(void *user_data, DeleteFun df) {
+    if (user_data) {
+      if (df)
+        userdata.reset(user_data, df);
+      else
+        userdata.reset(user_data, [](void *) {}); // do nothing when delete
+    } else {
+      userdata.reset();
+    }
+  }
+
+  void SetBufferPool(void *bp) {
+    pool = bp;
+  }
+
+  int GetFD() const { return fd; }
+  void *GetPtr() const { return ptr; }
+  size_t GetSize() const { return size; }
+
+  static MediaGroupBuffer* Alloc(size_t size,
+    MediaBuffer::MemType type = MediaBuffer::MemType::MEM_COMMON);
+
+public:
+  void *pool;
+
+private:
+
+  void *ptr; // buffer virtual address
+  size_t size;
+  int fd;            // buffer fd
+
+  std::shared_ptr<void> userdata;
+};
+
+class _API BufferPool {
+public:
+  BufferPool(int cnt, int size, MediaBuffer::MemType type);
+  ~BufferPool();
+
+  std::shared_ptr<MediaBuffer> GetBuffer(bool block = true);
+  int PutBuffer(MediaGroupBuffer *mgb);
+
+  void DumpInfo();
+
+private:
+  std::list<MediaGroupBuffer *> ready_buffers;
+  std::list<MediaGroupBuffer *> busy_buffers;
+  ConditionLockMutex mtx;
+  int buf_cnt;
+  int buf_size;
 };
 
 } // namespace easymedia
