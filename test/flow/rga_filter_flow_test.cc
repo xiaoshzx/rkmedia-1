@@ -29,7 +29,7 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
-static char optstr[] = "?:i:o:w:h:f:n:";
+static char optstr[] = "?:i:o:w:h:f:n:b:";
 
 static void print_usage(char *name) {
   printf("@function:\nCrop input image to half of original.\n");
@@ -43,6 +43,7 @@ int main(int argc, char **argv) {
   int video_width = 1920;
   int video_height = 1080;
   std::string pixel_format;
+  bool bufferpool = false;
 
   std::string output_path;
   std::string input_path;
@@ -79,6 +80,10 @@ int main(int argc, char **argv) {
       pixel_format = optarg;
       printf("#IN ARGS: pixel_format: %s\n", pixel_format.c_str());
       break;
+    case 'b':
+      bufferpool = atoi(optarg) ? true : false;
+      printf("#IN ARGS: bufferpool: %d\n", bufferpool);
+      break;
     case '?':
     default:
       print_usage(argv[0]);
@@ -103,6 +108,9 @@ int main(int argc, char **argv) {
   easymedia::REFLECTOR(Flow)::DumpFactories();
   printf("#Dump streams:");
   easymedia::REFLECTOR(Stream)::DumpFactories();
+
+  //init log:set log level and log method.
+  LOG_INIT();
 
   //Reading yuv from camera
   flow_name = "source_stream";
@@ -145,6 +153,12 @@ int main(int argc, char **argv) {
   PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_HEIGHT, target_height);
   PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_WIDTH, target_width);
   PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_HEIGHT, target_height);
+  // enable buffer pool?
+  if (bufferpool) {
+    PARAM_STRING_APPEND(flow_param, KEY_MEM_TYPE, KEY_MEM_HARDWARE);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_MEM_CNT, 10);
+  }
+
   filter_param = "";
   ImageRect src_rect = {0, 0, video_width, video_height};
   ImageRect dst_rect = {0, 0, target_width, target_height};

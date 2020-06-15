@@ -113,6 +113,7 @@
 #define KEY_USERPASSWORD "userpwd"
 #define KEY_CHANNEL_NAME "channel_name"
 
+#define KEY_MEM_CNT "mem_cnt"
 #define KEY_MEM_TYPE "mem_type"
 #define KEY_MEM_ION "ion"
 #define KEY_MEM_DRM "drm"

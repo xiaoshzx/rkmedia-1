@@ -39,6 +39,7 @@ private:
   Model thread_model;
   PixelFormat input_pix_fmt; // a hack for rga copy yuyv, by set fake rgb565
   ImageInfo out_img_info;
+  std::shared_ptr<BufferPool> buffer_pool;
 
   friend bool do_filters(Flow *f, MediaBufferVector &input_vector);
 };
@@ -112,6 +113,27 @@ FilterFlow::FilterFlow(const char *param)
         return;
       }
     }
+    // Create buffer pool with vir_height and vir_width.
+    std::string &mem_type = params[KEY_MEM_TYPE];
+    std::string &mem_cnt = params[KEY_MEM_CNT];
+    if ((input_pix_fmt != PIX_FMT_NONE) &&
+      (out_img_info.vir_height > 0) &&
+      (out_img_info.vir_width > 0) &&
+      (!mem_type.empty()) && (!mem_cnt.empty())) {
+      LOG("%s: Enable BufferPool! memtype:%s, memcnt:%s\n",
+        tag.c_str(), mem_type.c_str(), mem_cnt.c_str());
+
+      int m_cnt = std::stoi(mem_cnt);
+      if (m_cnt <= 0) {
+        LOG("ERROR: %s: mem_cnt %s invalid!\n", tag.c_str(), mem_cnt.c_str());
+        SetError(-EINVAL);
+        return;
+      }
+      size_t m_size = CalPixFmtSize(out_img_info);
+      MediaBuffer::MemType m_type =  StringToMemType(mem_type.c_str());
+
+      buffer_pool = std::make_shared<BufferPool>(m_cnt, m_size, m_type);
+    }
   } else {
     // support async mode (one input, multi output)
     support_async = true;
@@ -141,10 +163,19 @@ bool do_filters(Flow *f, MediaBufferVector &input_vector) {
       out_buffer = std::make_shared<MediaBuffer>();
     } else {
       if (info.vir_width > 0 && info.vir_height > 0) {
-        size_t size = CalPixFmtSize(info);
-        auto &&mb =
-            MediaBuffer::Alloc2(size, MediaBuffer::MemType::MEM_HARD_WARE);
-        out_buffer = std::make_shared<ImageBuffer>(mb, info);
+        if (flow->buffer_pool) {
+          auto mb = flow->buffer_pool->GetBuffer();
+          if (!mb) {
+            LOG("ERROR: %s: buffer_pool get null buffer!\n");
+            return false;
+          }
+          out_buffer = std::make_shared<ImageBuffer>(*(mb.get()), info);
+        } else {
+          size_t size = CalPixFmtSize(info);
+          auto &&mb =
+              MediaBuffer::Alloc2(size, MediaBuffer::MemType::MEM_HARD_WARE);
+          out_buffer = std::make_shared<ImageBuffer>(mb, info);
+        }
       } else {
         auto ib = std::make_shared<ImageBuffer>();
         if (ib) {
