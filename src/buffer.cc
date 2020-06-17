@@ -35,6 +35,7 @@ MediaBuffer::MemType StringToMemType(const char *s) {
 static int free_common_memory(void *buffer) {
   if (buffer)
     free(buffer);
+
   return 0;
 }
 
@@ -43,6 +44,15 @@ static MediaBuffer alloc_common_memory(size_t size) {
   if (!buffer)
     return MediaBuffer();
   return MediaBuffer(buffer, size, -1, buffer, free_common_memory);
+}
+
+static MediaGroupBuffer* alloc_common_memory_group(size_t size) {
+  void *buffer = malloc(size);
+  if (!buffer)
+    return nullptr;
+  MediaGroupBuffer *mgb = new MediaGroupBuffer(buffer, size, -1, buffer, free_common_memory);
+
+  return mgb;
 }
 
 #ifdef LIBION
@@ -232,6 +242,13 @@ public:
   }
   bool Valid() { return fd >= 0; }
 
+  const static std::shared_ptr<DrmDevice> &GetInstance() {
+    const static std::shared_ptr<DrmDevice> mDrmDevice =
+      std::make_shared<DrmDevice>();
+
+    return mDrmDevice;
+  }
+
   int fd;
 };
 
@@ -330,7 +347,7 @@ enum drm_rockchip_gem_mem_type {
 };
 
 static MediaBuffer alloc_drm_memory(size_t size, bool map = true) {
-  static auto drm_dev = std::make_shared<DrmDevice>();
+  const static std::shared_ptr<DrmDevice> &drm_dev = DrmDevice::GetInstance();
   DrmBuffer *db = nullptr;
   do {
     if (!drm_dev || !drm_dev->Valid())
@@ -346,6 +363,29 @@ static MediaBuffer alloc_drm_memory(size_t size, bool map = true) {
     delete db;
   return MediaBuffer();
 }
+
+static MediaGroupBuffer* alloc_drm_memory_group(size_t size, bool map = true) {
+  const static std::shared_ptr<DrmDevice> &drm_dev = DrmDevice::GetInstance();
+  DrmBuffer *db = nullptr;
+
+  do {
+    if (!drm_dev || !drm_dev->Valid())
+      break;
+    db = new DrmBuffer(drm_dev, size, ROCKCHIP_BO_CACHABLE);
+    if (!db || !db->Valid())
+      break;
+    if (map && !db->MapToVirtual())
+      break;
+    MediaGroupBuffer *mgb = nullptr;
+    mgb = new MediaGroupBuffer(db->map_ptr, db->len, db->fd, db, free_drm_memory);
+    return mgb;
+  } while (false);
+  if (db)
+    delete db;
+
+  return nullptr;
+}
+
 #endif
 
 std::shared_ptr<MediaBuffer> MediaBuffer::Alloc(size_t size, MemType type) {
@@ -442,6 +482,164 @@ void MediaBuffer::EndCPUAccess(bool readonly) {
   int ret = ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
   if (ret < 0)
     LOG("%s: %s\n", __func__, strerror(errno));
+}
+
+MediaGroupBuffer *
+MediaGroupBuffer::Alloc(size_t size, MediaBuffer::MemType type) {
+  switch (type) {
+    case MediaBuffer::MemType::MEM_COMMON:
+      return alloc_common_memory_group(size);
+#ifdef LIBDRM
+    case MediaBuffer::MemType::MEM_HARD_WARE:
+      return alloc_drm_memory_group(size);
+#endif
+    default:
+      LOG("unknown memtype\n");
+      return nullptr;
+  }
+}
+
+BufferPool::BufferPool(int cnt, int size, MediaBuffer::MemType type) {
+  bool sucess = true;
+
+  if (cnt <= 0) {
+    LOG("ERROR: BufferPool: cnt:%d is invalid!\n", cnt);
+    return;
+  }
+
+  for (int i = 0; i < cnt; i++) {
+    auto mgb = MediaGroupBuffer::Alloc(size, type);
+    if (!mgb) {
+      sucess = false;
+      break;
+    }
+    mgb->SetBufferPool(this);
+    LOGD("Create: pool:%p, mgb:%p, ptr:%p, fd:%d, size:%zu\n",
+      this, mgb, mgb->GetPtr(), mgb->GetFD(), mgb->GetSize());
+    ready_buffers.push_back(mgb);
+  }
+
+  if (!sucess) {
+    while (ready_buffers.size() > 0)
+      ready_buffers.pop_front();
+    LOG("ERROR: BufferPool: Create buffer pool failed! Please check space is enough!\n");
+    return;
+  }
+  buf_cnt = cnt;
+  buf_size = size;
+  LOGD("BufferPool: Create buffer pool:%p, size:%d, cnt:%d\n",
+    this, size, cnt);
+}
+
+BufferPool::~BufferPool() {
+  int cnt = 0;
+  int wait_times = 30;
+
+  while (busy_buffers.size() > 0) {
+    if (wait_times <= 0) {
+      LOG("ERROR: BufferPool: waiting bufferpool free for 900ms, TimeOut!\n");
+      break;
+    }
+    easymedia::usleep(30000); //wait 30ms
+  }
+
+  MediaGroupBuffer *mgb = NULL;
+  while (ready_buffers.size() > 0) {
+    mgb = ready_buffers.front();
+    ready_buffers.pop_front();
+    LOGD("BufferPool: #%02d Destroy buffer pool(ready):[%p,%p]\n",
+      cnt, this, mgb);
+    delete mgb;
+    cnt++;
+  }
+
+  while (busy_buffers.size() > 0) {
+    mgb = busy_buffers.front();
+    busy_buffers.pop_front();
+    LOG("WARN: BufferPool: #%02d Destroy buffer pool(busy):[%p,%p]\n",
+      cnt, this, mgb);
+    delete mgb;
+    cnt++;
+  }
+}
+
+static int __groupe_buffer_free(void *data) {
+  assert(data);
+  if (data == NULL) {
+    LOG("ERROR: BufferPool: free ptr is null!\n");
+    return 0;
+  }
+  MediaGroupBuffer *mgb = (MediaGroupBuffer *)data;
+  if (mgb->pool == NULL) {
+    LOG("ERROR: BufferPool: free pool ptr is null!\n");
+    return 0;
+  }
+
+  BufferPool *bp = (BufferPool *)mgb->pool;
+
+  return bp->PutBuffer(mgb);
+}
+
+std::shared_ptr<MediaBuffer> BufferPool::GetBuffer(bool block) {
+  AutoLockMutex _alm(mtx);
+
+  while(1) {
+    if (!ready_buffers.size()) {
+      if (block)
+        mtx.wait();
+      else
+        return nullptr;
+    }
+    //mtx.notify wake up all mtx.wait.
+    if (ready_buffers.size() > 0)
+      break;
+  }
+
+  auto mgb = ready_buffers.front();
+  ready_buffers.pop_front();
+  busy_buffers.push_back(mgb);
+
+  auto &&mb = std::make_shared<MediaBuffer>(mgb->GetPtr(),
+    mgb->GetSize(), mgb->GetFD(), mgb, __groupe_buffer_free);
+  return mb;
+}
+
+int BufferPool::PutBuffer(MediaGroupBuffer *mgb) {
+  std::list<MediaGroupBuffer *>::iterator it;
+  bool sucess = false;
+  AutoLockMutex _alm(mtx);
+
+  for (it = busy_buffers.begin(); it != busy_buffers.end();) {
+    if (*it == mgb) {
+      sucess = true;
+      it = busy_buffers.erase(it);
+      ready_buffers.push_back(mgb);
+      mtx.notify();
+      break;
+    }
+    it++;
+  }
+
+  if (!sucess)
+    LOG("ERROR: BufferPool: Unknow media group buffer:%p\n", mgb);
+
+  return sucess ? 0 : -1;
+}
+
+void BufferPool::DumpInfo() {
+  int id = 0;
+  LOG("##BufferPool DumpInfo:%p\n", this);
+  LOG("\tcnt:%d\n", buf_cnt);
+  LOG("\tsize:%zu\n", buf_size);
+  LOG("\tready buffers(%d):\n", ready_buffers.size());
+  for (auto dev : ready_buffers)
+    LOG("\t  #%02d Pool:%p, mgb:%p, ptr:%p\n",
+      id++, dev->pool, dev, dev->GetPtr());
+  LOG("\tbusy buffers(%d):\n", busy_buffers.size());
+  id = 0;
+  for (auto dev : busy_buffers)
+    LOG("\t  #%02d Pool:%p, mgb:%p, ptr:%p\n",
+      id++, dev->pool, dev, dev->GetPtr());
 }
 
 } // namespace easymedia
