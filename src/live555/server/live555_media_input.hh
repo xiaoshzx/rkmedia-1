@@ -35,6 +35,7 @@ public:
   std::shared_ptr<MediaBuffer> Pop();
   int GetReadFd() { return wakeFds[0]; }
   int GetWriteFd() { return wakeFds[1]; }
+  Boolean GetReadFdStatus() { return m_read_fd_status; }
   void CloseReadFd();
   unsigned GetCachedBufSize() { return m_cached_buffers_size; }
   void SetCachedBufSize(size_t one_buf_size);
@@ -45,6 +46,7 @@ private:
   ListReductionPtr reduction;
   int wakeFds[2]; // Live555's EventTrigger is poor for multithread, use fds
   unsigned m_cached_buffers_size;
+  Boolean m_read_fd_status;
 };
 
 class Live555MediaInput : public Medium {

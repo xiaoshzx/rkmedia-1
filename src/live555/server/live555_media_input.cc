@@ -24,7 +24,7 @@ Live555MediaInput::Live555MediaInput(UsageEnvironment &env)
 Live555MediaInput::~Live555MediaInput() {
   LOG_FILE_FUNC_LINE();
   video_list.remove_if([](Source *s) {
-    if (s->GetReadFd() < 0) {
+    if (s->GetReadFdStatus()) {
       delete s;
       return true;
     } else {
@@ -33,7 +33,7 @@ Live555MediaInput::~Live555MediaInput() {
   });
 
   audio_list.remove_if([](Source *s) {
-    if (s->GetReadFd() < 0) {
+    if (s->GetReadFdStatus()) {
       delete s;
       return true;
     } else {
@@ -42,7 +42,7 @@ Live555MediaInput::~Live555MediaInput() {
   });
 
   muxer_list.remove_if([](Source *s) {
-    if (s->GetReadFd() < 0) {
+    if (s->GetReadFdStatus()) {
       delete s;
       return true;
     } else {
@@ -177,7 +177,7 @@ void Live555MediaInput::PushNewVideo(std::shared_ptr<MediaBuffer> &buffer) {
       m_max_idr_size = buffer->GetValidSize();
   }
   video_list.remove_if([](Source *s) {
-    if (s->GetReadFd() < 0) {
+    if (s->GetReadFdStatus()) {
       delete s;
       return true;
     } else {
@@ -187,7 +187,7 @@ void Live555MediaInput::PushNewVideo(std::shared_ptr<MediaBuffer> &buffer) {
 
   for (auto video : video_list) {
     if (video) {
-      if (video->GetReadFd() >= 0) {
+      if (!video->GetReadFdStatus()) {
         video->Push(buffer);
       }
     }
@@ -198,7 +198,7 @@ void Live555MediaInput::PushNewAudio(std::shared_ptr<MediaBuffer> &buffer) {
   if (!buffer)
     return;
   audio_list.remove_if([](Source *s) {
-    if (s->GetReadFd() < 0) {
+    if (s->GetReadFdStatus()) {
       delete s;
       return true;
     } else {
@@ -207,7 +207,7 @@ void Live555MediaInput::PushNewAudio(std::shared_ptr<MediaBuffer> &buffer) {
   });
   for (auto audio : audio_list) {
     if (audio) {
-      if (audio->GetReadFd() >= 0) {
+      if (!audio->GetReadFdStatus()) {
         audio->Push(buffer);
       }
     }
@@ -218,7 +218,7 @@ void Live555MediaInput::PushNewMuxer(std::shared_ptr<MediaBuffer> &buffer) {
   if (!buffer)
     return;
   muxer_list.remove_if([](Source *s) {
-    if (s->GetReadFd() < 0) {
+    if (s->GetReadFdStatus()) {
       delete s;
       return true;
     } else {
@@ -227,7 +227,7 @@ void Live555MediaInput::PushNewMuxer(std::shared_ptr<MediaBuffer> &buffer) {
   });
   for (auto muxer : muxer_list) {
     if (muxer) {
-      if (muxer->GetReadFd() >= 0) {
+      if (!muxer->GetReadFdStatus()) {
         muxer->SetCachedBufSize(buffer->GetValidSize());
         muxer->Push(buffer);
       }
@@ -256,15 +256,17 @@ StartStreamCallback Live555MediaInput::GetStartAudioStreamCallback() {
 unsigned Live555MediaInput::getMaxIdrSize() {
   return (m_max_idr_size * 13 / 10) * 3 * 2 / 25;
 }
-Source::Source() : reduction(nullptr), m_cached_buffers_size(MAX_CACHE_NUMBER) {
+Source::Source()
+    : reduction(nullptr), m_cached_buffers_size(MAX_CACHE_NUMBER),
+      m_read_fd_status(false) {
   wakeFds[0] = wakeFds[1] = -1;
-  LOG("Source :: %p.\n", this);
+  LOG("Source :: %p wakeFds[0] = %d, wakeFds[1]= %d.\n", this, wakeFds[0],
+      wakeFds[1]);
 }
 
 void Source::CloseReadFd() {
   if (wakeFds[0] >= 0) {
-    ::close(wakeFds[0]);
-    wakeFds[0] = -1;
+    m_read_fd_status = true;
   }
 }
 
@@ -302,7 +304,7 @@ void Source::Push(std::shared_ptr<MediaBuffer> &buffer) {
   int i = 0;
   ssize_t count = write(wakeFds[1], &i, sizeof(i));
   if (count < 0) {
-    LOG("write failed: %s\n", strerror(errno));
+    LOG("write failed: %s, %p, fd = %d\n", strerror(errno), this, wakeFds[1]);
   }
 }
 
@@ -376,7 +378,8 @@ bool VideoFramedSource::readFromList(bool flush _UNUSED) {
   ssize_t read_size = (ssize_t)sizeof(i);
   ssize_t ret = read(fSource.GetReadFd(), &i, sizeof(i));
   if (ret != read_size) {
-    LOG("%s:%d, read from pipe error, %m\n", __func__, __LINE__);
+    LOG("video %s:%d, fd = %d. read from pipe error, %m\n", __func__, __LINE__,
+        fSource.GetReadFd());
     envir() << __LINE__ << " read from pipe error: " << errno << "\n";
     goto err;
   }
@@ -463,7 +466,8 @@ bool CommonFramedSource::readFromList(bool flush _UNUSED) {
   ssize_t read_size = (ssize_t)sizeof(i);
   ssize_t ret = read(fSource.GetReadFd(), &i, sizeof(i));
   if (ret != read_size) {
-    LOG("%s:%d, read from pipe error, %m\n", __func__, __LINE__);
+    LOG("common %s:%d, fd = %d. read from pipe error, %m\n", __func__, __LINE__,
+        fSource.GetReadFd());
     envir() << __LINE__ << " read from pipe error: " << errno << "\n";
     goto err;
   }
