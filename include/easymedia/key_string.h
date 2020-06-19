@@ -210,4 +210,6 @@
 #define KEY_UVC_HEIGHT "uvc_height"
 #define KEY_UVC_FORMAT "uvc_format"
 
+#define KEY_ROCKX_ASYNC_CALLBACK "aysnc_callback_enable"
+
 #endif // #ifndef EASYMEDIA_MEDIA_KEY_STRING_H_

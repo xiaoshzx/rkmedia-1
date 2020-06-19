@@ -4,18 +4,17 @@
 
 #include "buffer.h"
 #include "filter.h"
+#include "link_config.h"
+#include "lock.h"
 #include "rknn_utils.h"
 #include "utils.h"
-#include "lock.h"
-
 #include <assert.h>
 #include <rockx/rockx.h>
 
 namespace easymedia {
 
-static char* enable_skip_frame = NULL;
-static char* enable_rockx_debug = NULL;
-
+static char *enable_skip_frame = NULL;
+static char *enable_rockx_debug = NULL;
 
 class RockxContrl {
 public:
@@ -30,8 +29,8 @@ public:
 
   void SetEnable(int enable) { enable_ = enable; }
   void SetInterval(int interval) { interval_ = interval; }
-  //bool PercentageFilter(rockface_det_t *body);
-  //bool DurationFilter(std::list<RknnResult> &list, int64_t timeval_ms);
+  // bool PercentageFilter(rockface_det_t *body);
+  // bool DurationFilter(std::list<RknnResult> &list, int64_t timeval_ms);
 
   int GetEnable(void) const { return enable_; }
   int GetInterval(void) const { return interval_; }
@@ -51,6 +50,30 @@ bool RockxContrl::CheckIsRun() {
     }
   }
   return check;
+}
+
+int64_t SystemTime2() {
+  struct timespec t;
+  t.tv_sec = t.tv_nsec = 0;
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return (int64_t)(t.tv_sec) * 1000 + t.tv_nsec / 1000000;
+}
+
+void DumpFps() {
+
+  static int mFrameCount;
+  static int mLastFrameCount = 0;
+  static int mLastFpsTime = 0;
+  static float mFps = 0;
+  mFrameCount++;
+  int64_t now = SystemTime2();
+  int64_t diff = now - mLastFpsTime;
+  if (diff > 500) {
+    mFps = ((mFrameCount - mLastFrameCount) * 1000) / diff;
+    mLastFpsTime = now;
+    mLastFrameCount = mFrameCount;
+    LOG("---mFps = %2.3f\n", mFps);
+  }
 }
 
 void SavePoseBodyImg(rockx_image_t input_image,
@@ -102,6 +125,38 @@ void SavePoseBodyImg(rockx_image_t input_image,
   }
 }
 
+class ROCKXContent {
+public:
+  ROCKXContent(std::shared_ptr<easymedia::ImageBuffer> input,
+               RknnCallBack callback)
+      : input_buffer(input), callback_(callback){};
+  virtual ~ROCKXContent() {
+    if (input_buffer)
+      input_buffer.reset();
+  };
+
+  void SetInputWidth(const int &w) { input_w = w; };
+  void SetInputHeight(const int &h) { input_h = h; };
+  void SetRockxHandle(const rockx_handle_t hdl) { hdl_ = hdl; };
+  void SetInputType(const std::string &type) { input_type_ = type; };
+  std::shared_ptr<easymedia::ImageBuffer> &GetInputBuffer() {
+    return input_buffer;
+  };
+  std::string &GetInputType() { return input_type_; };
+  rockx_handle_t GetRockxHdl() { return hdl_; };
+  RknnCallBack GetCallbackPtr() { return callback_; };
+  int GetInputWidth() { return input_w; };
+  int GetInputHeight() { return input_h; };
+
+private:
+  std::shared_ptr<easymedia::ImageBuffer> input_buffer;
+  std::string input_type_;
+  RknnCallBack callback_;
+  rockx_handle_t hdl_;
+  int input_w;
+  int input_h;
+};
+
 class ROCKXFilter : public Filter {
 public:
   ROCKXFilter(const char *param);
@@ -114,9 +169,9 @@ public:
 private:
   std::string model_name_;
   std::vector<rockx_handle_t> rockx_handles_;
-  std::shared_ptr<easymedia::MediaBuffer> tmp_image_;
   std::string input_type_;
-  RknnCallBack callback_;
+  int async_enable;
+  static RknnCallBack callback_;
   std::shared_ptr<RockxContrl> contrl_;
   ReadWriteLockMutex cb_mtx_;
 
@@ -129,7 +184,127 @@ private:
   int ProcessRockxPoseBody(std::shared_ptr<easymedia::ImageBuffer> input_buffer,
                            rockx_image_t input_img,
                            std::vector<rockx_handle_t> handles);
+  int ProcessRockxFinger(std::shared_ptr<easymedia::ImageBuffer> input_buffer,
+                         rockx_image_t input_img,
+                         std::vector<rockx_handle_t> handles);
+  static void RockxPoseBodyAsyncCallback(void *result, size_t result_size,
+                                         void *extra_data);
+  static void RockxFaceDetectAsyncCallback(void *result, size_t result_size,
+                                           void *extra_data);
 };
+
+RknnCallBack ROCKXFilter::callback_ = NULL;
+void RockxSendNNData(std::list<RknnResult> &nn_results,
+                     const std::string &model_name,
+                     const RknnCallBack callback) {
+  int size = nn_results.size();
+  if (!callback || size <= 0)
+    return;
+
+  linknndata_s link_nn_data;
+  RknnResult *infos = (RknnResult *)malloc(size * sizeof(RknnResult));
+  if (infos) {
+    int i = 0;
+    for (auto &iter : nn_results) {
+      memcpy(&infos[i], &iter, sizeof(RknnResult));
+      i++;
+    }
+  }
+  link_nn_data.rknn_result = infos;
+  link_nn_data.size = size;
+  link_nn_data.nn_model_name = model_name.c_str();
+  link_nn_data.timestamp = 0;
+  callback(nullptr, LINK_NNDATA, &link_nn_data, 1);
+  if (infos)
+    free(infos);
+}
+
+void RockxLandmarkPostProcess(rockx_image_t &input_img,
+                              rockx_object_array_t *face_array,
+                              const rockx_handle_t &hdl,
+                              std::list<RknnResult> &nn_result) {
+  if (hdl == 0)
+    return;
+  rockx_ret_t ret = ROCKX_RET_SUCCESS;
+  RknnResult result_item;
+  memset(&result_item, 0, sizeof(RknnResult));
+  result_item.type = NNRESULT_TYPE_LANDMARK;
+  for (int i = 0; i < face_array->count; i++) {
+    rockx_face_landmark_t out_landmark;
+    memset(&out_landmark, 0, sizeof(rockx_face_landmark_t));
+    ret = rockx_face_landmark(hdl, &input_img, &face_array->object[i].box,
+                              &out_landmark);
+    if (ret != ROCKX_RET_SUCCESS && ret != -2) {
+      fprintf(stderr, "rockx_face_landmark error %d\n", ret);
+      return;
+    }
+    memcpy(&result_item.landmark_info.object, &out_landmark,
+           sizeof(rockx_face_landmark_t));
+    result_item.img_w = input_img.width;
+    result_item.img_h = input_img.height;
+    nn_result.push_back(result_item);
+  }
+}
+
+void ROCKXFilter::RockxPoseBodyAsyncCallback(void *result, size_t result_size,
+                                             void *extra_data) {
+  rockx_keypoints_array_t *key_points_array = (rockx_keypoints_array_t *)result;
+  ROCKXContent *ctx = static_cast<ROCKXContent *>(extra_data);
+  if (result_size <= 0 || !ctx)
+    return;
+
+  std::list<RknnResult> body_results;
+  RknnResult result_item;
+
+  memset(&result_item, 0, sizeof(RknnResult));
+  result_item.type = NNRESULT_TYPE_BODY;
+  for (int i = 0; i < key_points_array->count; i++) {
+    rockx_keypoints_t *object = &key_points_array->keypoints[i];
+    memcpy(&result_item.body_info.object, object, sizeof(rockx_keypoints_t));
+    result_item.img_w = ctx->GetInputWidth();
+    result_item.img_h = ctx->GetInputHeight();
+    body_results.push_back(result_item);
+  }
+
+  RknnCallBack nn_callback = ctx->GetCallbackPtr();
+  std::string model_name = "rockx_pose_body";
+  RockxSendNNData(body_results, model_name, nn_callback);
+  delete ctx;
+}
+
+void ROCKXFilter::RockxFaceDetectAsyncCallback(void *result, size_t result_size,
+                                               void *extra_data) {
+  UNUSED(result_size);
+  rockx_object_array_t *face_array = (rockx_object_array_t *)result;
+  ROCKXContent *ctx = static_cast<ROCKXContent *>(extra_data);
+  if (!ctx)
+    return;
+
+  if (!face_array || face_array->count <= 0) {
+    if (ctx)
+      delete ctx;
+    return;
+  }
+
+  std::list<RknnResult> landmark_results;
+  auto input_buffer = ctx->GetInputBuffer();
+  rockx_image_t input_img;
+  input_img.width = input_buffer->GetWidth();
+  input_img.height = input_buffer->GetHeight();
+  input_img.pixel_format = StrToRockxPixelFMT(ctx->GetInputType().c_str());
+  input_img.data = (uint8_t *)input_buffer->GetPtr();
+
+  RknnResult result_item;
+  memset(&result_item, 0, sizeof(RknnResult));
+  result_item.type = NNRESULT_TYPE_LANDMARK;
+  RockxLandmarkPostProcess(input_img, face_array, ctx->GetRockxHdl(),
+                           landmark_results);
+
+  RknnCallBack nn_callback = ctx->GetCallbackPtr();
+  std::string model_name = "rockx_face_landmark";
+  RockxSendNNData(landmark_results, model_name, nn_callback);
+  delete ctx;
+}
 
 ROCKXFilter::ROCKXFilter(const char *param) : model_name_("") {
   std::map<std::string, std::string> params;
@@ -150,6 +325,12 @@ ROCKXFilter::ROCKXFilter(const char *param) : model_name_("") {
     return;
   } else {
     input_type_ = params[KEY_INPUTDATATYPE];
+  }
+
+  if (params[KEY_ROCKX_ASYNC_CALLBACK].empty()) {
+    async_enable = 0;
+  } else {
+    async_enable = std::stoi(params[KEY_ROCKX_ASYNC_CALLBACK]);
   }
 
   std::vector<rockx_module_t> models;
@@ -203,11 +384,10 @@ ROCKXFilter::ROCKXFilter(const char *param) : model_name_("") {
     return;
   }
 
-  callback_=nullptr;
+  callback_ = nullptr;
 
   enable_rockx_debug = getenv("ENABLE_ROCKX_DEBUG");
   enable_skip_frame = getenv("ENABLE_SKIP_FRAME");
-
 }
 
 ROCKXFilter::~ROCKXFilter() {
@@ -231,8 +411,8 @@ int ROCKXFilter::ProcessRockxFaceDetect(
   }
   if (face_array.count <= 0)
     return -1;
-  ret = rockx_object_track(object_track_handle, input_img.width, input_img.height, 5,
-                           &face_array, &face_array_track);
+  ret = rockx_object_track(object_track_handle, input_img.width,
+                           input_img.height, 5, &face_array, &face_array_track);
   if (ret != ROCKX_RET_SUCCESS) {
     fprintf(stderr, "rockx_object_track error %d\n", ret);
     return -1;
@@ -248,8 +428,6 @@ int ROCKXFilter::ProcessRockxFaceDetect(
     result_item.img_w = input_img.width;
     result_item.img_h = input_img.height;
     nn_result.push_back(result_item);
-    if (callback_)
-      callback_(this, NNRESULT_TYPE_FACE, object, sizeof(rockx_object_t));
   }
   return 0;
 }
@@ -257,70 +435,82 @@ int ROCKXFilter::ProcessRockxFaceDetect(
 int ROCKXFilter::ProcessRockxFaceLandmark(
     std::shared_ptr<easymedia::ImageBuffer> input_buffer,
     rockx_image_t input_img, std::vector<rockx_handle_t> handles) {
-  if(enable_skip_frame){
+  if (enable_skip_frame) {
     int static count = 0;
     int static divisor = atoi(enable_skip_frame);
-    if(count++ % divisor != 0)
+    if (count++ % divisor != 0)
       return -1;
-    if(count == 1000)
+    if (count == 1000)
       count = 0;
   }
   rockx_handle_t &face_det_handle = handles[0];
   rockx_handle_t &face_landmark_handle = handles[1];
   rockx_object_array_t face_array;
   memset(&face_array, 0, sizeof(rockx_object_array_t));
-  rockx_ret_t ret =
-      rockx_face_detect(face_det_handle, &input_img, &face_array, nullptr);
-  if (ret != ROCKX_RET_SUCCESS) {
-    fprintf(stderr, "rockx_face_detect error %d\n", ret);
-    return -1;
-  }
-  if (face_array.count <= 0)
-    return -1;
+  rockx_ret_t ret = ROCKX_RET_SUCCESS;
 
-  RknnResult result_item;
-  memset(&result_item, 0, sizeof(RknnResult));
-  result_item.type = NNRESULT_TYPE_LANDMARK;
-  auto &nn_result = input_buffer->GetRknnResult();
-  for (int i = 0; i < face_array.count; i++) {
-    rockx_face_landmark_t out_landmark;
-    memset(&out_landmark, 0, sizeof(rockx_face_landmark_t));
-    ret = rockx_face_landmark(face_landmark_handle, &input_img,
-                              &face_array.object[i].box, &out_landmark);
-    if (ret != ROCKX_RET_SUCCESS && ret != -2) {
-      fprintf(stderr, "rockx_face_landmark error %d\n", ret);
-      return false;
-    }
-    memcpy(&result_item.landmark_info.object, &out_landmark,
-           sizeof(rockx_face_landmark_t));
-    result_item.img_w = input_img.width;
-    result_item.img_h = input_img.height;
-    nn_result.push_back(result_item);
-    if (callback_)
-      callback_(this, NNRESULT_TYPE_LANDMARK, &out_landmark,
-                sizeof(rockx_face_landmark_t));
+  if (async_enable) {
+    rockx_async_callback async_callback;
+    ROCKXContent *ctx = new ROCKXContent(input_buffer, callback_);
+    ctx->SetInputWidth(input_img.width);
+    ctx->SetInputHeight(input_img.height);
+    ctx->SetRockxHandle(face_landmark_handle);
+    ctx->SetInputType(input_type_);
+    async_callback.callback_func = RockxFaceDetectAsyncCallback;
+    async_callback.extra_data = (void *)ctx;
+    ret = rockx_face_detect(face_det_handle, &input_img, &face_array,
+                            &async_callback);
+  } else {
+    ret = rockx_face_detect(face_det_handle, &input_img, &face_array, NULL);
   }
+
+  if (ret != ROCKX_RET_SUCCESS) {
+    LOG("rockx_face_detect error %d\n", ret);
+    return -1;
+  }
+
+  if (face_array.count <= 0) {
+    return -1;
+  }
+
+  auto &nn_result = input_buffer->GetRknnResult();
+  RockxLandmarkPostProcess(input_img, &face_array, face_landmark_handle,
+                           nn_result);
+
   return 0;
 }
 
 int ROCKXFilter::ProcessRockxPoseBody(
     std::shared_ptr<easymedia::ImageBuffer> input_buffer,
     rockx_image_t input_img, std::vector<rockx_handle_t> handles) {
-  if(enable_skip_frame){
+  if (enable_skip_frame) {
     int static count = 0;
     int static divisor = atoi(enable_skip_frame);
-    if(count++ % divisor != 0)
+    if (count++ % divisor != 0)
       return -1;
-    if(count == 1000)
+    if (count == 1000)
       count = 0;
   }
+
   rockx_handle_t &pose_body_handle = handles[0];
   rockx_keypoints_array_t key_points_array;
   memset(&key_points_array, 0, sizeof(rockx_keypoints_array_t));
-  rockx_ret_t ret =
-      rockx_pose_body(pose_body_handle, &input_img, &key_points_array, nullptr);
+  rockx_ret_t ret = ROCKX_RET_SUCCESS;
+  if (async_enable > 0) {
+    rockx_async_callback async_callback;
+    ROCKXContent *ctx = new ROCKXContent(nullptr, callback_);
+    ctx->SetInputWidth(input_img.width);
+    ctx->SetInputHeight(input_img.height);
+    async_callback.callback_func = RockxPoseBodyAsyncCallback;
+    async_callback.extra_data = (void *)ctx;
+    ret = rockx_pose_body(pose_body_handle, &input_img, &key_points_array,
+                          &async_callback);
+  } else
+    ret =
+        rockx_pose_body(pose_body_handle, &input_img, &key_points_array, NULL);
+
   if (ret != ROCKX_RET_SUCCESS) {
-    fprintf(stderr, "rockx_face_detect error %d\n", ret);
+    LOG("rockx_face_detect error %d\n", ret);
     return -1;
   }
   if (key_points_array.count <= 0) {
@@ -340,12 +530,27 @@ int ROCKXFilter::ProcessRockxPoseBody(
     result_item.img_w = input_img.width;
     result_item.img_h = input_img.height;
     nn_result.push_back(result_item);
-    if (callback_)
-      callback_(this, NNRESULT_TYPE_BODY, object, sizeof(rockx_keypoints_t));
   }
 #ifdef DEBUG_POSE_BODY
   savePoseBodyImg(input_img, &key_points_array);
 #endif
+  return 0;
+}
+
+int ROCKXFilter::ProcessRockxFinger(
+    std::shared_ptr<easymedia::ImageBuffer> input_buffer,
+    rockx_image_t input_img, std::vector<rockx_handle_t> handles) {
+  (void)input_buffer;
+  rockx_handle_t &pose_finger_handle = handles[0];
+  rockx_keypoints_t finger;
+  int ret;
+
+  memset(&finger, 0, sizeof(rockx_keypoints_t));
+  ret = rockx_pose_finger(pose_finger_handle, &input_img, &finger);
+  if (ret != ROCKX_RET_SUCCESS) {
+    printf("rockx_pose_finger error %d\n", ret);
+    return -1;
+  }
   return 0;
 }
 
@@ -365,7 +570,7 @@ int ROCKXFilter::Process(std::shared_ptr<MediaBuffer> input,
 
   auto &name = model_name_;
   auto &handles = rockx_handles_;
-  if(enable_rockx_debug)
+  if (enable_rockx_debug)
     LOG("ROCKXFilter::Process %s begin \n", model_name_.c_str());
   if (name == "rockx_face_detect") {
     ProcessRockxFaceDetect(input_buffer, input_img, handles);
@@ -373,30 +578,32 @@ int ROCKXFilter::Process(std::shared_ptr<MediaBuffer> input,
     ProcessRockxFaceLandmark(input_buffer, input_img, handles);
   } else if (name == "rockx_pose_body" || name == "rockx_pose_body_v2") {
     ProcessRockxPoseBody(input_buffer, input_img, handles);
+  } else if (name == "rockx_pose_finger") {
+    ProcessRockxFinger(input_buffer, input_img, handles);
   } else {
     assert(0);
   }
-  if(enable_rockx_debug)
+  if (enable_rockx_debug)
     LOG("ROCKXFilter::Process %s end \n", model_name_.c_str());
   return 0;
 }
 
 int ROCKXFilter::IoCtrl(unsigned long int request, ...) {
- AutoLockMutex lock(cb_mtx_);
- int ret = 0;
- va_list vl;
- va_start(vl, request);
- switch (request) {
-  case S_NN_CALLBACK:{
+  AutoLockMutex lock(cb_mtx_);
+  int ret = 0;
+  va_list vl;
+  va_start(vl, request);
+  switch (request) {
+  case S_NN_CALLBACK: {
     void *arg = va_arg(vl, void *);
-      if (arg)
-        callback_ = (RknnCallBack)arg;
-    } break;
-  case G_NN_CALLBACK:{
+    if (arg)
+      callback_ = (RknnCallBack)arg;
+  } break;
+  case G_NN_CALLBACK: {
     void *arg = va_arg(vl, void *);
     if (arg)
       arg = (void *)callback_;
-    } break;
+  } break;
   case S_NN_INFO: {
     RockxFilterArg *arg = va_arg(vl, RockxFilterArg *);
     if (arg) {
