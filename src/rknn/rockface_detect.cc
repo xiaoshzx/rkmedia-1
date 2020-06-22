@@ -93,9 +93,9 @@ RockFaceDetect::RockFaceDetect(const char *param) : callback_(nullptr) {
   else
     authorized_result_.status = SUCCESS;
 
-  ret = rockface_init_detector(face_handle_);
+  ret = rockface_init_detector2(face_handle_, 4);
   if (ret != ROCKFACE_RET_SUCCESS) {
-    LOG("rockface_init_detector failed. ret = %d\n", ret);
+    LOG("rockface_init_detector2 failed. ret = %d\n", ret);
     return;
   }
   if (authorized_result_.status != SUCCESS)

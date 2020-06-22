@@ -193,8 +193,8 @@ RockFaceRecognize::RockFaceRecognize(const char *param)
     authorized_result_.status = SUCCESS;
 
   if (enable_face_detect_) {
-    ret = rockface_init_detector(face_handle_);
-    CheckFaceReturn(ret, "rockface_init_detector", true);
+    ret = rockface_init_detector2(face_handle_, 4);
+    CheckFaceReturn(ret, "rockface_init_detector2", true);
   }
   ret = rockface_init_analyzer(face_handle_);
   CheckFaceReturn(ret, "rockface_init_analyzer", true);
