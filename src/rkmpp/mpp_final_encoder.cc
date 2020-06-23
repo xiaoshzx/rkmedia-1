@@ -834,6 +834,8 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
     }
     //save to vconfig
     vconfig.gop_size = new_gop_size;
+    //gop change restart userata status
+    mpp_enc.RestartUserData();
   } else if (change & VideoEncoder::kQPChange) {
     VideoEncoderQp *qps = (VideoEncoderQp *)val->GetPtr();
     if (val->GetSize() < sizeof(VideoEncoderQp)) {
@@ -891,6 +893,8 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       LOG("ERROR: MPP Encoder: force idr frame control failed!\n");
       return false;
     }
+    //force idr frame, restart userata status
+    mpp_enc.RestartUserData();
   } else if (change & VideoEncoder::kSplitChange) {
     if (val->GetSize() < (2 * sizeof(int))) {
       LOG("ERROR: MPP Encoder: Incomplete split information\n");
@@ -965,7 +969,23 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
     }
   }
 #endif
-  else if (change & VideoEncoder::kMoveDetectionFlow) {
+  else if (change & VideoEncoder::kUserDataChange) {
+    // type: OsdRegionData*
+    LOGD("MPP Encoder: config userdata\n");
+    if (val->GetSize() <= 0) {
+      LOG("ERROR: MPP Encoder: invalid userdata size\n");
+      return false;
+    }
+    uint8_t enable_all_frames = *(uint8_t *)val->GetPtr();
+    mpp_enc.EnableUserDataAllFrame(enable_all_frames ? true : false);
+
+    const char *data = (char *)val->GetPtr() + 1;
+    uint16_t data_len = val->GetSize() - 1;
+    if (mpp_enc.SetUserData(data, data_len)) {
+      LOG("ERROR: MPP Encoder: set userdata error!\n");
+      return false;
+    }
+  } else if (change & VideoEncoder::kMoveDetectionFlow) {
     RcApiBrief brief;
 
     if (val->GetPtr()) {
@@ -1005,6 +1025,8 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       //save to vconfig
       vconfig.gop_size = 300;
       vconfig.rc_mode = KEY_VBR;
+      //gop change restart userata status
+      mpp_enc.RestartUserData();
 
       //Enable smart mode.
       brief.name = "smart";

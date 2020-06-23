@@ -44,6 +44,12 @@ public:
   int OsdRegionGet(OsdRegionData *region_data);
 #endif
 
+  // Set sei info by userdata.
+  int SetUserData(const char *data, uint16_t len);
+  void ClearUserData();
+  void RestartUserData();
+  void EnableUserDataAllFrame(bool value);
+
   // for updating roi regions config.
   int RoiUpdateRegions(EncROIRegion *regions, int region_cnt);
 
@@ -90,6 +96,13 @@ private:
 
   // for roi regions config.
   MppEncROICfg roi_cfg;
+
+#define MPP_ENCODER_USERDATA_MAX_SIZE 1024
+  char userdata[MPP_ENCODER_USERDATA_MAX_SIZE];
+  uint16_t userdata_len;
+  uint16_t userdata_frame_id;
+  uint8_t userdata_all_frame_en;
+  MppEncUserData mpp_ud;
 
   friend class MPPMJPEGConfig;
   friend class MPPCommonConfig;

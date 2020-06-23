@@ -29,7 +29,7 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
-static char optstr[] = "?:i:o:w:h:f:t:m:s:";
+static char optstr[] = "?:i:o:w:h:f:t:m:s:u:";
 
 static void print_usage(char *name) {
   printf("usage example for normal mode: \n");
@@ -42,6 +42,8 @@ static void print_usage(char *name) {
   printf("\t0: No slice is split\n");
   printf("\t1: Slice is split by byte number\n");
   printf("\t2: Slice is split by macroblock / ctu number\n");
+  printf("#[-u] Enable userdata:\n");
+  printf("\t0:disable\t1:enable\n");
 }
 
 int main(int argc, char **argv) {
@@ -54,6 +56,7 @@ int main(int argc, char **argv) {
   std::string video_enc_type = VIDEO_H264;
   int test_mode = 0; //0 for normal,1 for stressTest.
   int split_mode = 0;
+  int userdata_enable = 0;
 
   std::string output_path;
   std::string input_path;
@@ -109,6 +112,10 @@ int main(int argc, char **argv) {
       }
       split_mode = atoi(optarg);
       printf("#IN ARGS: split mode: %d\n", split_mode);
+      break;
+    case 'u':
+      userdata_enable = atoi(optarg);
+      printf("#IN ARGS: userdata_enable: %d\n", userdata_enable);
       break;
     case '?':
     default:
@@ -294,6 +301,12 @@ RESTART:
       easymedia::video_encoder_set_split(video_encoder_flow, split_mode, split_mb_cnt);
     }
     LOG("Split frame to 2 slice with MB cnt = %d...\n", split_mb_cnt);
+  }
+
+  if (userdata_enable) {
+    char sei_str[] = "RockChip AVC/HEVC Codec";
+    LOG("Set userdata string:%s\n", sei_str);
+    easymedia::video_encoder_set_userdata(video_encoder_flow, sei_str, 23);
   }
 
   video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);

@@ -714,6 +714,29 @@ int video_encoder_set_avc_profile(
   return 0;
 }
 
+int video_encoder_set_userdata(std::shared_ptr<Flow> &enc_flow,
+  void *data, int len, int all_frames) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  if (!data && len) {
+    LOG("ERROR: %s invalid userdata size!\n");
+    return -EINVAL;
+  }
+
+  //Param formate: allFrameEnableFlag(8bit) + dataPoint
+  uint8_t *param = (uint8_t *)malloc(len + 1);
+  *param = all_frames ? 1 : 0;
+  if (len)
+    memcpy(param + 1, data, len);
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetPtr(param, len + 1);
+  enc_flow->Control(VideoEncoder::kUserDataChange, pbuff);
+
+  return 0;
+}
+
 int video_encoder_enable_statistics(
   std::shared_ptr<Flow> &enc_flow, int enable) {
   if (!enc_flow)
