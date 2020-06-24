@@ -74,8 +74,8 @@ LinkFlow::~LinkFlow() { StopAllThread(); }
 bool process_buffer(Flow *f, MediaBufferVector &input_vector) {
   LinkFlow *flow = static_cast<LinkFlow *>(f);
   auto &buffer = input_vector[0];
-  if (!buffer && !flow)
-    return true;
+  if (!buffer || !flow)
+    return false;
 
   if (flow->link_type_ == LINK_VIDEO) {
     auto link_handler = flow->GetVideoHandler();
@@ -90,6 +90,12 @@ bool process_buffer(Flow *f, MediaBufferVector &input_vector) {
     if (link_audio_handler)
       link_audio_handler((unsigned char *)buffer->GetPtr(),
                          buffer->GetValidSize(), timestamp);
+  } else if (flow->link_type_ == LINK_PICTURE) {
+    auto link_handler = flow->GetCaptureHandler();
+    auto timestamp = easymedia::gettimeofday() / 1000;
+    if (link_handler)
+      link_handler((unsigned char *)buffer->GetPtr(), buffer->GetValidSize(),
+                   timestamp, NULL);
   } else if (flow->link_type_ == LINK_NNDATA) {
     auto user_callback = flow->GetUserCallBack();
     auto timestamp = easymedia::gettimeofday() / 1000;
@@ -121,7 +127,7 @@ bool process_buffer(Flow *f, MediaBufferVector &input_vector) {
     }
   }
 
-  return 0;
+  return false;
 }
 
 DEFINE_FLOW_FACTORY(LinkFlow, Flow)
