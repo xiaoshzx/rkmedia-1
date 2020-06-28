@@ -186,6 +186,8 @@ _API int video_encoder_set_split(std::shared_ptr<Flow> &enc_flow,
   unsigned int mode, unsigned int size);
 _API int video_encoder_set_ref_frm_cfg(std::shared_ptr<Flow> &enc_flow,
   int reference_mode);
+_API int video_encoder_set_userdata(std::shared_ptr<Flow> &enc_flow,
+  void *data, int len, int all_frames = 0);
 _API int video_encoder_enable_statistics(std::shared_ptr<Flow> &enc_flow,
   int enable);
 } // namespace easymedia

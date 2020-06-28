@@ -19,7 +19,8 @@ namespace easymedia {
 MPPEncoder::MPPEncoder()
     : coding_type(MPP_VIDEO_CodingAutoDetect),
       output_mb_flags(0), encoder_sta_en(false),
-      stream_size_1s(0), frame_cnt_1s(0), last_ts(0), cur_ts(0) {
+      stream_size_1s(0), frame_cnt_1s(0), last_ts(0), cur_ts(0),
+      userdata_len(0),userdata_frame_id(0), userdata_all_frame_en(0) {
 #ifdef MPP_SUPPORT_HW_OSD
   //reset osd data.
   memset(&osd_data, 0, sizeof(osd_data));
@@ -132,6 +133,27 @@ int MPPEncoder::PrepareMppFrame(const std::shared_ptr<MediaBuffer> &input,
     mpp_meta_set_ptr(meta, KEY_OSD_DATA, (void*)&osd_data);
   }
 #endif //MPP_SUPPORT_HW_OSD
+
+  if (userdata_len) {
+    LOGD("MPP Encoder: set userdata(%dBytes) to frame\n", userdata_len);
+    bool skip_frame = false;
+    if (!userdata_all_frame_en) {
+      MediaConfig &cfg = GetConfig();
+      // userdata_frame_id = 0 : first gop frame.
+      if (userdata_frame_id)
+        skip_frame = true;
+
+      userdata_frame_id++;
+      if (userdata_frame_id == cfg.vid_cfg.gop_size)
+        userdata_frame_id = 0;
+    }
+
+    if (!skip_frame) {
+      mpp_ud.pdata = userdata;
+      mpp_ud.len = userdata_len;
+      mpp_meta_set_ptr(meta, KEY_USER_DATA, &mpp_ud);
+    }
+  }
 
   MPP_RET ret = init_mpp_buffer_with_content(pic_buf, input);
   if (ret) {
@@ -778,6 +800,39 @@ int MPPEncoder::RoiUpdateRegions(EncROIRegion *regions, int region_cnt) {
     free(roi_cfg.regions);
   roi_cfg.regions = region;
   return 0;
+}
+
+int MPPEncoder::SetUserData(const char *data, uint16_t len) {
+  uint16_t valid_size = len;
+
+  if (!data && len) {
+    LOG("ERROR: Mpp Encoder: invalid userdata!\n");
+    return -1;
+  }
+
+  if (valid_size > MPP_ENCODER_USERDATA_MAX_SIZE) {
+    valid_size = MPP_ENCODER_USERDATA_MAX_SIZE;
+    LOG("WARN: Mpp Encoder: UserData exceeds maximum length(%d),"
+      "Reset to %d\n", valid_size, valid_size);
+  }
+
+  if (valid_size)
+    memcpy(userdata, data, valid_size);
+
+  userdata_len = valid_size;
+  return 0;
+}
+
+void MPPEncoder::ClearUserData() {
+  userdata_len = 0;
+}
+
+void MPPEncoder::RestartUserData() {
+  userdata_frame_id = 0;
+}
+
+void MPPEncoder::EnableUserDataAllFrame(bool value) {
+  userdata_all_frame_en = value ? 1 : 0;
 }
 
 } // namespace easymedia
