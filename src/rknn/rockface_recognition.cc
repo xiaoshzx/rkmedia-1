@@ -15,6 +15,7 @@
 #include "utils.h"
 
 #define DEFAULT_LIC_PATH "/userdata/key.lic"
+#define FACE_DETECT_DATA_VERSION (4)
 
 namespace easymedia {
 
@@ -193,7 +194,7 @@ RockFaceRecognize::RockFaceRecognize(const char *param)
     authorized_result_.status = SUCCESS;
 
   if (enable_face_detect_) {
-    ret = rockface_init_detector2(face_handle_, 4);
+    ret = rockface_init_detector2(face_handle_, FACE_DETECT_DATA_VERSION);
     CheckFaceReturn(ret, "rockface_init_detector2", true);
   }
   ret = rockface_init_analyzer(face_handle_);
