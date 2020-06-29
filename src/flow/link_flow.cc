@@ -80,22 +80,19 @@ bool process_buffer(Flow *f, MediaBufferVector &input_vector) {
   if (flow->link_type_ == LINK_VIDEO) {
     auto link_handler = flow->GetVideoHandler();
     auto nal_type = (buffer->GetUserFlag() & MediaBuffer::kIntra) ? 1 : 0;
-    auto timestamp = easymedia::gettimeofday() / 1000;
     if (link_handler)
       link_handler((unsigned char *)buffer->GetPtr(), buffer->GetValidSize(),
-                   timestamp, nal_type);
+                   buffer->GetUSTimeStamp(), nal_type);
   } else if (flow->link_type_ == LINK_AUDIO) {
     auto link_audio_handler = flow->GetAudioHandler();
-    auto timestamp = easymedia::gettimeofday() / 1000;
     if (link_audio_handler)
       link_audio_handler((unsigned char *)buffer->GetPtr(),
-                         buffer->GetValidSize(), timestamp);
+                         buffer->GetValidSize(), buffer->GetUSTimeStamp());
   } else if (flow->link_type_ == LINK_PICTURE) {
     auto link_handler = flow->GetCaptureHandler();
-    auto timestamp = easymedia::gettimeofday() / 1000;
     if (link_handler)
       link_handler((unsigned char *)buffer->GetPtr(), buffer->GetValidSize(),
-                   timestamp, NULL);
+                   0, NULL);
   } else if (flow->link_type_ == LINK_NNDATA) {
     auto user_callback = flow->GetUserCallBack();
     auto timestamp = easymedia::gettimeofday() / 1000;

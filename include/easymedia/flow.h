@@ -46,10 +46,10 @@ template <int in_index, int out_index>
 bool void_transaction(Flow *f, MediaBufferVector &input_vector);
 using LinkVideoHandler =
     std::add_pointer<void(unsigned char *buffer, unsigned int buffer_size,
-                          unsigned int present_time, int nat_type)>::type;
+                          int64_t present_time, int nat_type)>::type;
 using LinkAudioHandler =
     std::add_pointer<void(unsigned char *buffer, unsigned int buffer_size,
-                          unsigned int present_time)>::type;
+                          int64_t present_time)>::type;
 using LinkCaptureHandler =
     std::add_pointer<void(unsigned char *buffer, unsigned int buffer_size,
                           int type, const char *id)>::type;

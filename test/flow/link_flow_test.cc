@@ -32,8 +32,8 @@ static void SigTermHandler(int sig) {
 }
 
 void PushVideoHandler(unsigned char *buffer, unsigned int buffer_size,
-                      unsigned int present_time, int nal_type) {
-  printf("PushVideoHandler buffer %p, buffer_size %d present_time %d nal_type %d\n",
+                      int64_t present_time, int nal_type) {
+  printf("PushVideoHandler buffer %p, buffer_size %d present_time %lld nal_type %d\n",
          buffer, buffer_size, present_time, nal_type);
 }
 
@@ -183,4 +183,3 @@ int main(int argc, char **argv) {
   enc_flow_.reset();
   input_flow_.reset();
 }
-
