@@ -13,6 +13,7 @@
 namespace easymedia {
 
 #define FACE_TRACK_START_FRAME (4)
+#define FACE_DETECT_DATA_VERSION (4)
 
 class RockFaceDetect : public Filter {
 public:
@@ -93,7 +94,7 @@ RockFaceDetect::RockFaceDetect(const char *param) : callback_(nullptr) {
   else
     authorized_result_.status = SUCCESS;
 
-  ret = rockface_init_detector2(face_handle_, 4);
+  ret = rockface_init_detector2(face_handle_, FACE_DETECT_DATA_VERSION);
   if (ret != ROCKFACE_RET_SUCCESS) {
     LOG("rockface_init_detector2 failed. ret = %d\n", ret);
     return;
