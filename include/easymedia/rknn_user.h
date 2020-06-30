@@ -14,7 +14,7 @@
 #include <rockx/rockx.h>
 #endif
 
-#define RKNN_PICTURE_PATH_LEN (64)
+#define RKNN_PICTURE_PATH_LEN (512)
 
 using RknnCallBack = std::add_pointer<void(void* handler,
     int type, void *ptr, int size)>::type;
