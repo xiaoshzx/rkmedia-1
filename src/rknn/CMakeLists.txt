@@ -23,12 +23,19 @@ if(ROCKFACE)
                                    rknn/face_capture.cc
                                    rknn/draw_filter.cc
                                    rknn/rockface_detect.cc
-                                   rknn/rockface_bodydetect.cc
                                    rknn/rockface_evaluate.cc
+                                   rknn/rockface_bodydetect.cc)
+  set(EASY_MEDIA_NN_DEPENDENT_LIBS ${EASY_MEDIA_NN_DEPENDENT_LIBS}
+                                     rknn_api rockface)
+
+  option(FACE_RECOGNIZE "compile: face recognize" OFF)
+  if(FACE_RECOGNIZE)
+    set(EASY_MEDIA_NN_SOURCE_FILES ${EASY_MEDIA_NN_SOURCE_FILES}
                                    rknn/rockface_recognition.cc
                                    rknn/rockface_db_manager.cc)
-  set(EASY_MEDIA_NN_DEPENDENT_LIBS ${EASY_MEDIA_NN_DEPENDENT_LIBS}
-                                     rknn_api rockface sqlite3)
+    set(EASY_MEDIA_NN_DEPENDENT_LIBS ${EASY_MEDIA_NN_DEPENDENT_LIBS}
+                                     sqlite3)
+  endif()
 endif()
 
 if(ROCKX)
