@@ -194,6 +194,7 @@ private:
 };
 
 RknnCallBack ROCKXFilter::callback_ = NULL;
+std::mutex nn_mtx;
 void RockxSendNNData(std::list<RknnResult> &nn_results,
                      const std::string &model_name,
                      const RknnCallBack callback) {
@@ -214,7 +215,9 @@ void RockxSendNNData(std::list<RknnResult> &nn_results,
   link_nn_data.size = size;
   link_nn_data.nn_model_name = model_name.c_str();
   link_nn_data.timestamp = 0;
+  nn_mtx.lock();
   callback(nullptr, LINK_NNDATA, &link_nn_data, 1);
+  nn_mtx.unlock();
   if (infos)
     free(infos);
 }
@@ -337,14 +340,14 @@ ROCKXFilter::ROCKXFilter(const char *param) : model_name_("") {
   void *config = nullptr;
   size_t config_size = 0;
   if (model_name_ == "rockx_face_gender_age") {
-    models.push_back(ROCKX_MODULE_FACE_DETECTION);
+    models.push_back(ROCKX_MODULE_FACE_DETECTION_V3);
     models.push_back(ROCKX_MODULE_FACE_LANDMARK_5);
     models.push_back(ROCKX_MODULE_FACE_ANALYZE);
   } else if (model_name_ == "rockx_face_detect") {
-    models.push_back(ROCKX_MODULE_FACE_DETECTION);
+    models.push_back(ROCKX_MODULE_FACE_DETECTION_V3);
     models.push_back(ROCKX_MODULE_OBJECT_TRACK);
   } else if (model_name_ == "rockx_face_landmark") {
-    models.push_back(ROCKX_MODULE_FACE_DETECTION);
+    models.push_back(ROCKX_MODULE_FACE_DETECTION_V3);
     models.push_back(ROCKX_MODULE_FACE_LANDMARK_68);
   } else if (model_name_ == "rockx_pose_body") {
     models.push_back(ROCKX_MODULE_POSE_BODY);
