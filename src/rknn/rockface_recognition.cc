@@ -409,23 +409,28 @@ void RockFaceRecognize::ThreadLoop(void) {
     if (!request)
       continue;
 
-    int count = 0;
     static std::vector<RknnResult> last_result;
 
     rockface_image_t &input_image = request->GetInputImage();
     auto face_array = request->GetFaceArray();
 
+    size_t count = 0;
     RknnResult nn_array[face_array.size()];
-    for (auto &face : face_array) {
+
+    for (; count < face_array.size(); count++) {
+      rockface_det_t &face = face_array[count];
       nn_array[count].type = NNRESULT_TYPE_FACE_REG;
       nn_array[count].face_info.base = face;
 
       FaceReg *face_reg = &nn_array[count].face_info.face_reg;
+      face_reg->type = RequestTypeToRegType(request->GetType());
+      face_reg->user_id = -99;
+      face_reg->similarity = -1;
+
       if (request->GetType() == RequestType::NONE &&
-          FindRecognizedWithId(face.id, face_reg, last_result)) {
-        count++;
+          FindRecognizedWithId(face.id, face_reg, last_result))
         continue;
-      }
+
       rockface_ret_t ret;
       rockface_feature_t feature;
       rockface_image_t aligned_image;
@@ -444,8 +449,6 @@ void RockFaceRecognize::ThreadLoop(void) {
 
       FaceReg result = Recognize(feature, request);
       memcpy(face_reg, &result, sizeof(FaceReg));
-
-      count++;
     }
     if (last_result.size() > 0)
       last_result.clear();
