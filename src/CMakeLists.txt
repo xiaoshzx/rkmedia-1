@@ -76,6 +76,8 @@ if(FILTER)
   add_subdirectory(rknn)
 endif()
 
+  add_subdirectory(c_api)
+
 if(MOVE_DETECTION)
 add_definitions(-DRK_MOVE_DETECTION)
 set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} md_share)

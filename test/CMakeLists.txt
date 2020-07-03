@@ -7,6 +7,7 @@
 add_subdirectory(stream)
 add_subdirectory(flow)
 add_subdirectory(buffer)
+add_subdirectory(c_api)
 
 if(FFMPEG)
 add_subdirectory(ffmpeg)
