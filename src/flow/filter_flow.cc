@@ -166,7 +166,7 @@ bool do_filters(Flow *f, MediaBufferVector &input_vector) {
         if (flow->buffer_pool) {
           auto mb = flow->buffer_pool->GetBuffer();
           if (!mb) {
-            LOG("ERROR: %s: buffer_pool get null buffer!\n");
+            LOG("ERROR: buffer_pool get null buffer!\n");
             return false;
           }
           out_buffer = std::make_shared<ImageBuffer>(*(mb.get()), info);

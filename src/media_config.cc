@@ -720,7 +720,7 @@ int video_encoder_set_userdata(std::shared_ptr<Flow> &enc_flow,
     return -EINVAL;
 
   if (!data && len) {
-    LOG("ERROR: %s invalid userdata size!\n");
+    LOG("ERROR: invalid userdata size!\n");
     return -EINVAL;
   }
 
