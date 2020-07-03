@@ -410,7 +410,6 @@ void RockFaceRecognize::ThreadLoop(void) {
       continue;
 
     static std::vector<RknnResult> last_result;
-
     rockface_image_t &input_image = request->GetInputImage();
     auto face_array = request->GetFaceArray();
 
@@ -426,6 +425,10 @@ void RockFaceRecognize::ThreadLoop(void) {
       face_reg->type = RequestTypeToRegType(request->GetType());
       face_reg->user_id = -99;
       face_reg->similarity = -1;
+
+      std::string pic_path = request->GetPicPath();
+      if (!pic_path.empty())
+        strcpy(face_reg->pic_path, pic_path.c_str());
 
       if (request->GetType() == RequestType::NONE &&
           FindRecognizedWithId(face.id, face_reg, last_result))
@@ -571,6 +574,13 @@ int RockFaceRecognize::IoCtrl(unsigned long int request, ...) {
   return ret;
 }
 
+static void RockfaceRealeseImage(rockface_image_t &image) {
+  if (!image.is_prealloc_buf && image.size > 0) {
+    rockface_image_release(&image);
+    memset(&image, 0, sizeof(rockface_image_t));
+  }
+}
+
 FaceRecognizeRequest::FaceRecognizeRequest(RockFaceRecognize *handle,
                                            std::shared_ptr<ImageBuffer> image,
                                            RequestType type)
@@ -585,15 +595,7 @@ FaceRecognizeRequest::FaceRecognizeRequest(RockFaceRecognize *handle,
 }
 
 FaceRecognizeRequest::~FaceRecognizeRequest() {
-  face_array_.clear();
-
-  if (!pic_path_.empty())
-    rockface_image_release(&input_image_);
-
-  if (image_) {
-    image_.reset();
-    image_ = nullptr;
-  }
+  RockfaceRealeseImage(input_image_);
 }
 
 rockface_image_t &FaceRecognizeRequest::GetInputImage() {
@@ -609,9 +611,11 @@ rockface_image_t &FaceRecognizeRequest::GetInputImage() {
         rockface_image_read(pic_path_.c_str(), &input_image_, 1);
     if (!handle_->CheckFaceReturn(ret, "rockface_image_read"))
       return input_image_;
+    input_image_.size = input_image_.width * input_image_.height * 3;
 
     rockface_det_array_t det_array;
     ret = rockface_detect(handle_->face_handle_, &input_image_, &det_array);
+
     if (!handle_->CheckFaceReturn(ret, "rockface_detect"))
       return input_image_;
 
