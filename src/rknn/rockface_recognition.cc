@@ -518,7 +518,7 @@ std::shared_ptr<FaceRecognizeRequest> RockFaceRecognize::PopRequest(void) {
       break;
     }
   }
-  if (!request) {
+  if (!request && !request_list_.empty()) {
     request = request_list_.back();
     request_list_.pop_back();
   }
