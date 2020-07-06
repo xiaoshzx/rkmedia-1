@@ -195,16 +195,16 @@ RockFaceRecognize::RockFaceRecognize(const char *param)
 
   if (enable_face_detect_) {
     ret = rockface_init_detector2(face_handle_, FACE_DETECT_DATA_VERSION);
-    CheckFaceReturn(ret, "rockface_init_detector2", true);
+    CheckFaceReturn(ret, "rockface_init_detector2");
   }
   ret = rockface_init_analyzer(face_handle_);
-  CheckFaceReturn(ret, "rockface_init_analyzer", true);
+  CheckFaceReturn(ret, "rockface_init_analyzer");
 
   ret = rockface_init_landmark(face_handle_, 5);
-  CheckFaceReturn(ret, "rockface_init_landmark", true);
+  CheckFaceReturn(ret, "rockface_init_landmark");
 
   ret = rockface_init_recognizer(face_handle_);
-  CheckFaceReturn(ret, "rockface_init_recognizer", true);
+  CheckFaceReturn(ret, "rockface_init_recognizer");
 
   if (thread_running_) {
     thread_ = std::make_shared<std::thread>(ThrFunc, this);
