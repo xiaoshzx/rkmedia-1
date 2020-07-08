@@ -53,12 +53,14 @@ typedef enum {
   USER_REG_PIC,
   USER_DEL,
   USER_CLR,
+  USER_ENABLE,
 } FaceRegArgType;
 
 typedef struct {
   FaceRegArgType type;
   int user_id; /* it is used to delete user */
   char pic_path[RKNN_PICTURE_PATH_LEN];
+  bool enable;
 } FaceRegArg;
 
 typedef struct {
