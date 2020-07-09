@@ -161,6 +161,7 @@ add_definitions(-DRKMEDIA_SUPPORT_MINILOG)
 endif()
 
 include_directories(include/easymedia)
+include_directories(include/rkmedia)
 add_subdirectory(src)
 
 option(COMPILES_EXAMPLES "Enable compiles examples" OFF)
