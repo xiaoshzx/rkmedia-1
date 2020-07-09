@@ -55,9 +55,11 @@ using LinkCaptureHandler =
                           int type, const char *id)>::type;
 using PlayVideoHandler = std::add_pointer<void(Flow *f)>::type;
 using PlayAudioHandler = std::add_pointer<void(Flow *f)>::type;
-using UserHandler = std::add_pointer<void *>::type;
+using CallBackHandler = std::add_pointer<void>::type;
 using UserCallBack = std::add_pointer<void(void* handler,
     int type, void *ptr, int size)>::type;
+using OutputCallBack = std::add_pointer<void(void* handler,
+    std::shared_ptr<MediaBuffer> mb)>::type;
 
 class _API SlotMap {
 public:
@@ -144,11 +146,15 @@ public:
   PlayAudioHandler GetPlayAudioHandler() { return play_audio_handler_; }
 
   // Add common hander for user
-  void SetUserCallBack(UserHandler handler, UserCallBack callback) {
+  void SetUserCallBack(CallBackHandler handler, UserCallBack callback) {
     user_handler_ = handler;
     user_callback_ = callback;
   }
-  UserHandler GetUserHandler() { return user_handler_; }
+  void SetOutputCallBack(CallBackHandler handler, OutputCallBack callback) {
+    out_handler_ = handler;
+    out_callback_ = callback;
+  }
+  CallBackHandler GetUserHandler() { return user_handler_; }
   UserCallBack GetUserCallBack() { return user_callback_; }
 
   bool IsAllBuffEmpty();
@@ -268,8 +274,11 @@ private:
   PlayVideoHandler play_video_handler_;
   PlayAudioHandler play_audio_handler_;
 
-  UserHandler user_handler_;
+  CallBackHandler user_handler_;
   UserCallBack user_callback_;
+
+  CallBackHandler out_handler_;
+  OutputCallBack out_callback_;
 
   // FlowTag is used to distinguish Flow.
   std::string flow_tag;

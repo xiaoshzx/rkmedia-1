@@ -10,14 +10,20 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "media_type.h"
-#include "rk_comm_venc.h"
 #include "rkmedia_api.h"
+#include "rkmedia_venc.h"
 
 static bool quit = false;
 static void sigterm_handler(int sig) {
   fprintf(stderr, "signal %d\n", sig);
   quit = true;
+}
+
+void video_packet_cb(MEDIA_BUFFER mb) {
+  printf("Get Video Encoded packet:ptr:%p, fd:%d, size:%zu, mode:%d\n",
+         RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb), RK_MPI_MB_GetSize(mb),
+         RK_MPI_MB_GetModeID(mb));
+  RK_MPI_MB_ReleaseBuffer(mb);
 }
 
 int main() {
@@ -39,15 +45,30 @@ int main() {
   venc_chn_attr.stRcAttr.stH264Cbr.u32SrcFrameRateDen = 0;
   venc_chn_attr.stRcAttr.stH264Cbr.u32SrcFrameRateNum = 30;
 
-  RK_MPI_VI_EnableChn(0, 0);
+  rkVI_CHN_ATTR_S vi_chn_attr;
+  vi_chn_attr.buffer_cnt = 4;
+  vi_chn_attr.width = 1920;
+  vi_chn_attr.height = 1080;
+  vi_chn_attr.pix_fmt = IMAGE_TYPE_NV12;
+
+  RK_MPI_SYS_Init();
+
+  RK_MPI_VI_SetChnAttr(0, 1, &vi_chn_attr);
+  RK_MPI_VI_EnableChn(0, 1);
   RK_MPI_VENC_CreateChn(0, &venc_chn_attr);
+
+  MPP_CHN_S stEncChn;
+  stEncChn.enModId = RK_ID_VENC;
+  stEncChn.s32DevId = 0;
+  stEncChn.s32ChnId = 0;
+  RK_MPI_SYS_RegisterOutCb(&stEncChn, video_packet_cb);
 
   MPP_CHN_S stSrcChn;
   MPP_CHN_S stDestChn;
 
   stSrcChn.enModId = RK_ID_VI;
   stSrcChn.s32DevId = 0;
-  stSrcChn.s32ChnId = 0;
+  stSrcChn.s32ChnId = 1;
 
   stDestChn.enModId = RK_ID_VENC;
   stDestChn.s32DevId = 0;
@@ -61,6 +82,11 @@ int main() {
   while (!quit) {
     usleep(100);
   }
+
+  printf("%s exit!\n", __func__);
+  RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
+  RK_MPI_VI_DisableChn(0, 1);
+  RK_MPI_VENC_DestroyChn(0);
 
   return 0;
 }

@@ -1,10 +1,12 @@
 // Copyright 2019 Fuzhou Rockchip Electronics Co., Ltd. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-#ifndef __RK_COMM_VENC_
-#define __RK_COMM_VENC_
+
+#ifndef __RKMEDIA_VENC_
+#define __RKMEDIA_VENC_
+
 #include "media_type.h"
-#include "rk_common.h"
+#include "rkmedia_common.h"
 
 typedef RK_U32 RK_FR32;
 
@@ -69,7 +71,6 @@ typedef struct rkVENC_RC_ATTR_S {
   };
 } VENC_RC_ATTR_S;
 
-
 /* the gop mode */
 typedef enum rkVENC_GOP_MODE_E {
   VENC_GOPMODE_SVG = 0,
@@ -102,7 +103,7 @@ typedef struct rkVENC_ATTR_H265_S {
 /* the attribute of the Venc*/
 typedef struct rkVENC_ATTR_S {
 
-  CodecType enType;           // RW; the type of encodec
+  CodecType enType;       // RW; the type of encodec
   IMAGE_TYPE_E imageType; // the type of input image
   RK_U32 u32VirWidth;  // stride width, same to buffer_width, must greater than
                        // width, often set vir_width=(width+15)&(~15)
@@ -138,4 +139,4 @@ typedef struct rkVENC_CHN_ATTR_S {
   VENC_GOP_ATTR_S stGopAttr; // the attribute of gop
 } VENC_CHN_ATTR_S;
 
-#endif // #ifndef __RK_COMM_VENC_
+#endif // #ifndef __RKMEDIA_VENC_

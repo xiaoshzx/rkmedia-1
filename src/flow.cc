@@ -308,7 +308,8 @@ const FunctionProcess Flow::void_transaction00 = void_transaction<0, 0>;
 Flow::Flow()
     : out_slot_num(0), input_slot_num(0), down_flow_num(0), enable(true),
       quit(false), event_handler_(nullptr), play_video_handler_(nullptr),
-      play_audio_handler_(nullptr), user_handler_(nullptr), user_callback_(nullptr) {}
+      play_audio_handler_(nullptr), user_handler_(nullptr), user_callback_(nullptr),
+      out_handler_(nullptr), out_callback_(nullptr) {}
 
 Flow::~Flow() { StopAllThread(); }
 
@@ -699,6 +700,10 @@ bool Flow::SetOutput(const std::shared_ptr<MediaBuffer> &output,
     LOG("ERROR: Output slot[%d] is vaild!\n", out_slot_index);
     return false;
   }
+
+  if (out_callback_ && output)
+    out_callback_(out_handler_, output);
+
   if (enable) {
     auto &out = downflowmap[out_slot_index];
     CALL_MEMBER_FN(out, out.set_output_behavior)(output);

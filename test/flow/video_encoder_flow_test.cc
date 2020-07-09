@@ -24,12 +24,22 @@
 #include "image.h"
 
 static bool quit = false;
+static FILE* save_file;
 static void sigterm_handler(int sig) {
   fprintf(stderr, "signal %d\n", sig);
   quit = true;
 }
 
-static char optstr[] = "?:i:o:w:h:f:t:m:s:u:";
+void encoder_output_cb(void *handle, std::shared_ptr<easymedia::MediaBuffer> mb) {
+  printf("==Encoder Output CallBack recived: %p(%s), %p, %d, %dBytes\n",
+    handle, (char *)handle, mb->GetPtr(), mb->GetFD(),
+    mb->GetValidSize());
+
+  if (save_file)
+    fwrite(mb->GetPtr(), 1, mb->GetValidSize(), save_file);
+}
+
+static char optstr[] = "?:i:o:w:h:f:t:m:s:u:c:";
 
 static void print_usage(char *name) {
   printf("usage example for normal mode: \n");
@@ -44,6 +54,8 @@ static void print_usage(char *name) {
   printf("\t2: Slice is split by macroblock / ctu number\n");
   printf("#[-u] Enable userdata:\n");
   printf("\t0:disable\t1:enable\n");
+  printf("#[-c] Enable Output Callback:\n");
+  printf("\t0:disable\t1:enable\n");
 }
 
 int main(int argc, char **argv) {
@@ -57,6 +69,8 @@ int main(int argc, char **argv) {
   int test_mode = 0; //0 for normal,1 for stressTest.
   int split_mode = 0;
   int userdata_enable = 0;
+  int output_cb_enable = 0;
+  char cb_str[32] = "<Output Callback Test>";
 
   std::string output_path;
   std::string input_path;
@@ -116,6 +130,10 @@ int main(int argc, char **argv) {
     case 'u':
       userdata_enable = atoi(optarg);
       printf("#IN ARGS: userdata_enable: %d\n", userdata_enable);
+      break;
+    case 'c':
+      output_cb_enable = atoi(optarg);
+      printf("#IN ARGS: output_cb_enable: %d\n", output_cb_enable);
       break;
     case '?':
     default:
@@ -266,25 +284,31 @@ RESTART:
     exit(EXIT_FAILURE);
   }
 
-  flow_name = "file_write_flow";
-  flow_param = "";
-  if (video_enc_type == IMAGE_JPEG) {
-    int pos = output_path.find_last_of(".");
-    if(pos != -1)
-      output_path = output_path.substr(0, pos);
-    PARAM_STRING_APPEND(flow_param, KEY_SAVE_MODE, KEY_SAVE_MODE_SINGLE);
-    PARAM_STRING_APPEND(flow_param, KEY_FILE_PREFIX, output_path);
-    PARAM_STRING_APPEND(flow_param, KEY_FILE_SUFFIX, ".jpg");
+  if (!output_cb_enable) {
+    flow_name = "file_write_flow";
+    flow_param = "";
+    if (video_enc_type == IMAGE_JPEG) {
+      int pos = output_path.find_last_of(".");
+      if(pos != -1)
+        output_path = output_path.substr(0, pos);
+      PARAM_STRING_APPEND(flow_param, KEY_SAVE_MODE, KEY_SAVE_MODE_SINGLE);
+      PARAM_STRING_APPEND(flow_param, KEY_FILE_PREFIX, output_path);
+      PARAM_STRING_APPEND(flow_param, KEY_FILE_SUFFIX, ".jpg");
+    } else {
+      PARAM_STRING_APPEND(flow_param, KEY_PATH, output_path.c_str());
+    }
+    PARAM_STRING_APPEND(flow_param, KEY_OPEN_MODE, "w+"); // read and close-on-exec
+    printf("\n#FileWrite:\n%s\n", flow_param.c_str());
+    video_save_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+        flow_name.c_str(), flow_param.c_str());
+    if (!video_save_flow) {
+      fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+      exit(EXIT_FAILURE);
+    }
   } else {
-    PARAM_STRING_APPEND(flow_param, KEY_PATH, output_path.c_str());
-  }
-  PARAM_STRING_APPEND(flow_param, KEY_OPEN_MODE, "w+"); // read and close-on-exec
-  printf("\n#FileWrite:\n%s\n", flow_param.c_str());
-  video_save_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
-      flow_name.c_str(), flow_param.c_str());
-  if (!video_save_flow) {
-    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
-    exit(EXIT_FAILURE);
+    save_file = fopen(output_path.c_str(), "w");
+    if (!save_file)
+      LOG("ERROR: open %s failed!\n", output_path.c_str());
   }
 
   if (split_mode == 1) {
@@ -309,7 +333,22 @@ RESTART:
     easymedia::video_encoder_set_userdata(video_encoder_flow, sei_str, 23);
   }
 
-  video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);
+  //Demo code: Show how to feed data to the coded Flow.
+  //YUV_IMG_SIZE is not defined
+  /*
+  std::shared_ptr<easymedia::MediaBuffer> mb =
+    easymedia::MediaBuffer::Alloc(YUV_IMG_SIZE);
+  memset(mb->GetPtr(), 0, YUV_IMG_SIZE);
+  mb->SetValidSize(YUV_IMG_SIZE);
+  video_encoder_flow->SendInput(mb, 0);
+  */
+
+  if (output_cb_enable) {
+    LOG("Regest callback handle:%p\n", cb_str);
+    video_encoder_flow->SetOutputCallBack((void*)cb_str, encoder_output_cb);
+  } else {
+    video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);
+  }
   video_read_flow->AddDownFlow(video_encoder_flow, 0, 0);
 
   LOG("%s initial finish\n", argv[0]);
@@ -327,9 +366,13 @@ RESTART:
 
   video_read_flow->RemoveDownFlow(video_encoder_flow);
   video_read_flow.reset();
-  video_encoder_flow->RemoveDownFlow(video_save_flow);
+  if (!output_cb_enable) {
+    video_encoder_flow->RemoveDownFlow(video_save_flow);
+    video_save_flow.reset();
+  } else if (save_file) {
+    fclose(save_file);
+  }
   video_encoder_flow.reset();
-  video_save_flow.reset();
   LOG("%s deinitial finish\n", argv[0]);
 
   if (test_mode && !quit) {

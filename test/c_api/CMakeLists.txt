@@ -13,12 +13,11 @@ set(RKMPP_TEST_DEPENDENT_LIBS easymedia)
 add_definitions(-DDEBUG)
 
 #--------------------------
-# rkmedia c api test
+# rkmedia_vi_venc_test
 #--------------------------
-
-add_executable(rkmedia_c_api_test rkmedia_c_api_test.cc)
-add_dependencies(rkmedia_c_api_test easymedia)
-target_link_libraries(rkmedia_c_api_test easymedia)
-target_include_directories(rkmedia_c_api_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_compile_features(rkmedia_c_api_test PRIVATE cxx_std_11)
-install(TARGETS rkmedia_c_api_test RUNTIME DESTINATION "bin")
+add_executable(rkmedia_vi_venc_test rkmedia_vi_venc_test.cc)
+add_dependencies(rkmedia_vi_venc_test easymedia)
+target_link_libraries(rkmedia_vi_venc_test easymedia)
+target_include_directories(rkmedia_vi_venc_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_features(rkmedia_vi_venc_test PRIVATE cxx_std_11)
+install(TARGETS rkmedia_vi_venc_test RUNTIME DESTINATION "bin")
