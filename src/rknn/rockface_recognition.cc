@@ -109,6 +109,7 @@ private:
   static unsigned int kMaxCacheSize;
   static float kFaceSimilarityThreshod;
 
+  bool enable_;
   bool thread_running_;
   bool enable_face_detect_;
 
@@ -159,6 +160,11 @@ RockFaceRecognize::RockFaceRecognize(const char *param)
       return;
     }
   }
+
+  enable_ = false;
+  const std::string &reg_enable_str = params[KEY_ENABLE_FACE_REG];
+  if (!reg_enable_str.empty())
+    enable_ = std::stoi(reg_enable_str);
 
   thread_running_ = false;
   const std::string &enable_str = params[KEY_ENABLE];
@@ -306,7 +312,7 @@ int RockFaceRecognize::MatchFeature(rockface_feature_t *feature,
 
 bool RockFaceRecognize::CheckIsRunning(void) {
   bool check = true;
-  if (!thread_running_ || authorized_result_.status == TIMEOUT)
+  if (!thread_running_ || authorized_result_.status == TIMEOUT || !enable_)
     check = false;
   return check;
 }
@@ -406,7 +412,7 @@ RockFaceRecognize::Recognize(rockface_feature_t &feature,
 void RockFaceRecognize::ThreadLoop(void) {
   while (ThreadIsRunning()) {
     auto request = PopRequest();
-    if (!request)
+    if (!request || !enable_)
       continue;
 
     static std::vector<RknnResult> last_result;
@@ -562,10 +568,16 @@ int RockFaceRecognize::IoCtrl(unsigned long int request, ...) {
       db_manager_->ClearDb();
     } else if (arg->type == USER_DEL) {
       db_manager_->DeleteUser(arg->user_id);
+    } else if (arg->type == USER_ENABLE) {
+      enable_ = arg->enable;
     }
   } break;
-  case G_NN_INFO:
-    break;
+  case G_NN_INFO: {
+    FaceRegArg *arg = va_arg(vl, FaceRegArg *);
+    if (arg) {
+      arg->enable = enable_;
+    }
+  } break;
   default:
     ret = -1;
     break;
