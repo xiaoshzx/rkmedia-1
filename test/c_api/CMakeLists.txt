@@ -10,6 +10,8 @@ project(easymedia_c_api_test)
 
 set(RKMPP_TEST_DEPENDENT_LIBS easymedia)
 
+add_definitions(-g -O0 -ggdb -gdwarf -funwind-tables -rdynamic)
+
 add_definitions(-DDEBUG)
 
 #--------------------------

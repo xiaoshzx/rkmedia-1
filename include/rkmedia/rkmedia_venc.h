@@ -5,11 +5,21 @@
 #ifndef __RKMEDIA_VENC_
 #define __RKMEDIA_VENC_
 
-#include "media_type.h"
+// #include "media_type.h"
 #include "rkmedia_common.h"
 
 typedef RK_U32 RK_FR32;
-
+/* rc quality */
+typedef enum rkVENC_RC_QUALITY_E {
+  VENC_RC_QUALITY_HIGHEST,
+  VENC_RC_QUALITY_HIGHER,
+  VENC_RC_QUALITY_HIGH,
+  VENC_RC_QUALITY_MEDIUM,
+  VENC_RC_QUALITY_LOW,
+  VENC_RC_QUALITY_LOWER,
+  VENC_RC_QUALITY_LOWEST,
+  VENC_RC_QUALITY_BUTT,
+} VENC_RC_QUALITY_E;
 /* rc mode */
 typedef enum rkVENC_RC_MODE_E {
   VENC_RC_MODE_H264CBR = 1,
@@ -90,7 +100,7 @@ typedef struct rkVENC_ATTR_MJPEG_S {
 
 /*the attribute of h264e*/
 typedef struct rkVENC_ATTR_H264_S {
-
+  RK_U32 u32Level;
   // reserved
 } VENC_ATTR_H264_S;
 
@@ -103,7 +113,7 @@ typedef struct rkVENC_ATTR_H265_S {
 /* the attribute of the Venc*/
 typedef struct rkVENC_ATTR_S {
 
-  CodecType enType;       // RW; the type of encodec
+  CODEC_TYPE_E enType;    // RW; the type of encodec
   IMAGE_TYPE_E imageType; // the type of input image
   RK_U32 u32VirWidth;  // stride width, same to buffer_width, must greater than
                        // width, often set vir_width=(width+15)&(~15)
@@ -138,5 +148,67 @@ typedef struct rkVENC_CHN_ATTR_S {
   VENC_RC_ATTR_S stRcAttr;   // the attribute of rate  ctrl
   VENC_GOP_ATTR_S stGopAttr; // the attribute of gop
 } VENC_CHN_ATTR_S;
+
+/* The param of H264e cbr*/
+typedef struct rkVENC_PARAM_H264_S {
+  RK_U32 u32StepQp;
+  RK_U32 u32MaxQp; // RW; Range:[0, 51];the max QP value
+  RK_U32 u32MinQp; // RW; Range:[0, 51]; the min QP value,can not be larger than
+                   // u32MaxQp
+  RK_U32 u32MaxIQp; // RW; Range:[0, 51]; max qp for i frame
+  RK_U32 u32MinIQp; // RW; Range:[0, 51]; min qp for i frame,can not be larger
+                    // than u32MaxIQp
+  // RK_S32  s32MaxReEncodeTimes;        /* RW; Range:[0, 3]; Range:max number
+  // of re-encode times.*/
+} VENC_PARAM_H264_S;
+
+/* The param of h265e cbr*/
+typedef struct rkVENC_PARAM_H265_S {
+  RK_U32 u32StepQp;
+  RK_U32 u32MaxQp; // RW; Range:[0, 51];the max QP value
+  RK_U32 u32MinQp; // RW; Range:[1, 51];the min QP value ,can not be larger than
+                   // u32MaxQp
+  RK_U32 u32MaxIQp; // RW; Range:[0, 51];max qp for i frame
+  RK_U32 u32MinIQp; // RW; Range:[1, 51];min qp for i frame,can not be larger
+                    // than u32MaxIQp
+  // RK_S32  s32MaxReEncodeTimes;         /* RW; Range:[0, 3]; Range:max number
+  // of re-encode times.*/
+  // RK_U32  u32DeltIpQp;
+} VENC_PARAM_H265_S;
+
+/* The param of mjpege cbr*/
+typedef struct rkVENC_PARAM_MJPEG_S {
+
+} VENC_PARAM_MJPEG_S;
+
+/* The param of rc*/
+typedef struct rkVENC_RC_PARAM_S {
+  RK_U32
+  s32FirstFrameStartQp; // RW; Range:[-1, 51];Start QP value of the first frame
+  union {
+    VENC_PARAM_H264_S stParamH264;
+    VENC_PARAM_H265_S stParamH265;
+    VENC_PARAM_MJPEG_S stParamMjpeg;
+  };
+} VENC_RC_PARAM_S;
+
+typedef struct rkRECT_S {
+  RK_S32 s32X;
+  RK_S32 s32Y;
+  RK_U32 u32Width;
+  RK_U32 u32Height;
+} RECT_S;
+
+/* the attribute of the roi */
+typedef struct hiVENC_ROI_ATTR_S {
+  RK_U32 u32Index; // RW; Range:[0, 7]; Index of an ROI. The system supports
+                   // indexes ranging from 0 to 7
+  RK_BOOL bEnable; // RW; Range:[0, 1]; Whether to enable this ROI
+  RK_BOOL bAbsQp;  // RW; Range:[0, 1]; QP mode of an ROI.HI_FALSE: relative
+                   // QP.HI_TURE: absolute QP.
+  RK_S32 s32Qp; // RW; Range:[-51, 51]; QP value,only relative mode can QP value
+                // less than 0.
+  RECT_S stRect; // RW; Region of an ROI
+} VENC_ROI_ATTR_S;
 
 #endif // #ifndef __RKMEDIA_VENC_

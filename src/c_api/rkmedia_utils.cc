@@ -4,6 +4,7 @@
 
 #include "media_type.h"
 #include "rkmedia_common.h"
+#include "rkmedia_venc.h"
 #include "utils.h"
 
 std::string ImageTypeToString(IMAGE_TYPE_E type) {
@@ -58,23 +59,23 @@ std::string ImageTypeToString(IMAGE_TYPE_E type) {
   }
 }
 
-std::string CodecToString(CodecType type) {
+std::string CodecToString(CODEC_TYPE_E type) {
   switch (type) {
-  case CODEC_TYPE_AAC:
+  case RK_CODEC_TYPE_AAC:
     return AUDIO_AAC;
-  case CODEC_TYPE_MP2:
+  case RK_CODEC_TYPE_MP2:
     return AUDIO_MP2;
-  case CODEC_TYPE_VORBIS:
+  case RK_CODEC_TYPE_VORBIS:
     return AUDIO_VORBIS;
-  case CODEC_TYPE_G711A:
+  case RK_CODEC_TYPE_G711A:
     return AUDIO_G711A;
-  case CODEC_TYPE_G711U:
+  case RK_CODEC_TYPE_G711U:
     return AUDIO_G711U;
-  case CODEC_TYPE_G726:
+  case RK_CODEC_TYPE_G726:
     return AUDIO_G726;
-  case CODEC_TYPE_H264:
+  case RK_CODEC_TYPE_H264:
     return VIDEO_H264;
-  case CODEC_TYPE_H265:
+  case RK_CODEC_TYPE_H265:
     return VIDEO_H265;
   default:
     return "";

@@ -77,7 +77,21 @@ typedef enum rk_IMAGE_TYPE_E {
 
   IMAGE_TYPE_BUTT
 } IMAGE_TYPE_E;
-
+typedef enum rk_CODEC_TYPE_E {
+  RK_CODEC_TYPE_NONE = -1,
+  // Audio
+  RK_CODEC_TYPE_AAC,
+  RK_CODEC_TYPE_MP2,
+  RK_CODEC_TYPE_VORBIS,
+  RK_CODEC_TYPE_G711A,
+  RK_CODEC_TYPE_G711U,
+  RK_CODEC_TYPE_G726,
+  // Video
+  RK_CODEC_TYPE_H264,
+  RK_CODEC_TYPE_H265,
+  RK_CODEC_TYPE_JPEG,
+  RK_CODEC_TYPE_NB
+} CODEC_TYPE_E;
 typedef enum rkMOD_ID_E {
   RK_ID_UNKNOW = 0,
   RK_ID_VB,
@@ -144,7 +158,7 @@ enum {
   /* no buffer for new data */
   RK_ERR_VENC_BUF_FULL,
   /* system is not ready,had not initialed or loaded*/
-  RK_ERR_VENC_SYS_NOTREADY,
+  RK_ERR_VENC_NOTREADY,
   /* system is busy*/
   RK_ERR_VENC_BUSY,
 

@@ -28,7 +28,7 @@ void video_packet_cb(MEDIA_BUFFER mb) {
 
 int main() {
   rkVENC_CHN_ATTR_S venc_chn_attr;
-  venc_chn_attr.stVencAttr.enType = CODEC_TYPE_H264;
+  venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_H264;
   venc_chn_attr.stVencAttr.imageType = IMAGE_TYPE_NV12;
   venc_chn_attr.stVencAttr.u32PicWidth = 1920;
   venc_chn_attr.stVencAttr.u32PicHeight = 1080;
@@ -78,6 +78,18 @@ int main() {
 
   printf("%s initial finish\n", __func__);
   signal(SIGINT, sigterm_handler);
+
+  VENC_RC_PARAM_S venc_rc_param;
+  venc_rc_param.s32FirstFrameStartQp = 30;
+  venc_rc_param.stParamH264.u32StepQp = 6;
+  venc_rc_param.stParamH264.u32MinQp = 20;
+  venc_rc_param.stParamH264.u32MaxQp = 51;
+  venc_rc_param.stParamH264.u32MinIQp = 24;
+  venc_rc_param.stParamH264.u32MaxIQp = 51;
+  sleep(3);
+  printf("%s: start set qp.\n", __func__);
+  RK_MPI_VENC_SetRcParam(stDestChn.s32ChnId, &venc_rc_param);
+  printf("%s: after set qp.\n", __func__);
 
   while (!quit) {
     usleep(100);
