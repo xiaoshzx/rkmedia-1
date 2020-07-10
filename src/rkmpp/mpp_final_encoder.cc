@@ -384,10 +384,10 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
   int bps_max = vconfig.bit_rate_max;
   int bps_min = vconfig.bit_rate_min;
   int bps_target = vconfig.bit_rate;
-  int fps_in_num = std::max(1, std::min(vconfig.frame_rate, (1 << 16) - 1));
-  int fps_in_den = 1;
-  int fps_out_num = fps_in_num;
-  int fps_out_den = 1;
+  int fps_in_num = vconfig.frame_in_rate;
+  int fps_in_den = vconfig.frame_in_rate_den;
+  int fps_out_num = vconfig.frame_rate;
+  int fps_out_den = vconfig.frame_rate_den;
   int gop = vconfig.gop_size;
   int full_range = vconfig.full_range;
 
