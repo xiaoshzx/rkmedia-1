@@ -38,7 +38,7 @@ public:
   void StopStream();
 
 private:
-  std::shared_ptr<VideoRecorder> NewRecoder(const char *path);
+  std::shared_ptr<VideoRecorder> NewRecorder(const char *path);
   friend bool save_buffer(Flow *f, MediaBufferVector &input_vector);
   friend int muxer_buffer_callback(void *handler, uint8_t *buf, int buf_size);
 
