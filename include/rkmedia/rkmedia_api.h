@@ -1,10 +1,9 @@
 #ifndef __RKMEDIA_API_
 #define __RKMEDIA_API_
 
-//#ifdef __cplusplus
-// extern "C"
-//{
-//#endif
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stddef.h>
 
@@ -73,8 +72,8 @@ _CAPI RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
 
 _CAPI RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn);
 
-//#ifdef __cplusplus
-//}
-//#endif
+#ifdef __cplusplus
+}
+#endif
 
 #endif //__RKMEDIA_API_

@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -27,7 +28,7 @@ void video_packet_cb(MEDIA_BUFFER mb) {
 }
 
 int main() {
-  rkVENC_CHN_ATTR_S venc_chn_attr;
+  VENC_CHN_ATTR_S venc_chn_attr;
   venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_H264;
   venc_chn_attr.stVencAttr.imageType = IMAGE_TYPE_NV12;
   venc_chn_attr.stVencAttr.u32PicWidth = 1920;
@@ -45,7 +46,7 @@ int main() {
   venc_chn_attr.stRcAttr.stH264Cbr.u32SrcFrameRateDen = 0;
   venc_chn_attr.stRcAttr.stH264Cbr.u32SrcFrameRateNum = 30;
 
-  rkVI_CHN_ATTR_S vi_chn_attr;
+  VI_CHN_ATTR_S vi_chn_attr;
   vi_chn_attr.buffer_cnt = 4;
   vi_chn_attr.width = 1920;
   vi_chn_attr.height = 1080;

@@ -4,7 +4,9 @@
 
 #ifndef __RKMEDIA_VENC_
 #define __RKMEDIA_VENC_
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 // #include "media_type.h"
 #include "rkmedia_common.h"
 
@@ -210,5 +212,7 @@ typedef struct hiVENC_ROI_ATTR_S {
                 // less than 0.
   RECT_S stRect; // RW; Region of an ROI
 } VENC_ROI_ATTR_S;
-
+#ifdef __cplusplus
+}
+#endif
 #endif // #ifndef __RKMEDIA_VENC_

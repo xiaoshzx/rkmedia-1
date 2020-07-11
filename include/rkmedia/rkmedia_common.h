@@ -4,7 +4,9 @@
 
 #ifndef __RKMEDIA_COMMON_
 #define __RKMEDIA_COMMON_
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define _CAPI __attribute__((visibility("default")))
 
 typedef unsigned char RK_U8;
@@ -164,5 +166,7 @@ enum {
 
   RK_ERR_BUIT,
 };
-
+#ifdef __cplusplus
+}
+#endif
 #endif // #ifndef __RKMEDIA_COMMON_
