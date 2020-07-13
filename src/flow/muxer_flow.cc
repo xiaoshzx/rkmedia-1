@@ -167,7 +167,7 @@ MuxerFlow::MuxerFlow(const char *param)
 
 MuxerFlow::~MuxerFlow() { StopAllThread(); }
 
-std::shared_ptr<VideoRecorder> MuxerFlow::NewRecoder(const char *path) {
+std::shared_ptr<VideoRecorder> MuxerFlow::NewRecorder(const char *path) {
   std::string param = std::string(muxer_param);
   std::shared_ptr<VideoRecorder> vrecorder = nullptr;
   PARAM_STRING_APPEND(param, KEY_OUTPUTDATATYPE, output_format.c_str());
@@ -280,13 +280,13 @@ void MuxerFlow::StopStream() { enable_streaming = false; }
 
 bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
   MuxerFlow *flow = static_cast<MuxerFlow *>(f);
-  auto &&recoder = flow->video_recorder;
+  auto &&recorder = flow->video_recorder;
   int64_t duration_us = flow->file_duration;
 
   if (!flow->enable_streaming) {
-    if (recoder) {
-      recoder.reset();
-      recoder = nullptr;
+    if (recorder) {
+      recorder.reset();
+      recorder = nullptr;
     }
     return true;
   }
@@ -294,7 +294,11 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
   do {
     if (duration_us <= 0)
       break;
-    if (flow->last_ts == 0 && !flow->video_in && recoder != nullptr)
+    if (flow->last_ts == 0)
+      break;
+    if (!flow->video_in)
+      break;
+    if (recorder == nullptr)
       break;
     auto &vid_buffer = input_vector[0];
     if (vid_buffer == nullptr)
@@ -302,16 +306,16 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
     if (!(vid_buffer->GetUserFlag() & MediaBuffer::kIntra))
       break;
     if (vid_buffer->GetUSTimeStamp() - flow->last_ts >= duration_us * 1000000) {
-      recoder.reset();
-      recoder = nullptr;
+      recorder.reset();
+      recorder = nullptr;
       flow->video_extra = nullptr;
     }
   } while (0);
 
-  if (recoder == nullptr) {
-    recoder = flow->NewRecoder(flow->GenFilePath().c_str());
+  if (recorder == nullptr) {
+    recorder = flow->NewRecorder(flow->GenFilePath().c_str());
     flow->last_ts = 0;
-    if (recoder == nullptr)
+    if (recorder == nullptr)
       flow->enable_streaming = false;
   }
 
@@ -327,8 +331,8 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
       break;
     }
 
-    if (!recoder->Write(flow, aud_buffer)) {
-      recoder.reset();
+    if (!recorder->Write(flow, aud_buffer)) {
+      recorder.reset();
       flow->enable_streaming = false;
       return true;
     }
@@ -368,8 +372,8 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
         LOG("ERROR: Muxer Flow: Intra Frame without sps pps\n");
     }
 
-    if (!recoder->Write(flow, vid_buffer)) {
-      recoder.reset();
+    if (!recorder->Write(flow, vid_buffer)) {
+      recorder.reset();
       flow->enable_streaming = false;
       return true;
     }
