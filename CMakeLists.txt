@@ -80,14 +80,15 @@ endif()
 # set c++11
 set(CMAKE_CXX_STANDARD 11)
 # rtti may be expensive on Embedded Platform, obey Google C++ Style Guide
-add_definitions(-fno-rtti)
+# add_definitions(-fno-rtti)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 
 # add PIC flag
 add_definitions(-fPIC)
 # set (CMAKE_SHARED_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS})
 
-add_definitions(-fvisibility=hidden -fvisibility-inlines-hidden)
-
+# add_definitions(-fvisibility=hidden -fvisibility-inlines-hidden)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
 include_directories(./)
 
 if(USE_RKAIQ)

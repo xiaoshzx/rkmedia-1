@@ -26,19 +26,24 @@ typedef enum rkCHN_STATUS {
   // ToDo...
 } CHN_STATUS;
 
+typedef struct _RkmediaVencAttr { VENC_ATTR_S attr; } RkmediaVencAttr;
+
+typedef struct _RkmediaVIAttr {
+  char *path;
+  VI_CHN_ATTR_S attr;
+} RkmediaVIAttr;
+
 typedef struct _RkmediaChannel {
   MOD_ID_E mode_id;
   CHN_STATUS status;
   std::shared_ptr<easymedia::Flow> rkmedia_flow;
   OutCbFunc cb;
+  union {
+    RkmediaVIAttr vi_attr;
+    RkmediaVencAttr venc_attr;
+  };
 } RkmediaChannel;
 
-typedef struct _RkmediaVideoDev {
-  std::string path;
-  VI_CHN_ATTR_S attr;
-} RkmediaVideoDev;
-
-RkmediaVideoDev g_vi_dev[VI_MAX_DEV_NUM];
 RkmediaChannel g_vi_chns[VI_MAX_CHN_NUM];
 std::mutex g_vi_mtx;
 
@@ -59,11 +64,11 @@ static void Reset_Channel_Table(RkmediaChannel *tbl, int cnt, MOD_ID_E mid) {
 RK_S32 RK_MPI_SYS_Init() {
   LOG_INIT();
 
-  memset(g_vi_dev, 0, VI_MAX_DEV_NUM * sizeof(RkmediaVideoDev));
-  g_vi_dev[0].path = "/dev/video13"; // rkispp_bypass
-  g_vi_dev[1].path = "/dev/video14"; // rkispp_scal0
-  g_vi_dev[2].path = "/dev/video15"; // rkispp_scal1
-  g_vi_dev[3].path = "/dev/video16"; // rkispp_scal2
+  // memset(g_vi_dev, 0, VI_MAX_DEV_NUM * sizeof(RkmediaVideoDev));
+  g_vi_chns[0].vi_attr.path = (char *)"/dev/video13"; // rkispp_bypass
+  g_vi_chns[1].vi_attr.path = (char *)"/dev/video14"; // rkispp_scal0
+  g_vi_chns[2].vi_attr.path = (char *)"/dev/video15"; // rkispp_scal1
+  g_vi_chns[3].vi_attr.path = (char *)"/dev/video16"; // rkispp_scal2
 
   Reset_Channel_Table(g_vi_chns, VI_MAX_CHN_NUM, RK_ID_VI);
   Reset_Channel_Table(g_venc_chns, VENC_MAX_CHN_NUM, RK_ID_VENC);
@@ -273,7 +278,7 @@ _CAPI RK_S32 RK_MPI_VI_SetChnAttr(VI_PIPE ViPipe, VI_CHN ViChn,
     return -RK_ERR_VI_BUSY;
   }
 
-  memcpy(&g_vi_dev[ViChn].attr, pstChnAttr, sizeof(VI_CHN_ATTR_S));
+  memcpy(&g_vi_chns[ViChn].vi_attr.attr, pstChnAttr, sizeof(VI_CHN_ATTR_S));
   g_vi_chns[ViChn].status = CHN_STATUS_READY;
   g_vi_mtx.unlock();
 
@@ -297,19 +302,19 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "v4l2_capture_stream");
   std::string stream_param;
   PARAM_STRING_APPEND_TO(stream_param, KEY_USE_LIBV4L2, 1);
-  PARAM_STRING_APPEND(stream_param, KEY_DEVICE, g_vi_dev[ViChn].path.c_str());
+  PARAM_STRING_APPEND(stream_param, KEY_DEVICE, g_vi_chns[ViChn].vi_attr.path);
   PARAM_STRING_APPEND(stream_param, KEY_V4L2_CAP_TYPE,
                       KEY_V4L2_C_TYPE(VIDEO_CAPTURE));
   PARAM_STRING_APPEND(stream_param, KEY_V4L2_MEM_TYPE,
                       KEY_V4L2_M_TYPE(MEMORY_DMABUF));
   PARAM_STRING_APPEND_TO(stream_param, KEY_FRAMES,
-                         g_vi_dev[ViChn].attr.buffer_cnt);
+                         g_vi_chns[ViChn].vi_attr.attr.buffer_cnt);
   PARAM_STRING_APPEND(stream_param, KEY_OUTPUTDATATYPE,
-                      ImageTypeToString(g_vi_dev[ViChn].attr.pix_fmt));
+                      ImageTypeToString(g_vi_chns[ViChn].vi_attr.attr.pix_fmt));
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_WIDTH,
-                         g_vi_dev[ViChn].attr.width);
+                         g_vi_chns[ViChn].vi_attr.attr.width);
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_HEIGHT,
-                         g_vi_dev[ViChn].attr.height);
+                         g_vi_chns[ViChn].vi_attr.attr.height);
   flow_param = easymedia::JoinFlowParam(flow_param, 1, stream_param);
 
   g_vi_chns[ViChn].rkmedia_flow = easymedia::REFLECTOR(
@@ -375,6 +380,9 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   default:
     break;
   }
+
+  memcpy(&g_venc_chns[VeChn].venc_attr, stVencChnAttr,
+         sizeof(g_venc_chns[VeChn].venc_attr));
 
   std::string str_fps_in, str_fsp;
   switch (stVencChnAttr->stRcAttr.enRcMode) {
@@ -502,6 +510,215 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
       Flow)::Create<easymedia::Flow>("video_enc", flow_param.c_str());
 
   g_venc_chns[VeChn].status = CHN_STATUS_OPEN;
+
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_VENC_SetRcParam(VENC_CHN VeChn,
+                              const VENC_RC_PARAM_S *pstRcParam) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return RK_ERR_VENC_INVALID_CHNID; //对应HI_ERR_VENC_INVALID_CHNID
+  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+    return RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+
+  VideoEncoderQp qp;
+
+  qp.qp_init = pstRcParam->s32FirstFrameStartQp;
+  switch (g_venc_chns[VeChn].venc_attr.attr.enType) {
+  case CODEC_TYPE_H264:
+    qp.qp_step = pstRcParam->stParamH264.u32StepQp;
+    qp.qp_max = pstRcParam->stParamH264.u32MaxQp;
+    qp.qp_min = pstRcParam->stParamH264.u32MinQp;
+    qp.qp_max_i = pstRcParam->stParamH264.u32MaxIQp;
+    qp.qp_min_i = pstRcParam->stParamH264.u32MinIQp;
+    break;
+  case CODEC_TYPE_H265:
+    qp.qp_step = pstRcParam->stParamH265.u32StepQp;
+    qp.qp_max = pstRcParam->stParamH265.u32MaxQp;
+    qp.qp_min = pstRcParam->stParamH265.u32MinQp;
+    qp.qp_max_i = pstRcParam->stParamH265.u32MaxIQp;
+    qp.qp_min_i = pstRcParam->stParamH265.u32MinIQp;
+    break;
+  case CODEC_TYPE_JPEG:
+    break;
+  default:
+    break;
+  }
+  video_encoder_set_qp(g_venc_chns[VeChn].rkmedia_flow, qp);
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_VENC_SetRcMode(VENC_CHN VeChn, VENC_RC_MODE_E RcMode) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return RK_ERR_VENC_INVALID_CHNID;
+  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+    return RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+  switch (RcMode) {
+  case VENC_RC_MODE_H264CBR:
+    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_CBR);
+    break;
+  case VENC_RC_MODE_H264VBR:
+    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_VBR);
+    break;
+  case VENC_RC_MODE_H265CBR:
+    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_CBR);
+    break;
+  case VENC_RC_MODE_H265VBR:
+    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_VBR);
+    break;
+  case VENC_RC_MODE_MJPEGCBR:
+    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_CBR);
+    break;
+  default:
+    break;
+  }
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_VENC_SetRcQuality(VENC_CHN VeChn, VENC_RC_QUALITY_E RcQuality) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return RK_ERR_VENC_INVALID_CHNID;
+  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+    return RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+  switch (RcQuality) {
+  case VENC_RC_QUALITY_HIGHEST:
+    video_encoder_set_rc_quality(g_venc_chns[VeChn].rkmedia_flow, KEY_HIGHEST);
+    break;
+  case VENC_RC_QUALITY_HIGHER:
+    video_encoder_set_rc_quality(g_venc_chns[VeChn].rkmedia_flow, KEY_HIGHER);
+    break;
+  case VENC_RC_QUALITY_HIGH:
+    video_encoder_set_rc_quality(g_venc_chns[VeChn].rkmedia_flow, KEY_HIGH);
+    break;
+  case VENC_RC_QUALITY_MEDIUM:
+    video_encoder_set_rc_quality(g_venc_chns[VeChn].rkmedia_flow, KEY_MEDIUM);
+    break;
+  case VENC_RC_QUALITY_LOW:
+    video_encoder_set_rc_quality(g_venc_chns[VeChn].rkmedia_flow, KEY_LOW);
+    break;
+  case VENC_RC_QUALITY_LOWER:
+    video_encoder_set_rc_quality(g_venc_chns[VeChn].rkmedia_flow, KEY_LOWER);
+    break;
+  case VENC_RC_QUALITY_LOWEST:
+    video_encoder_set_rc_quality(g_venc_chns[VeChn].rkmedia_flow, KEY_LOWEST);
+    break;
+  default:
+    break;
+  }
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+RK_S32 RK_MPI_VENC_SetBitrate(VENC_CHN VeChn, RK_U32 u32BitRate,
+                              RK_U32 u32MinBitRate, RK_U32 u32MaxBitRate) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return RK_ERR_VENC_INVALID_CHNID;
+  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+    return RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+  video_encoder_set_bps(g_venc_chns[VeChn].rkmedia_flow, u32BitRate,
+                        u32MinBitRate, u32MaxBitRate);
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+RK_S32 RK_MPI_VENC_RequestIDR(VENC_CHN VeChn, RK_BOOL bInstant _UNUSED) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return RK_ERR_VENC_INVALID_CHNID;
+  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+    return RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+  video_encoder_force_idr(g_venc_chns[VeChn].rkmedia_flow);
+
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_VENC_SetFps(VENC_CHN VeChn, RK_U8 u8OutNum, RK_U8 u8OutDen,
+                          RK_U8 u8InNum, RK_U8 u8InDen) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return RK_ERR_VENC_INVALID_CHNID;
+  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+    return RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+  video_encoder_set_fps(g_venc_chns[VeChn].rkmedia_flow, u8OutNum, u8OutDen,
+                        u8InNum, u8InDen);
+
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+RK_S32 RK_MPI_VENC_SetGop(VENC_CHN VeChn, RK_U32 u32Gop) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return RK_ERR_VENC_INVALID_CHNID;
+  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+    return RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+  video_encoder_set_gop_size(g_venc_chns[VeChn].rkmedia_flow, u32Gop);
+
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+RK_S32 RK_MPI_VENC_SetAvcProfile(VENC_CHN VeChn, RK_U32 u32Profile,
+                                 RK_U32 u32Level) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return RK_ERR_VENC_INVALID_CHNID;
+  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+    return RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+  video_encoder_set_avc_profile(g_venc_chns[VeChn].rkmedia_flow, u32Profile,
+                                u32Level);
+
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+RK_S32 RK_MPI_VENC_InsertUserData(VENC_CHN VeChn, RK_U8 *pu8Data,
+                                  RK_U32 u32Len) {
+
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return RK_ERR_VENC_INVALID_CHNID;
+  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+    return RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+  video_encoder_set_userdata(g_venc_chns[VeChn].rkmedia_flow, pu8Data, u32Len);
+
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
+                              const VENC_ROI_ATTR_S *pstRoiAttr) {
+
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return RK_ERR_VENC_INVALID_CHNID;
+  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+    return RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+  EncROIRegion regions;
+  regions.x = pstRoiAttr->stRect.s32X;
+  regions.y = pstRoiAttr->stRect.s32Y;
+  regions.w = pstRoiAttr->stRect.u32Width;
+  regions.h = pstRoiAttr->stRect.u32Height;
+
+  regions.area_map_en = pstRoiAttr->bEnable;
+  regions.abs_qp_en = pstRoiAttr->bAbsQp;
+  regions.qp_area_idx = pstRoiAttr->u32Index;
+  regions.quality = pstRoiAttr->s32Qp;
+
+  video_encoder_set_roi_regions(g_venc_chns[VeChn].rkmedia_flow, &regions, 1);
 
   g_venc_mtx.unlock();
   return RK_ERR_SYS_OK;

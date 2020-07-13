@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 #ifndef __RK_BUFFER_
 #define __RK_BUFFER_
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <stddef.h>
 
 #include "rkmedia_common.h"
@@ -17,4 +19,7 @@ _CAPI size_t RK_MPI_MB_GetSize(MEDIA_BUFFER mb);
 _CAPI MOD_ID_E RK_MPI_MB_GetModeID(MEDIA_BUFFER mb);
 _CAPI RK_S32 RK_MPI_MB_ReleaseBuffer(MEDIA_BUFFER buffer);
 
+#ifdef __cplusplus
+}
+#endif
 #endif // #ifndef __RK_BUFFER_

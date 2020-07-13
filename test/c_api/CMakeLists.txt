@@ -8,14 +8,14 @@
 
 project(easymedia_c_api_test)
 
-set(RKMPP_TEST_DEPENDENT_LIBS easymedia)
+add_definitions(-g -O0 -ggdb -gdwarf -funwind-tables -rdynamic)
 
 add_definitions(-DDEBUG)
 
 #--------------------------
 # rkmedia_vi_venc_test
 #--------------------------
-add_executable(rkmedia_vi_venc_test rkmedia_vi_venc_test.cc)
+add_executable(rkmedia_vi_venc_test rkmedia_vi_venc_test.c)
 add_dependencies(rkmedia_vi_venc_test easymedia)
 target_link_libraries(rkmedia_vi_venc_test easymedia)
 target_include_directories(rkmedia_vi_venc_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
