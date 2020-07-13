@@ -17,6 +17,7 @@
 #include "rkmedia_buffer.h"
 #include "rkmedia_buffer_impl.h"
 #include "rkmedia_utils.h"
+#include "osd/color_table.h"
 
 typedef enum rkCHN_STATUS {
   CHN_STATUS_CLOSED,
@@ -347,12 +348,12 @@ RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
  ********************************************************************/
 RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
 
   g_venc_mtx.lock();
   if (g_venc_chns[VeChn].status == CHN_STATUS_OPEN) {
     g_venc_mtx.unlock();
-    return RK_ERR_VENC_EXIST;
+    return -RK_ERR_VENC_EXIST;
   }
 
   std::string flow_name = "video_enc";
@@ -518,9 +519,9 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
 RK_S32 RK_MPI_VENC_SetRcParam(VENC_CHN VeChn,
                               const VENC_RC_PARAM_S *pstRcParam) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID; //对应HI_ERR_VENC_INVALID_CHNID
+    return -RK_ERR_VENC_INVALID_CHNID; //对应HI_ERR_VENC_INVALID_CHNID
   if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
-    return RK_ERR_VENC_NOTREADY;
+    return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
 
@@ -554,9 +555,9 @@ RK_S32 RK_MPI_VENC_SetRcParam(VENC_CHN VeChn,
 
 RK_S32 RK_MPI_VENC_SetRcMode(VENC_CHN VeChn, VENC_RC_MODE_E RcMode) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
-    return RK_ERR_VENC_NOTREADY;
+    return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
   switch (RcMode) {
@@ -584,9 +585,9 @@ RK_S32 RK_MPI_VENC_SetRcMode(VENC_CHN VeChn, VENC_RC_MODE_E RcMode) {
 
 RK_S32 RK_MPI_VENC_SetRcQuality(VENC_CHN VeChn, VENC_RC_QUALITY_E RcQuality) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
-    return RK_ERR_VENC_NOTREADY;
+    return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
   switch (RcQuality) {
@@ -620,9 +621,9 @@ RK_S32 RK_MPI_VENC_SetRcQuality(VENC_CHN VeChn, VENC_RC_QUALITY_E RcQuality) {
 RK_S32 RK_MPI_VENC_SetBitrate(VENC_CHN VeChn, RK_U32 u32BitRate,
                               RK_U32 u32MinBitRate, RK_U32 u32MaxBitRate) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
-    return RK_ERR_VENC_NOTREADY;
+    return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
   video_encoder_set_bps(g_venc_chns[VeChn].rkmedia_flow, u32BitRate,
@@ -632,9 +633,9 @@ RK_S32 RK_MPI_VENC_SetBitrate(VENC_CHN VeChn, RK_U32 u32BitRate,
 }
 RK_S32 RK_MPI_VENC_RequestIDR(VENC_CHN VeChn, RK_BOOL bInstant _UNUSED) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
-    return RK_ERR_VENC_NOTREADY;
+    return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
   video_encoder_force_idr(g_venc_chns[VeChn].rkmedia_flow);
@@ -646,9 +647,9 @@ RK_S32 RK_MPI_VENC_RequestIDR(VENC_CHN VeChn, RK_BOOL bInstant _UNUSED) {
 RK_S32 RK_MPI_VENC_SetFps(VENC_CHN VeChn, RK_U8 u8OutNum, RK_U8 u8OutDen,
                           RK_U8 u8InNum, RK_U8 u8InDen) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
-    return RK_ERR_VENC_NOTREADY;
+    return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
   video_encoder_set_fps(g_venc_chns[VeChn].rkmedia_flow, u8OutNum, u8OutDen,
@@ -659,9 +660,9 @@ RK_S32 RK_MPI_VENC_SetFps(VENC_CHN VeChn, RK_U8 u8OutNum, RK_U8 u8OutDen,
 }
 RK_S32 RK_MPI_VENC_SetGop(VENC_CHN VeChn, RK_U32 u32Gop) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
-    return RK_ERR_VENC_NOTREADY;
+    return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
   video_encoder_set_gop_size(g_venc_chns[VeChn].rkmedia_flow, u32Gop);
@@ -672,9 +673,9 @@ RK_S32 RK_MPI_VENC_SetGop(VENC_CHN VeChn, RK_U32 u32Gop) {
 RK_S32 RK_MPI_VENC_SetAvcProfile(VENC_CHN VeChn, RK_U32 u32Profile,
                                  RK_U32 u32Level) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
-    return RK_ERR_VENC_NOTREADY;
+    return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
   video_encoder_set_avc_profile(g_venc_chns[VeChn].rkmedia_flow, u32Profile,
@@ -687,9 +688,9 @@ RK_S32 RK_MPI_VENC_InsertUserData(VENC_CHN VeChn, RK_U8 *pu8Data,
                                   RK_U32 u32Len) {
 
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
-    return RK_ERR_VENC_NOTREADY;
+    return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
   video_encoder_set_userdata(g_venc_chns[VeChn].rkmedia_flow, pu8Data, u32Len);
@@ -702,9 +703,9 @@ RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
                               const VENC_ROI_ATTR_S *pstRoiAttr) {
 
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
-    return RK_ERR_VENC_NOTREADY;
+    return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
   EncROIRegion regions;
@@ -726,12 +727,12 @@ RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
 
 RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return RK_ERR_VENC_INVALID_CHNID;
+    return -RK_ERR_VENC_INVALID_CHNID;
 
   g_venc_mtx.lock();
   if (g_venc_chns[VeChn].status == CHN_STATUS_BIND) {
     g_venc_mtx.unlock();
-    return RK_ERR_VENC_BUSY;
+    return -RK_ERR_VENC_BUSY;
   }
 
   g_venc_chns[VeChn].rkmedia_flow.reset();
@@ -739,4 +740,151 @@ RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn) {
   g_venc_mtx.unlock();
 
   return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_VENC_InitOsd(VENC_CHN VeChn) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return -RK_ERR_VENC_INVALID_CHNID;
+
+  if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN) {
+    LOG("ERROR: Venc[%d] should be opened before init osd!\n");
+    return -RK_ERR_VENC_NOTREADY;
+  }
+
+  return easymedia::video_encoder_set_osd_plt(g_venc_chns[VeChn].rkmedia_flow, yuv444_palette_table);
+}
+
+static RK_VOID Argb1555_To_Region_Data(const BITMAP_S *pstBitmap, RK_U8 *data, RK_U32 canvasWidth, RK_U32 canvasHeight) {
+  RK_U8 value_r, value_g, value_b, value_a;
+  RK_U32 TargetWidth, TargetHeight;
+  RK_U32 ColorValue;
+  RK_U32 *BitmapLineStart;
+  RK_U8 *CanvasLineStart;
+
+  TargetWidth = (pstBitmap->u32Width > canvasWidth) ? canvasWidth : pstBitmap->u32Width;
+  TargetHeight = (pstBitmap->u32Height > canvasHeight) ? canvasHeight : pstBitmap->u32Height;
+
+  LOGD("%s Bitmap[%d, %d] -> Canvas[%d, %d], target=<%d, %d>\n",
+    __func__, pstBitmap->u32Width, pstBitmap->u32Height, canvasWidth, canvasHeight,
+    TargetWidth, TargetHeight);
+
+  // Initialize all pixels to transparent color
+  if ((canvasWidth > pstBitmap->u32Width) || (canvasHeight > pstBitmap->u32Height))
+    memset(data, 0xFF, canvasWidth * canvasHeight);
+
+  for (RK_U32 i = 0; i < TargetHeight; i++) {
+    BitmapLineStart = (RK_U32 *)pstBitmap->pData + i * pstBitmap->u32Width;
+    CanvasLineStart = data + i * canvasWidth;
+    for (RK_U32 j = 0; j < TargetWidth; j++) {
+      ColorValue = *(BitmapLineStart + j);
+      value_a = (ColorValue & 0x8000) >> 15;
+      value_r = (ColorValue & 0x7C00) >> 10;
+      value_g = (ColorValue & 0x03E0) >> 5;
+      value_b = (ColorValue & 0x001F);
+      if (value_a == 0)
+        *(CanvasLineStart + j) = PALETTE_TABLE_LEN - 1; //Transparent
+      else
+        *(CanvasLineStart + j) = find_color(bgra8888_palette_table, PALETTE_TABLE_LEN,
+          value_r, value_g, value_b);
+    }
+  }
+}
+
+static RK_VOID Argb8888_To_Region_Data(const BITMAP_S *pstBitmap, RK_U8 *data, RK_U32 canvasWidth, RK_U32 canvasHeight) {
+  RK_U8 value_r, value_g, value_b, value_a;
+  RK_U32 TargetWidth, TargetHeight;
+  RK_U32 ColorValue;
+  RK_U32 *BitmapLineStart;
+  RK_U8 *CanvasLineStart;
+
+  TargetWidth = (pstBitmap->u32Width > canvasWidth) ? canvasWidth : pstBitmap->u32Width;
+  TargetHeight = (pstBitmap->u32Height > canvasHeight) ? canvasHeight : pstBitmap->u32Height;
+
+  LOGD("%s Bitmap[%d, %d] -> Canvas[%d, %d], target=<%d, %d>\n",
+    __func__, pstBitmap->u32Width, pstBitmap->u32Height, canvasWidth, canvasHeight,
+    TargetWidth, TargetHeight);
+
+  // Initialize all pixels to transparent color
+  if ((canvasWidth > pstBitmap->u32Width) || (canvasHeight > pstBitmap->u32Height))
+    memset(data, 0xFF, canvasWidth * canvasHeight);
+
+  for (RK_U32 i = 0; i < TargetHeight; i++) {
+    BitmapLineStart = (RK_U32 *)pstBitmap->pData + i * pstBitmap->u32Width;
+    CanvasLineStart = data + i * canvasWidth;
+    for (RK_U32 j = 0; j < TargetWidth; j++) {
+      ColorValue = *(BitmapLineStart + j);
+      value_a = (ColorValue & 0xF0000000) >> 24;
+      value_r = (ColorValue & 0x00FF0000) >> 16;
+      value_g = (ColorValue & 0x0000FF00) >> 8;
+      value_b = (ColorValue & 0x000000FF);
+      if (value_a == 0)
+        *(CanvasLineStart + j) = PALETTE_TABLE_LEN - 1; //Transparent
+      else
+        *(CanvasLineStart + j) = find_color(bgra8888_palette_table, PALETTE_TABLE_LEN,
+          value_r, value_g, value_b);
+    }
+  }
+}
+
+RK_S32 RK_MPI_VENC_SetBitMap(VENC_CHN VeChn, const OSD_REGION_INFO_S *pstRgnInfo,
+  const BITMAP_S *pstBitmap) {
+  RK_U8 rkmedia_osd_data[OSD_PIX_NUM_MAX] = {0xFF};
+  RK_U32 total_pix_num = 0;
+  RK_S32 ret = RK_ERR_SYS_OK;
+
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return -RK_ERR_VENC_INVALID_CHNID;
+
+  if (!pstBitmap || !pstBitmap->pData ||
+    !pstBitmap->u32Width || !pstBitmap->u32Height)
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+
+  if (!pstRgnInfo || !pstRgnInfo->u32Width || !pstRgnInfo->u32Height)
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+
+  if ((pstRgnInfo->u32PosX % 16) || (pstRgnInfo->u32PosY % 16) ||
+    (pstRgnInfo->u32Width % 16) || (pstRgnInfo->u32Height % 16)) {
+    LOG("ERROR: <x, y, w, h> = <%d, %d, %d, %d> must be 16 aligned!\n",
+      pstRgnInfo->u32PosX, pstRgnInfo->u32PosY,
+      pstRgnInfo->u32Width, pstRgnInfo->u32Height);
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+  total_pix_num = pstRgnInfo->u32Width * pstRgnInfo->u32Height;
+  if (total_pix_num > OSD_PIX_NUM_MAX) {
+    LOG("ERROR: RgnInfo pixels(%d) exceed the maximum number of osd pixels(%d)\n",
+      total_pix_num, OSD_PIX_NUM_MAX);
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+  switch (pstBitmap->enPixelFormat) {
+  case PIXEL_FORMAT_ARGB_1555:
+    Argb1555_To_Region_Data(pstBitmap, rkmedia_osd_data, pstRgnInfo->u32Width, pstRgnInfo->u32Height);
+    break;
+  case PIXEL_FORMAT_ARGB_8888:
+    Argb8888_To_Region_Data(pstBitmap, rkmedia_osd_data, pstRgnInfo->u32Width, pstRgnInfo->u32Height);
+    break;
+  default:
+    LOG("ERROR: Not support bitmap pixel format:%d\n", pstBitmap->enPixelFormat);
+    ret = RK_ERR_VENC_NOT_SUPPORT;
+    break;
+  }
+
+  if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN) {
+    LOG("ERROR: Venc[%d] should be opened before set bitmap!\n");
+    return -RK_ERR_VENC_NOTREADY;
+  }
+
+  OsdRegionData rkmedia_osd_rgn;
+  rkmedia_osd_rgn.buffer = rkmedia_osd_data;
+  rkmedia_osd_rgn.region_id = pstRgnInfo->enRegionId;
+  rkmedia_osd_rgn.pos_x = pstRgnInfo->u32PosX;
+  rkmedia_osd_rgn.pos_y = pstRgnInfo->u32PosY;
+  rkmedia_osd_rgn.width = pstRgnInfo->u32Width;
+  rkmedia_osd_rgn.height = pstRgnInfo->u32Height;
+  rkmedia_osd_rgn.inverse = pstRgnInfo->u8Inverse;
+  rkmedia_osd_rgn.enable = pstRgnInfo->u8Enable;
+  easymedia::video_encoder_set_osd_region(g_venc_chns[VeChn].rkmedia_flow, &rkmedia_osd_rgn);
+
+  return ret;
 }

@@ -8,7 +8,8 @@
 
 set(EASY_MEDIA_CAPI_SOURCE_FILES c_api/rkmedia_api.cc
 								 c_api/rkmedia_utils.cc
-								 c_api/rkmedia_buffer.cc)
+								 c_api/rkmedia_buffer.cc
+								 c_api/osd/color_table.cc)
 
 set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
                             ${EASY_MEDIA_CAPI_SOURCE_FILES} PARENT_SCOPE)

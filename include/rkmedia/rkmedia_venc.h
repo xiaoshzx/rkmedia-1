@@ -212,7 +212,45 @@ typedef struct hiVENC_ROI_ATTR_S {
                 // less than 0.
   RECT_S stRect; // RW; Region of an ROI
 } VENC_ROI_ATTR_S;
+
+// Maximum number of pixels for osd
+#define OSD_PIX_NUM_MAX 65536
+
+typedef enum rkOSD_REGION_ID_E {
+  REGION_ID_0 = 0,
+  REGION_ID_1,
+  REGION_ID_2,
+  REGION_ID_3,
+  REGION_ID_4,
+  REGION_ID_5,
+  REGION_ID_6,
+  REGION_ID_7
+} OSD_REGION_ID_E;
+
+typedef enum rkOSD_PIXEL_FORMAT_E {
+  PIXEL_FORMAT_ARGB_1555 = 0,
+  PIXEL_FORMAT_ARGB_8888,
+} OSD_PIXEL_FORMAT_E;
+
+typedef struct rkBITMAP_S {
+  OSD_PIXEL_FORMAT_E enPixelFormat; /* Bitmap's pixel format */
+  RK_U32 u32Width; /* Bitmap's width */
+  RK_U32 u32Height; /* Bitmap's height */
+  RK_VOID* pData; /* Address of Bitmap's data */
+} BITMAP_S;
+
+typedef struct rkOSD_REGION_INFO_S {
+  OSD_REGION_ID_E enRegionId;
+  RK_U32 u32PosX;
+  RK_U32 u32PosY;
+  RK_U32 u32Width;
+  RK_U32 u32Height;
+  RK_U8 u8Inverse;
+  RK_U8 u8Enable;
+} OSD_REGION_INFO_S;
+
 #ifdef __cplusplus
 }
 #endif
+
 #endif // #ifndef __RKMEDIA_VENC_

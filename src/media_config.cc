@@ -524,7 +524,7 @@ int video_encoder_set_fps(std::shared_ptr<Flow> &enc_flow,
 
 // input palette should be yuva formate.
 int video_encoder_set_osd_plt(
-  std::shared_ptr<Flow> &enc_flow, uint32_t *yuv_plt) {
+  std::shared_ptr<Flow> &enc_flow, const uint32_t *yuv_plt) {
   if (!enc_flow)
     return -EINVAL;
 
