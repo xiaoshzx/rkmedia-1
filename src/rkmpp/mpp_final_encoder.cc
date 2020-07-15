@@ -27,7 +27,7 @@
 namespace easymedia {
 
 #if 0
-static float smartp_mode_get_bps_factor(int bps, int w, int h) {
+static float smart_enc_mode_get_bps_factor(int bps, int w, int h) {
   float den = 1.0;
   //Reference 1080p resolution:
   //5Mb:    [bpsMax / 4,   bpsMax]
@@ -995,7 +995,7 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       int bps_target = vconfig.bit_rate;
       int w = vconfig.image_cfg.image_info.vir_width;
       int h = vconfig.image_cfg.image_info.vir_height;
-      float bps_factor = smartp_mode_get_bps_factor(vconfig.bit_rate_max, w, h);
+      float bps_factor = smart_enc_mode_get_bps_factor(vconfig.bit_rate_max, w, h);
       bps_min = (int)(vconfig.bit_rate_max * bps_factor);
 
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:mode", MPP_ENC_RC_MODE_VBR);
@@ -1004,10 +1004,10 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:bps_target", bps_target);
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:gop", 300);
 
-      LOG("MPP Encoder: smartp mode: factor:%f, bps:[%d,%d,%d] gop:%d\n",
+      LOG("MPP Encoder: smart enc mode: factor:%f, bps:[%d,%d,%d] gop:%d\n",
         bps_factor, bps_max, bps_target, bps_min, 300);
       if (mpp_enc.EncodeControl(MPP_ENC_SET_CFG, enc_cfg) != 0) {
-        LOG("ERROR: MPP Encoder: rc control for smartp failed!\n");
+        LOG("ERROR: MPP Encoder: rc control for smart enc failed!\n");
         return false;
       }
 
@@ -1019,7 +1019,7 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:mode", MPP_ENC_RC_MODE_VBR);
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:gop", 300);
       if (mpp_enc.EncodeControl(MPP_ENC_SET_CFG, enc_cfg) != 0) {
-        LOG("ERROR: MPP Encoder: rc control for smartp failed!\n");
+        LOG("ERROR: MPP Encoder: rc control for smart enc failed!\n");
         return false;
       }
       //save to vconfig
@@ -1031,15 +1031,15 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       //Enable smart mode.
       brief.name = "smart";
       brief.type = code_type;
-      LOG("MPP Encoder: enable smartp mode...\n");
+      LOG("MPP Encoder: enable smart enc mode...\n");
     } else {
       brief.name = "defalut";
       brief.type = code_type;
-      LOG("MPP Encoder: disable smartp mode...\n");
+      LOG("MPP Encoder: disable smart enc mode...\n");
     }
 
     if (mpp_enc.EncodeControl(MPP_ENC_SET_RC_API_CURRENT, &brief) != 0) {
-      LOG("ERROR: MPP Encoder: enable smartp control failed!\n");
+      LOG("ERROR: MPP Encoder: enable smart enc control failed!\n");
       return false;
     }
     mpp_enc.rc_api_brief_name = brief.name;
