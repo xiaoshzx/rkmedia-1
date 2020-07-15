@@ -121,16 +121,14 @@ typedef struct rkVENC_ATTR_S {
                        // width, often set vir_width=(width+15)&(~15)
   RK_U32 u32VirHeight; // stride height, same to buffer_height, must greater
                        // than height, often set vir_height=(height+15)&(~15)
-  RK_U32 u32Profile;   // RW; Range:[0,100];
+  RK_U32 u32Profile;   // RW;
                        // H.264:   66: baseline; 77:MP; 100:HP;
                        // H.265:   default:Main;
                        // Jpege/MJpege:   default:Baseline
   RK_BOOL bByFrame;    // RW; Range:[0,1];
                        // get stream mode is slice mode or frame mode
-  RK_U32 u32PicWidth;  // RW; Range:[0,16384];width of a picture to be encoded,
-                       // in pixel
-  RK_U32 u32PicHeight; // RW; Range:[0,16384];height of a picture to be encoded,
-                       // in pixel
+  RK_U32 u32PicWidth;  // RW; width of a picture to be encoded, in pixel
+  RK_U32 u32PicHeight; // RW; height of a picture to be encoded, in pixel
   union {
     VENC_ATTR_H264_S stAttrH264e;   // attributes of H264e
     VENC_ATTR_H265_S stAttrH265e;   // attributes of H265e
@@ -154,11 +152,11 @@ typedef struct rkVENC_CHN_ATTR_S {
 /* The param of H264e cbr*/
 typedef struct rkVENC_PARAM_H264_S {
   RK_U32 u32StepQp;
-  RK_U32 u32MaxQp; // RW; Range:[0, 51];the max QP value
-  RK_U32 u32MinQp; // RW; Range:[0, 51]; the min QP value,can not be larger than
+  RK_U32 u32MaxQp; // RW; Range:[8, 51];the max QP value
+  RK_U32 u32MinQp; // RW; Range:[0, 48]; the min QP value,can not be larger than
                    // u32MaxQp
-  RK_U32 u32MaxIQp; // RW; Range:[0, 51]; max qp for i frame
-  RK_U32 u32MinIQp; // RW; Range:[0, 51]; min qp for i frame,can not be larger
+  RK_U32 u32MaxIQp; // RW; max qp for i frame
+  RK_U32 u32MinIQp; // RW; min qp for i frame,can not be larger
                     // than u32MaxIQp
   // RK_S32  s32MaxReEncodeTimes;        /* RW; Range:[0, 3]; Range:max number
   // of re-encode times.*/
@@ -167,12 +165,12 @@ typedef struct rkVENC_PARAM_H264_S {
 /* The param of h265e cbr*/
 typedef struct rkVENC_PARAM_H265_S {
   RK_U32 u32StepQp;
-  RK_U32 u32MaxQp; // RW; Range:[0, 51];the max QP value
-  RK_U32 u32MinQp; // RW; Range:[1, 51];the min QP value ,can not be larger than
+  RK_U32 u32MaxQp; // RW; Range:[8, 51];the max QP value
+  RK_U32 u32MinQp; // RW; Range:[0, 48];the min QP value ,can not be larger than
                    // u32MaxQp
-  RK_U32 u32MaxIQp; // RW; Range:[0, 51];max qp for i frame
-  RK_U32 u32MinIQp; // RW; Range:[1, 51];min qp for i frame,can not be larger
-                    // than u32MaxIQp
+  RK_U32 u32MaxIQp; // RW; max qp for i frame
+  RK_U32 u32MinIQp; // RW; min qp for i frame,can not be larger than u32MaxIQp
+
   // RK_S32  s32MaxReEncodeTimes;         /* RW; Range:[0, 3]; Range:max number
   // of re-encode times.*/
   // RK_U32  u32DeltIpQp;
@@ -186,7 +184,7 @@ typedef struct rkVENC_PARAM_MJPEG_S {
 /* The param of rc*/
 typedef struct rkVENC_RC_PARAM_S {
   RK_U32
-  s32FirstFrameStartQp; // RW; Range:[-1, 51];Start QP value of the first frame
+  s32FirstFrameStartQp; // RW; Start QP value of the first frame
   union {
     VENC_PARAM_H264_S stParamH264;
     VENC_PARAM_H265_S stParamH265;
@@ -234,9 +232,9 @@ typedef enum rkOSD_PIXEL_FORMAT_E {
 
 typedef struct rkBITMAP_S {
   OSD_PIXEL_FORMAT_E enPixelFormat; /* Bitmap's pixel format */
-  RK_U32 u32Width; /* Bitmap's width */
-  RK_U32 u32Height; /* Bitmap's height */
-  RK_VOID* pData; /* Address of Bitmap's data */
+  RK_U32 u32Width;                  /* Bitmap's width */
+  RK_U32 u32Height;                 /* Bitmap's height */
+  RK_VOID *pData;                   /* Address of Bitmap's data */
 } BITMAP_S;
 
 typedef struct rkOSD_REGION_INFO_S {

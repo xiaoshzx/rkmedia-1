@@ -164,8 +164,49 @@ enum {
   /* system is busy*/
   RK_ERR_VENC_BUSY,
 
+  /* invlalid device ID */
+  RK_ERR_AI_INVALID_DEVID,
+  /* system is busy*/
+  RK_ERR_AI_BUSY,
+  RK_ERR_AI_EXIST,
+  RK_ERR_AI_NOT_CONFIG,
+
+  /* invlalid device ID */
+  RK_ERR_AO_INVALID_DEVID,
+  /* system is busy*/
+  RK_ERR_AO_BUSY,
+  /* system is not ready,had not initialed or loaded*/
+  RK_ERR_AO_NOTREADY,
+  /* system is not open, had not initaled or enabled*/
+  RK_ERR_AO_NOTOPEN,
+  /* channel exists */
+  RK_ERR_VO_EXIST,
+  RK_ERR_VO_NOT_CONFIG,
+
+  /* invlalid device ID */
+  RK_ERR_AENC_INVALID_DEVID,
+  /* system is busy*/
+  RK_ERR_AENC_BUSY,
+  /* codec not support*/
+  RK_ERR_AENC_CODEC_NOT_SUPPORT,
   RK_ERR_BUIT,
 };
+
+typedef enum rkSample_Format_E {
+  RK_SAMPLE_FMT_NONE = -1,
+  RK_SAMPLE_FMT_U8,
+  RK_SAMPLE_FMT_S16,
+  RK_SAMPLE_FMT_S32,
+  RK_SAMPLE_FMT_FLT,
+  RK_SAMPLE_FMT_U8P,
+  RK_SAMPLE_FMT_S16P,
+  RK_SAMPLE_FMT_S32P,
+  RK_SAMPLE_FMT_FLTP,
+  RK_SAMPLE_FMT_G711A,
+  RK_SAMPLE_FMT_G711U,
+  RK_SAMPLE_FMT_NB
+} Sample_Format_E;
+
 #ifdef __cplusplus
 }
 #endif

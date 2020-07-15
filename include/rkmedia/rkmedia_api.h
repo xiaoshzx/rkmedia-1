@@ -7,6 +7,9 @@ extern "C" {
 
 #include <stddef.h>
 
+#include "rkmedia_aenc.h"
+#include "rkmedia_ai.h"
+#include "rkmedia_ao.h"
 #include "rkmedia_buffer.h"
 #include "rkmedia_common.h"
 #include "rkmedia_venc.h"
@@ -16,10 +19,16 @@ extern "C" {
 #define VI_MAX_DEV_NUM 4
 #define VI_MAX_CHN_NUM VI_MAX_DEV_NUM
 #define VENC_MAX_CHN_NUM 16
+#define AI_MAX_CHN_NUM 1
+#define AO_MAX_CHN_NUM 1
+#define AENC_MAX_CHN_NUM 16
 
 typedef RK_S32 VI_PIPE;
 typedef RK_S32 VI_CHN;
 typedef RK_S32 VENC_CHN;
+typedef RK_S32 AI_CHN;
+typedef RK_S32 AO_CHN;
+typedef RK_S32 AENC_CHN;
 
 typedef struct rkMPP_CHN_S {
   MOD_ID_E enModId;
@@ -77,6 +86,26 @@ _CAPI RK_S32 RK_MPI_VENC_SetBitMap(VENC_CHN VeChn, const OSD_REGION_INFO_S *pstR
 
 _CAPI RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn);
 
+/********************************************************************
+ * Ai api
+ ********************************************************************/
+_CAPI RK_S32 RK_MPI_AI_SetChnAttr(VENC_CHN AiChn, const AI_CHN_ATTR_S *pstAttr);
+_CAPI RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn);
+_CAPI RK_S32 RK_MPI_AI_DisableChn(AI_CHN AiChn);
+/********************************************************************
+ * Ao api
+ ********************************************************************/
+_CAPI RK_S32 RK_MPI_AO_SetChnAttr(AO_CHN AoChn, const AO_CHN_ATTR_S *pstAttr);
+_CAPI RK_S32 RK_MPI_AO_EnableChn(AO_CHN AoChn);
+_CAPI RK_S32 RK_MPI_AO_DisableChn(AO_CHN AoChn);
+_CAPI RK_S32 RK_MPI_AO_SetVolume(AO_CHN AoChn, RK_S32 s32Volume);
+_CAPI RK_S32 RK_MPI_AO_GetVolume(AO_CHN AoChn, RK_S32 *ps32Volume);
+/********************************************************************
+ * Aenc api
+ ********************************************************************/
+_CAPI RK_S32 RK_MPI_AENC_CreateChn(AENC_CHN AencChn,
+                                   const AENC_CHN_ATTR_S *pstAttr);
+_CAPI RK_S32 RK_MPI_AENC_DestroyChn(AENC_CHN AencChn);
 #ifdef __cplusplus
 }
 #endif

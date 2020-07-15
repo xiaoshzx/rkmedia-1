@@ -34,6 +34,12 @@ typedef struct _RkmediaVIAttr {
   VI_CHN_ATTR_S attr;
 } RkmediaVIAttr;
 
+typedef struct _RkmediaAIAttr { AI_CHN_ATTR_S attr; } RkmediaAIAttr;
+
+typedef struct _RkmediaAOAttr { AO_CHN_ATTR_S attr; } RkmediaAOAttr;
+
+typedef struct _RkmediaAENCAttr { AENC_CHN_ATTR_S attr; } RkmediaAENCAttr;
+
 typedef struct _RkmediaChannel {
   MOD_ID_E mode_id;
   CHN_STATUS status;
@@ -42,6 +48,9 @@ typedef struct _RkmediaChannel {
   union {
     RkmediaVIAttr vi_attr;
     RkmediaVencAttr venc_attr;
+    RkmediaAIAttr ai_attr;
+    RkmediaAOAttr ao_attr;
+    RkmediaAENCAttr aenc_attr;
   };
 } RkmediaChannel;
 
@@ -50,6 +59,15 @@ std::mutex g_vi_mtx;
 
 RkmediaChannel g_venc_chns[VENC_MAX_CHN_NUM];
 std::mutex g_venc_mtx;
+
+RkmediaChannel g_ai_chns[AI_MAX_CHN_NUM];
+std::mutex g_ai_mtx;
+
+RkmediaChannel g_ao_chns[AO_MAX_CHN_NUM];
+std::mutex g_ao_mtx;
+
+RkmediaChannel g_aenc_chns[AENC_MAX_CHN_NUM];
+std::mutex g_aenc_mtx;
 
 /********************************************************************
  * SYS Ctrl api
@@ -73,6 +91,8 @@ RK_S32 RK_MPI_SYS_Init() {
 
   Reset_Channel_Table(g_vi_chns, VI_MAX_CHN_NUM, RK_ID_VI);
   Reset_Channel_Table(g_venc_chns, VENC_MAX_CHN_NUM, RK_ID_VENC);
+  Reset_Channel_Table(g_ai_chns, AI_MAX_CHN_NUM, RK_ID_AI);
+  Reset_Channel_Table(g_aenc_chns, AENC_MAX_CHN_NUM, RK_ID_AENC);
 
   return RK_ERR_SYS_OK;
 }
@@ -97,6 +117,25 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
     src = g_venc_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_venc_chns[pstSrcChn->s32ChnId];
     break;
+  case RK_ID_AI:
+    if (g_ai_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    src = g_ai_chns[pstSrcChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_ai_chns[pstSrcChn->s32ChnId];
+    break;
+  case RK_ID_AO:
+    if (g_ao_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    src = g_ao_chns[pstSrcChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_ao_chns[pstSrcChn->s32ChnId];
+
+    break;
+  case RK_ID_AENC:
+    if (g_aenc_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    src = g_aenc_chns[pstSrcChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_aenc_chns[pstSrcChn->s32ChnId];
+    break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
@@ -113,6 +152,24 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
       return -RK_ERR_SYS_NOTREADY;
     sink = g_venc_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_venc_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_AI:
+    if (g_ai_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    sink = g_ai_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_ai_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_AO:
+    if (g_ao_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    sink = g_ao_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_ao_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_AENC:
+    if (g_aenc_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    sink = g_aenc_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_aenc_chns[pstDestChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -159,6 +216,24 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
     src = g_venc_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_venc_chns[pstSrcChn->s32ChnId];
     break;
+  case RK_ID_AI:
+    if (g_ai_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_BIND)
+      return -RK_ERR_SYS_NOTREADY;
+    src = g_ai_chns[pstSrcChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_ai_chns[pstSrcChn->s32ChnId];
+    break;
+  case RK_ID_AO:
+    if (g_ao_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_BIND)
+      return -RK_ERR_SYS_NOTREADY;
+    src = g_ao_chns[pstSrcChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_ao_chns[pstSrcChn->s32ChnId];
+    break;
+  case RK_ID_AENC:
+    if (g_aenc_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_BIND)
+      return -RK_ERR_SYS_NOTREADY;
+    src = g_aenc_chns[pstSrcChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_aenc_chns[pstSrcChn->s32ChnId];
+    break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
@@ -175,6 +250,24 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
       return -RK_ERR_SYS_NOTREADY;
     sink = g_venc_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_venc_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_AI:
+    if (g_ai_chns[pstDestChn->s32ChnId].status != CHN_STATUS_BIND)
+      return -RK_ERR_SYS_NOTREADY;
+    sink = g_ai_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_ai_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_AO:
+    if (g_ao_chns[pstDestChn->s32ChnId].status != CHN_STATUS_BIND)
+      return -RK_ERR_SYS_NOTREADY;
+    sink = g_ao_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_ao_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_AENC:
+    if (g_aenc_chns[pstDestChn->s32ChnId].status != CHN_STATUS_BIND)
+      return -RK_ERR_SYS_NOTREADY;
+    sink = g_aenc_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_aenc_chns[pstDestChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -251,6 +344,18 @@ RK_S32 RK_MPI_SYS_RegisterOutCb(const MPP_CHN_S *pstChn, OutCbFunc cb) {
       return -RK_ERR_SYS_NOTREADY;
     flow = g_venc_chns[pstChn->s32ChnId].rkmedia_flow;
     target_chn = &g_venc_chns[pstChn->s32ChnId];
+    break;
+  case RK_ID_AI:
+    if (g_ai_chns[pstChn->s32ChnId].status < CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    flow = g_ai_chns[pstChn->s32ChnId].rkmedia_flow;
+    target_chn = &g_ai_chns[pstChn->s32ChnId];
+    break;
+  case RK_ID_AENC:
+    if (g_aenc_chns[pstChn->s32ChnId].status < CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    flow = g_aenc_chns[pstChn->s32ChnId].rkmedia_flow;
+    target_chn = &g_aenc_chns[pstChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -887,4 +992,304 @@ RK_S32 RK_MPI_VENC_SetBitMap(VENC_CHN VeChn, const OSD_REGION_INFO_S *pstRgnInfo
   easymedia::video_encoder_set_osd_region(g_venc_chns[VeChn].rkmedia_flow, &rkmedia_osd_rgn);
 
   return ret;
+}
+
+/********************************************************************
+ * Ai api
+ ********************************************************************/
+static std::shared_ptr<easymedia::Flow>
+create_flow(const std::string &flow_name, const std::string &flow_param,
+            const std::string &elem_param) {
+  auto &&param = easymedia::JoinFlowParam(flow_param, 1, elem_param);
+  auto ret = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), param.c_str());
+  if (!ret)
+    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+  return ret;
+}
+
+static std::shared_ptr<easymedia::Flow>
+create_alsa_flow(std::string aud_in_path, SampleInfo &info, bool capture) {
+  std::string flow_name;
+  std::string flow_param;
+  std::string sub_param;
+  std::string stream_name;
+
+  if (capture) {
+    // default sync mode
+    flow_name = "source_stream";
+    stream_name = "alsa_capture_stream";
+  } else {
+    flow_name = "output_stream";
+    stream_name = "alsa_playback_stream";
+    PARAM_STRING_APPEND(flow_param, KEK_THREAD_SYNC_MODEL, KEY_ASYNCCOMMON);
+    PARAM_STRING_APPEND(flow_param, KEK_INPUT_MODEL, KEY_DROPFRONT);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_INPUT_CACHE_NUM, 5);
+  }
+  flow_param = "";
+  sub_param = "";
+
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, stream_name);
+  PARAM_STRING_APPEND(sub_param, KEY_DEVICE, aud_in_path);
+  PARAM_STRING_APPEND(sub_param, KEY_SAMPLE_FMT, SampleFmtToString(info.fmt));
+  PARAM_STRING_APPEND_TO(sub_param, KEY_CHANNELS, info.channels);
+  PARAM_STRING_APPEND_TO(sub_param, KEY_FRAMES, info.nb_samples);
+  PARAM_STRING_APPEND_TO(sub_param, KEY_SAMPLE_RATE, info.sample_rate);
+
+  auto audio_source_flow = create_flow(flow_name, flow_param, sub_param);
+  if (!audio_source_flow) {
+    printf("Create flow %s failed\n", flow_name.c_str());
+    exit(EXIT_FAILURE);
+  } else {
+    printf("%s flow ready!\n", flow_name.c_str());
+  }
+  return audio_source_flow;
+}
+
+RK_S32 RK_MPI_AI_SetChnAttr(AI_CHN AiChn, const AI_CHN_ATTR_S *pstAttr) {
+  if ((AiChn < 0) || (AiChn >= AI_MAX_CHN_NUM))
+    return -RK_ERR_AI_INVALID_DEVID;
+
+  g_ai_mtx.lock();
+  if (!pstAttr || !pstAttr->path)
+    return -RK_ERR_SYS_NOT_PERM;
+
+  if (g_ai_chns[AiChn].status != CHN_STATUS_CLOSED) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_BUSY;
+  }
+
+  memcpy(&g_ai_chns[AiChn].ai_attr.attr, pstAttr, sizeof(AI_CHN_ATTR_S));
+  g_ai_chns[AiChn].status = CHN_STATUS_READY;
+
+  g_ai_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn) {
+  if ((AiChn < 0) || (AiChn >= AI_MAX_CHN_NUM))
+    return RK_ERR_AI_INVALID_DEVID;
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status != CHN_STATUS_READY) {
+    g_ai_mtx.unlock();
+    return (g_ai_chns[AiChn].status > CHN_STATUS_READY) ? -RK_ERR_AI_EXIST
+                                                        : -RK_ERR_AI_NOT_CONFIG;
+  }
+  SampleInfo info;
+  info.channels = g_ai_chns[AiChn].ai_attr.attr.channels;
+  info.fmt = (SampleFormat)g_ai_chns[AiChn].ai_attr.attr.fmt;
+  info.nb_samples = g_ai_chns[AiChn].ai_attr.attr.nb_samples;
+  info.sample_rate = g_ai_chns[AiChn].ai_attr.attr.sample_rate;
+  g_ai_chns[AiChn].rkmedia_flow =
+      create_alsa_flow(g_ai_chns[AiChn].ai_attr.attr.path, info, RK_TRUE);
+  g_ai_chns[AiChn].status = CHN_STATUS_OPEN;
+  g_ai_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AI_DisableChn(AI_CHN AiChn) {
+  if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
+    return RK_ERR_AI_INVALID_DEVID;
+
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status == CHN_STATUS_BIND) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_BUSY;
+  }
+
+  g_ai_chns[AiChn].rkmedia_flow.reset();
+  g_ai_chns[AiChn].status = CHN_STATUS_CLOSED;
+  g_ai_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+/********************************************************************
+ * Ao api
+ ********************************************************************/
+RK_S32 RK_MPI_AO_SetChnAttr(AO_CHN AoChn, const AO_CHN_ATTR_S *pstAttr) {
+  if ((AoChn < 0) || (AoChn >= AO_MAX_CHN_NUM))
+    return -RK_ERR_AO_INVALID_DEVID;
+
+  g_ao_mtx.lock();
+  if (!pstAttr || !pstAttr->path)
+    return -RK_ERR_SYS_NOT_PERM;
+
+  if (g_ao_chns[AoChn].status != CHN_STATUS_CLOSED) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AI_BUSY;
+  }
+
+  memcpy(&g_ao_chns[AoChn].ao_attr.attr, pstAttr, sizeof(AO_CHN_ATTR_S));
+  g_ao_chns[AoChn].status = CHN_STATUS_READY;
+
+  g_ao_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AO_EnableChn(AO_CHN AoChn) {
+  if ((AoChn < 0) || (AoChn >= AO_MAX_CHN_NUM))
+    return RK_ERR_AO_INVALID_DEVID;
+  g_ao_mtx.lock();
+  if (g_ao_chns[AoChn].status != CHN_STATUS_READY) {
+    g_ao_mtx.unlock();
+    return (g_ao_chns[AoChn].status > CHN_STATUS_READY) ? -RK_ERR_VO_EXIST
+                                                        : -RK_ERR_VO_NOT_CONFIG;
+  }
+  SampleInfo info;
+  info.channels = g_ao_chns[AoChn].ao_attr.attr.channels;
+  info.fmt = (SampleFormat)g_ao_chns[AoChn].ao_attr.attr.fmt;
+  info.nb_samples = g_ao_chns[AoChn].ao_attr.attr.nb_samples;
+  info.sample_rate = g_ao_chns[AoChn].ao_attr.attr.sample_rate;
+  g_ao_chns[AoChn].rkmedia_flow =
+      create_alsa_flow(g_ao_chns[AoChn].ao_attr.attr.path, info, RK_FALSE);
+  g_ao_chns[AoChn].status = CHN_STATUS_OPEN;
+  g_ao_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AO_DisableChn(AO_CHN AoChn) {
+  if ((AoChn < 0) || (AoChn > AO_MAX_CHN_NUM))
+    return RK_ERR_AO_INVALID_DEVID;
+
+  g_ao_mtx.lock();
+  if (g_ao_chns[AoChn].status == CHN_STATUS_BIND) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AI_BUSY;
+  }
+
+  g_ao_chns[AoChn].rkmedia_flow.reset();
+  g_ao_chns[AoChn].status = CHN_STATUS_CLOSED;
+  g_ao_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AO_SetVolume(AO_CHN AoChn, RK_S32 s32Volume) {
+  if ((AoChn < 0) || (AoChn > AO_MAX_CHN_NUM))
+    return RK_ERR_AO_INVALID_DEVID;
+  g_ao_mtx.lock();
+  if (g_ao_chns[AoChn].status <= CHN_STATUS_READY) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AO_NOTOPEN;
+  }
+  g_ao_chns[AoChn].rkmedia_flow->Control(easymedia::S_ALSA_VOLUME, &s32Volume);
+  g_ao_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AO_GetVolume(AO_CHN AoChn, RK_S32 *ps32Volume) {
+  if ((AoChn < 0) || (AoChn > AO_MAX_CHN_NUM))
+    return RK_ERR_AO_INVALID_DEVID;
+  g_ao_mtx.lock();
+  if (g_ao_chns[AoChn].status <= CHN_STATUS_READY) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AO_NOTOPEN;
+  }
+  g_ao_chns[AoChn].rkmedia_flow->Control(easymedia::G_ALSA_VOLUME, ps32Volume);
+  g_ao_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+/********************************************************************
+ * Aenc api
+ ********************************************************************/
+RK_S32 RK_MPI_AENC_CreateChn(AENC_CHN AencChn, const AENC_CHN_ATTR_S *pstAttr) {
+  if ((AencChn < 0) || (AencChn >= AENC_MAX_CHN_NUM))
+    return -RK_ERR_AENC_INVALID_DEVID;
+
+  g_aenc_mtx.lock();
+  if (!pstAttr)
+    return -RK_ERR_SYS_NOT_PERM;
+
+  if (g_aenc_chns[AencChn].status != CHN_STATUS_CLOSED) {
+    g_aenc_mtx.unlock();
+    return -RK_ERR_AI_BUSY;
+  }
+
+  memcpy(&g_aenc_chns[AencChn].aenc_attr.attr, pstAttr,
+         sizeof(AENC_CHN_ATTR_S));
+  g_aenc_chns[AencChn].status = CHN_STATUS_READY;
+
+  std::string flow_name;
+  std::string param;
+  flow_name = "audio_enc";
+  param = "";
+  CODEC_TYPE_E codec_type = g_aenc_chns[AencChn].aenc_attr.attr.enType;
+  PARAM_STRING_APPEND(param, KEY_NAME, "ffmpeg_aud");
+  PARAM_STRING_APPEND(param, KEY_OUTPUTDATATYPE, CodecToString(codec_type));
+  RK_S32 nb_sample = 0;
+  RK_S32 channels = 0;
+  RK_S32 sample_rate = 0;
+  Sample_Format_E sample_format;
+  switch (codec_type) {
+  case RK_CODEC_TYPE_G711A:
+    sample_format = RK_SAMPLE_FMT_S16;
+    nb_sample = g_aenc_chns[AencChn].aenc_attr.attr.g711a_attr.u32NbSample;
+    channels = g_aenc_chns[AencChn].aenc_attr.attr.g711a_attr.u32Channels;
+    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.g711a_attr.u32SampleRate;
+    break;
+  case RK_CODEC_TYPE_G711U:
+    sample_format = RK_SAMPLE_FMT_S16;
+    nb_sample = g_aenc_chns[AencChn].aenc_attr.attr.g711u_attr.u32NbSample;
+    channels = g_aenc_chns[AencChn].aenc_attr.attr.g711u_attr.u32Channels;
+    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.g711u_attr.u32SampleRate;
+    break;
+  case RK_CODEC_TYPE_MP2:
+    sample_format = RK_SAMPLE_FMT_S16;
+    channels = g_aenc_chns[AencChn].aenc_attr.attr.mp2_attr.u32Channels;
+    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.mp2_attr.u32SampleRate;
+    break;
+  case RK_CODEC_TYPE_AAC:
+    sample_format = RK_SAMPLE_FMT_S16;
+    channels = g_aenc_chns[AencChn].aenc_attr.attr.aac_attr.u32Channels;
+    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.aac_attr.u32SampleRate;
+    break;
+  case RK_CODEC_TYPE_G726:
+    sample_format = RK_SAMPLE_FMT_FLTP;
+    channels = g_aenc_chns[AencChn].aenc_attr.attr.g726_attr.u32Channels;
+    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.g726_attr.u32SampleRate;
+    break;
+  default:
+    g_aenc_mtx.unlock();
+    return -RK_ERR_AENC_CODEC_NOT_SUPPORT;
+  }
+  PARAM_STRING_APPEND(param, KEY_INPUTDATATYPE,
+                      SampleFormatToString(sample_format));
+
+  MediaConfig enc_config;
+  SampleInfo aud_info = {(SampleFormat)sample_format, channels, sample_rate,
+                         nb_sample};
+  auto &ac = enc_config.aud_cfg;
+  ac.sample_info = aud_info;
+  ac.bit_rate = g_aenc_chns[AencChn].aenc_attr.attr.u32Bitrate;
+  enc_config.type = Type::Audio;
+
+  std::string enc_param;
+  enc_param.append(
+      easymedia::to_param_string(enc_config, CodecToString(codec_type)));
+  param = easymedia::JoinFlowParam(param, 1, enc_param);
+  g_aenc_chns[AencChn].rkmedia_flow = easymedia::REFLECTOR(
+      Flow)::Create<easymedia::Flow>(flow_name.c_str(), param.c_str());
+
+  g_aenc_chns[AencChn].status = CHN_STATUS_OPEN;
+  g_aenc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AENC_DestroyChn(AENC_CHN AencChn) {
+  if ((AencChn < 0) || (AencChn > AENC_MAX_CHN_NUM))
+    return RK_ERR_AENC_INVALID_DEVID;
+
+  g_aenc_mtx.lock();
+  if (g_aenc_chns[AencChn].status == CHN_STATUS_BIND) {
+    g_aenc_mtx.unlock();
+    return -RK_ERR_AENC_BUSY;
+  }
+
+  g_aenc_chns[AencChn].rkmedia_flow.reset();
+  g_aenc_chns[AencChn].status = CHN_STATUS_CLOSED;
+  g_aenc_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
 }

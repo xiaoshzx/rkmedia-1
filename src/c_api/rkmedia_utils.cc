@@ -81,3 +81,25 @@ std::string CodecToString(CODEC_TYPE_E type) {
     return "";
   }
 }
+std::string SampleFormatToString(Sample_Format_E type) {
+  switch (type) {
+  case RK_SAMPLE_FMT_U8:
+    return AUDIO_PCM_U8;
+  case RK_SAMPLE_FMT_S16:
+    return AUDIO_PCM_S16;
+  case RK_SAMPLE_FMT_S32:
+    return AUDIO_PCM_S32;
+  case RK_SAMPLE_FMT_FLT:
+    return AUDIO_PCM_FLT;
+  case RK_SAMPLE_FMT_U8P:
+    return AUDIO_PCM_U8P;
+  case RK_SAMPLE_FMT_S16P:
+    return AUDIO_PCM_S16P;
+  case RK_SAMPLE_FMT_S32P:
+    return AUDIO_PCM_S32P;
+  case RK_SAMPLE_FMT_FLTP:
+    return AUDIO_PCM_FLTP;
+  default:
+    return "";
+  }
+}
