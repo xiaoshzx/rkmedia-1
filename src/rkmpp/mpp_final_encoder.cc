@@ -316,7 +316,8 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
 
   // In VBR mode, and the user has not set qp,
   // at this time, the qp value is obtained according to RcQuality.
-  if (vconfig.rc_mode && (!strcmp(vconfig.rc_mode, KEY_VBR)) &&
+  if (vconfig.rc_mode && vconfig.rc_quality &&
+    (!strcmp(vconfig.rc_mode, KEY_VBR)) &&
     (!vconfig.qp_max || !vconfig.qp_min)) {
     VideoEncoderQp qps;
     if (CalcQpWithRcQuality(vconfig.rc_quality, qps))
