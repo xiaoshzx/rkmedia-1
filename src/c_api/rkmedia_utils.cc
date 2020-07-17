@@ -77,6 +77,8 @@ std::string CodecToString(CODEC_TYPE_E type) {
     return VIDEO_H264;
   case RK_CODEC_TYPE_H265:
     return VIDEO_H265;
+  case RK_CODEC_TYPE_JPEG:
+    return IMAGE_JPEG;
   default:
     return "";
   }
