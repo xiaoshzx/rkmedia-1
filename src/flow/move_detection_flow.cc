@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 #include <assert.h>
-#include <math.h>
 #include <chrono>             // std::chrono::seconds
-#include <mutex>              // std::mutex, std::unique_lock
 #include <condition_variable> // std::condition_variable, std::cv_status
+#include <math.h>
+#include <mutex> // std::mutex, std::unique_lock
 
 #include <move_detect/move_detection.h>
 
-#include "flow.h"
 #include "buffer.h"
+#include "flow.h"
 #include "image.h"
-#include "message.h"
-#include "media_type.h"
 #include "media_reflector.h"
+#include "media_type.h"
+#include "message.h"
 #include "move_detection_flow.h"
 
 /* Upper limit of the result stored in the list */
@@ -66,7 +66,7 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
 
     for (int i = 0; i < (int)mdf->new_roi.size(); i++) {
       LOG("MD: New ROI RECT[%d]:(%d,%d,%d,%d)\n", i, mdf->new_roi[i].x,
-        mdf->new_roi[i].y, mdf->new_roi[i].w, mdf->new_roi[i].h);
+          mdf->new_roi[i].y, mdf->new_roi[i].w, mdf->new_roi[i].h);
     }
     mdf->roi_cnt = (int)mdf->new_roi.size();
     // We need to create roi_cnt + 1 ROI_IN, and the last one sets
@@ -75,8 +75,8 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
     mdf->roi_in = (ROI_INFO *)malloc((mdf->roi_cnt + 1) * sizeof(ROI_INFO));
     memset(mdf->roi_in, 0, (mdf->roi_cnt + 1) * sizeof(ROI_INFO));
     for (int i = 0; i < mdf->roi_cnt; i++) {
-      mdf->roi_in[i].up_left[0] = mdf->new_roi[i].y; // y
-      mdf->roi_in[i].up_left[1] = mdf->new_roi[i].x; // x
+      mdf->roi_in[i].up_left[0] = mdf->new_roi[i].y;                        // y
+      mdf->roi_in[i].up_left[1] = mdf->new_roi[i].x;                        // x
       mdf->roi_in[i].down_right[0] = mdf->new_roi[i].y + mdf->new_roi[i].h; // y
       mdf->roi_in[i].down_right[1] = mdf->new_roi[i].x + mdf->new_roi[i].w; // x
     }
@@ -102,33 +102,60 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
 
   if (info_cnt) {
     LOGD("[MoveDetection]: Detected movement in %d areas, Total areas cnt: %d\n",
-      info_cnt, mdf->roi_cnt);
-    EventParamPtr param = std::make_shared<EventParam>(MSG_FLOW_EVENT_INFO_MOVEDETECTION, 0);
-    int mdevent_size = sizeof(MoveDetectEvent) + info_cnt * sizeof(MoveDetecInfo);
-    MoveDetectEvent *mdevent = (MoveDetectEvent * )malloc(mdevent_size);
-    if (!mdevent) {
-      LOG_NO_MEMORY();
-      return false;
-    }
-    MoveDetecInfo *mdinfo = (MoveDetecInfo *)((char *)mdevent + sizeof(MoveDetectEvent));
-    mdevent->info_cnt = info_cnt;
-    mdevent->ori_height = mdf->ori_height;
-    mdevent->ori_width = mdf->ori_width;
-    mdevent->ds_width = mdf->ds_width;
-    mdevent->ds_height = mdf->ds_height;
-    mdevent->data = mdinfo;
-    int info_id = 0;
-    for (int i = 0; (i < mdf->roi_cnt) && (info_id < info_cnt); i++) {
-      if (mdf->roi_in[i].flag && mdf->roi_in[i].is_move) {
-        mdinfo[info_id].x = mdf->roi_in[i].up_left[1];
-        mdinfo[info_id].y = mdf->roi_in[i].up_left[0];
-        mdinfo[info_id].w = mdf->roi_in[i].down_right[1] - mdf->roi_in[i].up_left[1];
-        mdinfo[info_id].h = mdf->roi_in[i].down_right[0] - mdf->roi_in[i].up_left[0];
-        info_id++;
+         info_cnt, mdf->roi_cnt);
+    {
+      EventParamPtr param =
+          std::make_shared<EventParam>(MSG_FLOW_EVENT_INFO_MOVEDETECTION, 0);
+      int mdevent_size = sizeof(MoveDetectEvent);
+      MoveDetectEvent *mdevent = (MoveDetectEvent *)malloc(mdevent_size);
+      if (!mdevent) {
+        LOG_NO_MEMORY();
+        return false;
       }
+      MoveDetecInfo *mdinfo = mdevent->data;
+      mdevent->info_cnt = info_cnt;
+      mdevent->ori_height = mdf->ori_height;
+      mdevent->ori_width = mdf->ori_width;
+      mdevent->ds_width = mdf->ds_width;
+      mdevent->ds_height = mdf->ds_height;
+      int info_id = 0;
+      for (int i = 0; (i < mdf->roi_cnt) && (info_id < info_cnt); i++) {
+        if (mdf->roi_in[i].flag && mdf->roi_in[i].is_move) {
+          mdinfo[info_id].x = mdf->roi_in[i].up_left[1];
+          mdinfo[info_id].y = mdf->roi_in[i].up_left[0];
+          mdinfo[info_id].w =
+              mdf->roi_in[i].down_right[1] - mdf->roi_in[i].up_left[1];
+          mdinfo[info_id].h =
+              mdf->roi_in[i].down_right[0] - mdf->roi_in[i].up_left[0];
+          info_id++;
+        }
+      }
+      param->SetParams(mdevent, mdevent_size);
+      mdf->NotifyToEventHandler(param, MESSAGE_TYPE_FIFO);
     }
-    param->SetParams(mdevent, mdevent_size);
-    mdf->NotifyToEventHandler(param, MESSAGE_TYPE_FIFO);
+
+    if (mdf->event_callback_) {
+      MoveDetectEvent mdevent;
+      MoveDetecInfo *mdinfo = mdevent.data;
+      mdevent.info_cnt = info_cnt;
+      mdevent.ori_height = mdf->ori_height;
+      mdevent.ori_width = mdf->ori_width;
+      mdevent.ds_width = mdf->ds_width;
+      mdevent.ds_height = mdf->ds_height;
+      int info_id = 0;
+      for (int i = 0; (i < mdf->roi_cnt) && (info_id < info_cnt); i++) {
+        if (mdf->roi_in[i].flag && mdf->roi_in[i].is_move) {
+          mdinfo[info_id].x = mdf->roi_in[i].up_left[1];
+          mdinfo[info_id].y = mdf->roi_in[i].up_left[0];
+          mdinfo[info_id].w =
+              mdf->roi_in[i].down_right[1] - mdf->roi_in[i].up_left[1];
+          mdinfo[info_id].h =
+              mdf->roi_in[i].down_right[0] - mdf->roi_in[i].up_left[0];
+          info_id++;
+        }
+      }
+      mdf->event_callback_(mdf->event_handler2_, &mdevent);
+    }
   }
 
   for (int i = 0; i < 4096; i++) {
@@ -141,21 +168,22 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
     // We need to create result_cnt + 1 INFO_LIST, and the last one sets
     // the flag to 0 to tell the librocchip_mpp.so that this is the end marker.
     result_size += sizeof(INFO_LIST);
-    dst =  MediaBuffer::Alloc(result_size, MediaBuffer::MemType::MEM_HARD_WARE);
+    dst = MediaBuffer::Alloc(result_size, MediaBuffer::MemType::MEM_HARD_WARE);
     if (!dst) {
       LOG_NO_MEMORY();
       return false;
     }
     memcpy(dst->GetPtr(), info_list, result_size);
   } else {
-    dst =  MediaBuffer::Alloc(4, MediaBuffer::MemType::MEM_COMMON);
+    dst = MediaBuffer::Alloc(4, MediaBuffer::MemType::MEM_COMMON);
     if (!dst) {
       LOG_NO_MEMORY();
       return false;
     }
   }
 
-  LOGD("[MoveDetection]: insert list time:%lldms\n", src->GetAtomicClock() / 1000);
+  LOGD("[MoveDetection]: insert list time:%lldms\n",
+       src->GetAtomicClock() / 1000);
 
   dst->SetValidSize(result_size);
   dst->SetAtomicClock(src->GetAtomicClock());
@@ -163,10 +191,13 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
   mdf->InsertMdResult(dst);
 
 #ifndef NDEBUG
-  LOGD("[MoveDetection]: get result cnt:%02d, process call delta:%ld ms, elapse %ld ms\n",
-    result_size / sizeof(INFO_LIST),
-    tv0.tv_sec?((tv1.tv_sec - tv0.tv_sec) * 1000 + (tv1.tv_usec - tv0.tv_usec) / 1000) : 0,
-    (tv2.tv_sec - tv1.tv_sec) * 1000 + (tv2.tv_usec - tv1.tv_usec) / 1000);
+  LOGD("[MoveDetection]: get result cnt:%02d, process call delta:%ld ms, "
+       "elapse %ld ms\n",
+       result_size / sizeof(INFO_LIST),
+       tv0.tv_sec ? ((tv1.tv_sec - tv0.tv_sec) * 1000 +
+                     (tv1.tv_usec - tv0.tv_usec) / 1000)
+                  : 0,
+       (tv2.tv_sec - tv1.tv_sec) * 1000 + (tv2.tv_usec - tv1.tv_usec) / 1000);
 
   tv0.tv_sec = tv1.tv_sec;
   tv0.tv_usec = tv1.tv_usec;
@@ -175,8 +206,8 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
   return true;
 }
 
-std::shared_ptr<MediaBuffer> MoveDetectionFlow::
-LookForMdResult(int64_t atomic_clock, int timeout_us) {
+std::shared_ptr<MediaBuffer>
+MoveDetectionFlow::LookForMdResult(int64_t atomic_clock, int timeout_us) {
   std::shared_ptr<MediaBuffer> right_result = NULL;
   std::shared_ptr<MediaBuffer> last_restult = NULL;
   int clk_delta = 0;
@@ -187,8 +218,8 @@ LookForMdResult(int64_t atomic_clock, int timeout_us) {
   AutoDuration ad;
 #endif
 
-  LOGD("#LookForMdResult, target:%.1f, timeout:%.1f\n",
-    atomic_clock / 1000.0, timeout_us / 1000.0);
+  LOGD("#LookForMdResult, target:%.1f, timeout:%.1f\n", atomic_clock / 1000.0,
+       timeout_us / 1000.0);
   do {
     // Step1: Lookfor mdinfo first.
     md_results_mtx.lock();
@@ -203,7 +234,7 @@ LookForMdResult(int64_t atomic_clock, int timeout_us) {
         break;
       }
       // Find the closest value.
-      if ((!clk_delta_min || (clk_delta <=  clk_delta_min))) {
+      if ((!clk_delta_min || (clk_delta <= clk_delta_min))) {
         clk_delta_min = clk_delta;
         last_restult = tmp;
       }
@@ -218,10 +249,11 @@ LookForMdResult(int64_t atomic_clock, int timeout_us) {
     if ((md_results.size() > 0) && !right_result && (left_time > 0)) {
       std::unique_lock<std::mutex> lck(md_results_mtx);
       if (con_var.wait_for(lck, std::chrono::microseconds(left_time)) ==
-        std::cv_status::timeout) {
-        LOG("WARN:MD get closest result, deltaTime=%.1fms.\n", clk_delta_min / 1000.0);
+          std::cv_status::timeout) {
+        LOG("WARN:MD get closest result, deltaTime=%.1fms.\n",
+            clk_delta_min / 1000.0);
         right_result = last_restult;
-        break; //stop while
+        break; // stop while
       }
 #ifndef NDEBUG
       else {
@@ -229,8 +261,8 @@ LookForMdResult(int64_t atomic_clock, int timeout_us) {
       }
 #endif
     } else
-      break; //stop while
-  } while(1);
+      break; // stop while
+  } while (1);
 
 #ifndef NDBUEG
   LOGD("#%s cost:%dms\n", __func__, (int)(ad.Get() / 1000));
@@ -239,8 +271,7 @@ LookForMdResult(int64_t atomic_clock, int timeout_us) {
   return right_result;
 }
 
-void MoveDetectionFlow::
-InsertMdResult(std::shared_ptr<MediaBuffer> &buffer) {
+void MoveDetectionFlow::InsertMdResult(std::shared_ptr<MediaBuffer> &buffer) {
   md_results_mtx.lock();
   while (md_results.size() > MD_RESULT_MAX_CNT)
     md_results.pop_front();
@@ -325,11 +356,11 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
   roi_in = (ROI_INFO *)malloc((roi_cnt + 1) * sizeof(ROI_INFO));
   memset(roi_in, 0, (roi_cnt + 1) * sizeof(ROI_INFO));
   for (int i = 0; i < roi_cnt; i++) {
-    LOGD("### ROI RECT[i]:(%d,%d,%d,%d)\n", rects[i].x,
-      rects[i].y, rects[i].w, rects[i].h);
+    LOGD("### ROI RECT[i]:(%d,%d,%d,%d)\n", rects[i].x, rects[i].y, rects[i].w,
+         rects[i].h);
     roi_in[i].flag = 1;
-    roi_in[i].up_left[0] = rects[i].y; // y
-    roi_in[i].up_left[1] = rects[i].x; // x
+    roi_in[i].up_left[0] = rects[i].y;                 // y
+    roi_in[i].up_left[1] = rects[i].x;                 // x
     roi_in[i].down_right[0] = rects[i].y + rects[i].h; // y
     roi_in[i].down_right[1] = rects[i].x + rects[i].w; // x
   }
@@ -340,8 +371,8 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
   still_threshold1 = is_single_ref ? 60 : 50;
   update_mask = MD_UPDATE_NONE;
 
-  md_ctx = move_detection_init(ori_width, ori_height,
-    ds_width, ds_height, is_single_ref);
+  md_ctx = move_detection_init(ori_width, ori_height, ds_width, ds_height,
+                               is_single_ref);
 
   SlotMap sm;
   sm.input_slots.push_back(0);
@@ -357,7 +388,7 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
   SetFlowTag("MDFlow");
 }
 
-MoveDetectionFlow:: ~MoveDetectionFlow() {
+MoveDetectionFlow::~MoveDetectionFlow() {
   AutoPrintLine apl(__func__);
   StopAllThread();
 
@@ -378,37 +409,37 @@ int MoveDetectionFlow::Control(unsigned long int request, ...) {
   va_start(ap, request);
 
   switch (request) {
-    case S_MD_ROI_ENABLE: {
-      auto value = va_arg(ap, int);
-      roi_enable = value ? 1 : 0;
-      LOG("MD: %s roi function!\n", roi_enable ? "Enable" : "Disable");
-      break;
-      }
-    case S_MD_SENSITIVITY: {
-      auto value = va_arg(ap, int);
-      assert((value >= 0) && (value <= 100));
-      LOG("MD: TODO(sensitivtiy(%d) to table)...\n", value);
-      update_mask |= MD_UPDATE_SENSITIVITY;
-      break;
-      }
-    case S_MD_ROI_RECTS: {
-      ImageRect *new_rects = va_arg(ap, ImageRect *);
-      int new_rects_cnt = va_arg(ap, int);
-      assert(new_rects && (new_rects_cnt > 0));
-      LOG("MD: new roi image rects cnt:%d\n", new_rects_cnt);
-      for (int i = 0; i < new_rects_cnt; i++) {
-        LOG("MD: ROI RECT[%d]:(%d,%d,%d,%d)\n", i, new_rects[i].x,
-          new_rects[i].y, new_rects[i].w, new_rects[i].h);
-        new_roi.push_back(std::move(new_rects[i]));
-      }
+  case S_MD_ROI_ENABLE: {
+    auto value = va_arg(ap, int);
+    roi_enable = value ? 1 : 0;
+    LOG("MD: %s roi function!\n", roi_enable ? "Enable" : "Disable");
+    break;
+  }
+  case S_MD_SENSITIVITY: {
+    auto value = va_arg(ap, int);
+    assert((value >= 0) && (value <= 100));
+    LOG("MD: TODO(sensitivtiy(%d) to table)...\n", value);
+    update_mask |= MD_UPDATE_SENSITIVITY;
+    break;
+  }
+  case S_MD_ROI_RECTS: {
+    ImageRect *new_rects = va_arg(ap, ImageRect *);
+    int new_rects_cnt = va_arg(ap, int);
+    assert(new_rects && (new_rects_cnt > 0));
+    LOG("MD: new roi image rects cnt:%d\n", new_rects_cnt);
+    for (int i = 0; i < new_rects_cnt; i++) {
+      LOG("MD: ROI RECT[%d]:(%d,%d,%d,%d)\n", i, new_rects[i].x, new_rects[i].y,
+          new_rects[i].w, new_rects[i].h);
+      new_roi.push_back(std::move(new_rects[i]));
+    }
 
-      update_mask |= MD_UPDATE_ROI_RECTS;
-      break;
-      }
-    default:
-      ret = -1;
-      LOG("ERROR: MD: not support type:%d\n", request);
-      break;
+    update_mask |= MD_UPDATE_ROI_RECTS;
+    break;
+  }
+  default:
+    ret = -1;
+    LOG("ERROR: MD: not support type:%d\n", request);
+    break;
   }
 
   va_end(ap);

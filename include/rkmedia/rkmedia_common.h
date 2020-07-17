@@ -4,9 +4,11 @@
 
 #ifndef __RKMEDIA_COMMON_
 #define __RKMEDIA_COMMON_
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 #define _CAPI __attribute__((visibility("default")))
 
 typedef unsigned char RK_U8;
@@ -102,9 +104,7 @@ typedef enum rkMOD_ID_E {
   RK_ID_VENC,
   RK_ID_H264E,
   RK_ID_JPEGE,
-  RK_ID_MPEG4E,
   RK_ID_H265E,
-  RK_ID_JPEGD,
   RK_ID_VO,
   RK_ID_VI,
   RK_ID_AIO,
@@ -112,11 +112,15 @@ typedef enum rkMOD_ID_E {
   RK_ID_AO,
   RK_ID_AENC,
   RK_ID_ADEC,
+  RK_ID_ALGO_MD,
 
   RK_ID_BUTT,
 } MOD_ID_E;
 
 enum {
+  /***********************************
+   * Common error types
+   **********************************/
   RK_ERR_SYS_OK = 0,
   RK_ERR_SYS_NULL_PTR,
   RK_ERR_SYS_NOTREADY,
@@ -126,6 +130,9 @@ enum {
   RK_ERR_SYS_BUSY,
   RK_ERR_SYS_NOT_SUPPORT,
 
+  /***********************************
+   * VideoInput error types
+   **********************************/
   /* invlalid channel ID */
   RK_ERR_VI_INVALID_CHNID,
   /* system is busy*/
@@ -134,6 +141,9 @@ enum {
   RK_ERR_VI_EXIST,
   RK_ERR_VI_NOT_CONFIG,
 
+  /***********************************
+   * VideoEncoder error types
+   **********************************/
   /* invlalid channel ID */
   RK_ERR_VENC_INVALID_CHNID,
   /* at lease one parameter is illagal ,eg, an illegal enumeration value  */
@@ -189,6 +199,20 @@ enum {
   RK_ERR_AENC_BUSY,
   /* codec not support*/
   RK_ERR_AENC_CODEC_NOT_SUPPORT,
+
+  /***********************************
+   * Algorithm::MoveDetection error types
+   **********************************/
+  /* invlalid channel ID */
+  RK_ERR_ALGO_MD_INVALID_CHNID,
+  /* system is busy*/
+  RK_ERR_ALGO_MD_BUSY,
+  /* channel exists */
+  RK_ERR_ALGO_MD_EXIST,
+  RK_ERR_ALGO_MD_NOT_CONFIG,
+  /* at lease one parameter is illagal ,eg, an illegal enumeration value  */
+  RK_ERR_ALGO_MD_ILLEGAL_PARAM,
+
   RK_ERR_BUIT,
 };
 
@@ -206,6 +230,13 @@ typedef enum rkSample_Format_E {
   RK_SAMPLE_FMT_G711U,
   RK_SAMPLE_FMT_NB
 } Sample_Format_E;
+
+typedef struct rkRECT_S {
+  RK_S32 s32X;
+  RK_S32 s32Y;
+  RK_U32 u32Width;
+  RK_U32 u32Height;
+} RECT_S;
 
 #ifdef __cplusplus
 }

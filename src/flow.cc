@@ -67,8 +67,7 @@ FlowCoroutine::FlowCoroutine(Flow *f, Model sync_model, FunctionProcess func,
     : flow(f), model(sync_model), interval(inter), th(nullptr), th_run(func),
       expect_process_time(0)
 
-{
-}
+{}
 
 FlowCoroutine::~FlowCoroutine() {
   if (th) {
@@ -306,10 +305,11 @@ DEFINE_PART_FINAL_EXPOSE_PRODUCT(Flow, Flow)
 const FunctionProcess Flow::void_transaction00 = void_transaction<0, 0>;
 
 Flow::Flow()
-    : out_slot_num(0), input_slot_num(0), down_flow_num(0), enable(true),
+    : out_slot_num(0), input_slot_num(0), down_flow_num(0),
+      event_handler2_(nullptr), event_callback_(nullptr), enable(true),
       quit(false), event_handler_(nullptr), play_video_handler_(nullptr),
-      play_audio_handler_(nullptr), user_handler_(nullptr), user_callback_(nullptr),
-      out_handler_(nullptr), out_callback_(nullptr) {}
+      play_audio_handler_(nullptr), user_handler_(nullptr),
+      user_callback_(nullptr), out_handler_(nullptr), out_callback_(nullptr) {}
 
 Flow::~Flow() { StopAllThread(); }
 
@@ -410,7 +410,7 @@ void Flow::DumpBase(std::string &dump_info) {
     dump_info.append(str_line);
     memset(str_line, 0, sizeof(str_line));
     sprintf(str_line, "    BufferCnt: current:%d, max:%d\r\n",
-      input.cached_buffers.size(), input.max_cache_num);
+            input.cached_buffers.size(), input.max_cache_num);
     dump_info.append(str_line);
   }
 
@@ -816,23 +816,23 @@ bool Flow::Input::ASyncFullBlockingBehavior(volatile bool &pred) {
     mtx.lock();
   } while (pred);
 
-  if (ad.Get() > 5000/*ms*/)
+  if (ad.Get() > 5000 /*ms*/)
     LOG("WARN: Flow[%s]: Input[block mode]: block too long(%.2fms) > 5ms\n",
-      flow ? flow->GetFlowTag() : "Name is null", ad.Get() / 1000.0);
+        flow ? flow->GetFlowTag() : "Name is null", ad.Get() / 1000.0);
 
   return pred;
 }
 
 bool Flow::Input::ASyncFullDropFrontBehavior(volatile bool &pred _UNUSED) {
   LOG("WARN: Flow[%s]: Input: drop front buffer!\n",
-    flow ? flow->GetFlowTag() : "Name is null");
+      flow ? flow->GetFlowTag() : "Name is null");
   cached_buffers.pop_front();
   return true;
 }
 
 bool Flow::Input::ASyncFullDropCurrentBehavior(volatile bool &pred _UNUSED) {
   LOG("WARN: Flow[%s]: Input: drop current buffer!\n",
-    flow ? flow->GetFlowTag() : "Name Is Null");
+      flow ? flow->GetFlowTag() : "Name Is Null");
   return false;
 }
 
