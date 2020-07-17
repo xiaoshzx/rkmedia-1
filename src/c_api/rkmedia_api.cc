@@ -15,9 +15,10 @@
 
 #include "osd/color_table.h"
 #include "rkmedia_api.h"
-#include "rkmedia_buffer.h"
 #include "rkmedia_buffer_impl.h"
 #include "rkmedia_utils.h"
+
+using namespace easymedia;
 
 typedef enum rkCHN_STATUS {
   CHN_STATUS_CLOSED,
@@ -40,17 +41,21 @@ typedef struct _RkmediaAOAttr { AO_CHN_ATTR_S attr; } RkmediaAOAttr;
 
 typedef struct _RkmediaAENCAttr { AENC_CHN_ATTR_S attr; } RkmediaAENCAttr;
 
+typedef ALGO_MD_ATTR_S RkmediaMDAttr;
+
 typedef struct _RkmediaChannel {
   MOD_ID_E mode_id;
   CHN_STATUS status;
   std::shared_ptr<easymedia::Flow> rkmedia_flow;
   OutCbFunc cb;
+  EventCbFunc event_cb;
   union {
     RkmediaVIAttr vi_attr;
     RkmediaVencAttr venc_attr;
     RkmediaAIAttr ai_attr;
     RkmediaAOAttr ao_attr;
     RkmediaAENCAttr aenc_attr;
+    RkmediaMDAttr md_attr;
   };
 } RkmediaChannel;
 
@@ -68,6 +73,9 @@ std::mutex g_ao_mtx;
 
 RkmediaChannel g_aenc_chns[AENC_MAX_CHN_NUM];
 std::mutex g_aenc_mtx;
+
+RkmediaChannel g_algo_md_chns[ALGO_MD_MAX_CHN_NUM];
+std::mutex g_algo_md_mtx;
 
 /********************************************************************
  * SYS Ctrl api
@@ -94,6 +102,7 @@ RK_S32 RK_MPI_SYS_Init() {
   Reset_Channel_Table(g_ai_chns, AI_MAX_CHN_NUM, RK_ID_AI);
   Reset_Channel_Table(g_aenc_chns, AENC_MAX_CHN_NUM, RK_ID_AENC);
   Reset_Channel_Table(g_ao_chns, AO_MAX_CHN_NUM, RK_ID_AO);
+  Reset_Channel_Table(g_algo_md_chns, ALGO_MD_MAX_CHN_NUM, RK_ID_ALGO_MD);
 
   return RK_ERR_SYS_OK;
 }
@@ -124,13 +133,6 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
     src = g_ai_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_ai_chns[pstSrcChn->s32ChnId];
     break;
-  case RK_ID_AO:
-    if (g_ao_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
-    src = g_ao_chns[pstSrcChn->s32ChnId].rkmedia_flow;
-    src_chn = &g_ao_chns[pstSrcChn->s32ChnId];
-
-    break;
   case RK_ID_AENC:
     if (g_aenc_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_OPEN)
       return -RK_ERR_SYS_NOTREADY;
@@ -142,23 +144,11 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
   }
 
   switch (pstDestChn->enModId) {
-  case RK_ID_VI:
-    if (g_vi_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
-    sink = g_vi_chns[pstDestChn->s32ChnId].rkmedia_flow;
-    dst_chn = &g_vi_chns[pstDestChn->s32ChnId];
-    break;
   case RK_ID_VENC:
     if (g_venc_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
       return -RK_ERR_SYS_NOTREADY;
     sink = g_venc_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_venc_chns[pstDestChn->s32ChnId];
-    break;
-  case RK_ID_AI:
-    if (g_ai_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
-    sink = g_ai_chns[pstDestChn->s32ChnId].rkmedia_flow;
-    dst_chn = &g_ai_chns[pstDestChn->s32ChnId];
     break;
   case RK_ID_AO:
     if (g_ao_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
@@ -171,6 +161,12 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
       return -RK_ERR_SYS_NOTREADY;
     sink = g_aenc_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_aenc_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_ALGO_MD:
+    if (g_algo_md_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    sink = g_algo_md_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_algo_md_chns[pstDestChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -364,6 +360,76 @@ RK_S32 RK_MPI_SYS_RegisterOutCb(const MPP_CHN_S *pstChn, OutCbFunc cb) {
 
   target_chn->cb = cb;
   flow->SetOutputCallBack(target_chn, FlowOutputCallback);
+
+  return RK_ERR_SYS_OK;
+}
+
+static void FlowEventCallback(void *handle, void *data) {
+  if (!data)
+    return;
+
+  if (!handle) {
+    LOG("ERROR: %s without handle!\n", __func__);
+    return;
+  }
+
+  RkmediaChannel *target_chn = (RkmediaChannel *)handle;
+  if (target_chn->status < CHN_STATUS_OPEN) {
+    LOG("ERROR: %s chn[mode:%d] in status[%d] should not call output "
+        "callback!\n",
+        __func__, target_chn->mode_id, target_chn->status);
+    return;
+  }
+
+  if (!target_chn->event_cb) {
+    LOG("ERROR: %s chn[mode:%d] in has no callback!\n", __func__,
+        target_chn->mode_id);
+    return;
+  }
+
+  switch (target_chn->mode_id) {
+  case RK_ID_ALGO_MD: {
+    MoveDetectEvent *rkmedia_md_event = (MoveDetectEvent *)data;
+    MoveDetecInfo *rkmedia_md_info = rkmedia_md_event->data;
+    EVENT_S stEvent;
+
+    stEvent.mode_id = RK_ID_ALGO_MD;
+    stEvent.type = RK_EVENT_MD;
+    stEvent.md_event.u16Cnt = rkmedia_md_event->info_cnt;
+    stEvent.md_event.u32Width = rkmedia_md_event->ori_width;
+    stEvent.md_event.u32Height = rkmedia_md_event->ori_height;
+    for (int i = 0; i < rkmedia_md_event->info_cnt; i++) {
+      stEvent.md_event.stRects[i].s32X = (RK_S32)rkmedia_md_info[i].x;
+      stEvent.md_event.stRects[i].s32Y = (RK_S32)rkmedia_md_info[i].y;
+      stEvent.md_event.stRects[i].u32Width = (RK_S32)rkmedia_md_info[i].w;
+      stEvent.md_event.stRects[i].u32Width = (RK_S32)rkmedia_md_info[i].h;
+    }
+    target_chn->event_cb(&stEvent);
+  } break;
+  default:
+    LOG("ERROR: Channle Mode ID:%d not support event callback!\n",
+        target_chn->mode_id);
+    break;
+  }
+}
+
+RK_S32 RK_MPI_SYS_RegisterEventCb(const MPP_CHN_S *pstChn, EventCbFunc cb) {
+  std::shared_ptr<easymedia::Flow> flow;
+  RkmediaChannel *target_chn = NULL;
+
+  switch (pstChn->enModId) {
+  case RK_ID_ALGO_MD:
+    if (g_algo_md_chns[pstChn->s32ChnId].status < CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    flow = g_algo_md_chns[pstChn->s32ChnId].rkmedia_flow;
+    target_chn = &g_algo_md_chns[pstChn->s32ChnId];
+    break;
+  default:
+    return -RK_ERR_SYS_NOT_SUPPORT;
+  }
+
+  target_chn->event_cb = cb;
+  flow->SetEventCallBack(target_chn, FlowEventCallback);
 
   return RK_ERR_SYS_OK;
 }
@@ -1323,6 +1389,92 @@ RK_S32 RK_MPI_AENC_DestroyChn(AENC_CHN AencChn) {
   g_aenc_chns[AencChn].rkmedia_flow.reset();
   g_aenc_chns[AencChn].status = CHN_STATUS_CLOSED;
   g_aenc_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+/********************************************************************
+ * Algorithm::Move Detection api
+ ********************************************************************/
+RK_S32 RK_MPI_ALGO_MD_SetChnAttr(ALGO_MD_CHN MdChn,
+                                 const ALGO_MD_ATTR_S *pstChnAttr) {
+  if ((MdChn < 0) || (MdChn > ALGO_MD_MAX_CHN_NUM))
+    return -RK_ERR_ALGO_MD_INVALID_CHNID;
+
+  if (!pstChnAttr)
+    return -RK_ERR_ALGO_MD_ILLEGAL_PARAM;
+
+  g_algo_md_mtx.lock();
+  memcpy(&g_algo_md_chns[MdChn].md_attr, pstChnAttr, sizeof(ALGO_MD_ATTR_S));
+  g_algo_md_chns[MdChn].status = CHN_STATUS_READY;
+  g_algo_md_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn) {
+  if ((MdChn < 0) || (MdChn > ALGO_MD_MAX_CHN_NUM))
+    return -RK_ERR_ALGO_MD_INVALID_CHNID;
+
+  g_algo_md_mtx.lock();
+  if (g_algo_md_chns[MdChn].status != CHN_STATUS_READY) {
+    g_algo_md_mtx.unlock();
+    return (g_vi_chns[MdChn].status > CHN_STATUS_READY)
+               ? -RK_ERR_ALGO_MD_EXIST
+               : -RK_ERR_ALGO_MD_NOT_CONFIG;
+  }
+
+  ALGO_MD_ATTR_S *pstMDAttr = &g_algo_md_chns[MdChn].md_attr;
+
+  std::string flow_name = "move_detec";
+  std::string flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "move_detec");
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE,
+                      ImageTypeToString(pstMDAttr->imageType));
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, "NULL");
+  std::string md_param = "";
+  PARAM_STRING_APPEND_TO(md_param, KEY_MD_SINGLE_REF, 1);
+  PARAM_STRING_APPEND_TO(md_param, KEY_MD_ORI_WIDTH, pstMDAttr->u32Width);
+  PARAM_STRING_APPEND_TO(md_param, KEY_MD_ORI_HEIGHT, pstMDAttr->u32Height);
+  PARAM_STRING_APPEND_TO(md_param, KEY_MD_DS_WIDTH, pstMDAttr->u32Width);
+  PARAM_STRING_APPEND_TO(md_param, KEY_MD_DS_HEIGHT, pstMDAttr->u32Height);
+  PARAM_STRING_APPEND_TO(md_param, KEY_MD_ROI_CNT, pstMDAttr->u16RoiCnt);
+  std::string strRects;
+  for (int i = 0; i < pstMDAttr->u16RoiCnt; i++) {
+    strRects.append("(");
+    strRects.append(std::to_string(pstMDAttr->stRoiRects[i].s32X));
+    strRects.append(",");
+    strRects.append(std::to_string(pstMDAttr->stRoiRects[i].s32Y));
+    strRects.append(",");
+    strRects.append(std::to_string(pstMDAttr->stRoiRects[i].u32Width));
+    strRects.append(",");
+    strRects.append(std::to_string(pstMDAttr->stRoiRects[i].u32Height));
+    strRects.append(")");
+  }
+  PARAM_STRING_APPEND(md_param, KEY_MD_ROI_RECT, strRects.c_str());
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, md_param);
+  LOGD("#MoveDetection flow param:\n%s\n", flow_param.c_str());
+  g_algo_md_chns[MdChn].rkmedia_flow = easymedia::REFLECTOR(
+      Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
+  g_algo_md_chns[MdChn].status = CHN_STATUS_OPEN;
+
+  g_algo_md_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn) {
+  if ((MdChn < 0) || (MdChn > ALGO_MD_MAX_CHN_NUM))
+    return -RK_ERR_ALGO_MD_INVALID_CHNID;
+
+  g_algo_md_mtx.lock();
+  if (g_algo_md_chns[MdChn].status == CHN_STATUS_BIND) {
+    g_algo_md_mtx.unlock();
+    return -1;
+  }
+
+  g_algo_md_chns[MdChn].rkmedia_flow.reset();
+  g_algo_md_chns[MdChn].status = CHN_STATUS_CLOSED;
+  g_algo_md_mtx.unlock();
 
   return RK_ERR_SYS_OK;
 }

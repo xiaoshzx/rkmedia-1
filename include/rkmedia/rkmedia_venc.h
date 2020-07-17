@@ -192,13 +192,6 @@ typedef struct rkVENC_RC_PARAM_S {
   };
 } VENC_RC_PARAM_S;
 
-typedef struct rkRECT_S {
-  RK_S32 s32X;
-  RK_S32 s32Y;
-  RK_U32 u32Width;
-  RK_U32 u32Height;
-} RECT_S;
-
 /* the attribute of the roi */
 typedef struct hiVENC_ROI_ATTR_S {
   RK_U32 u32Index; // RW; Range:[0, 7]; Index of an ROI. The system supports

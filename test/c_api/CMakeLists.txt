@@ -37,5 +37,13 @@ add_executable(rkmedia_audio_test rkmedia_audio_test.c)
 add_dependencies(rkmedia_audio_test easymedia)
 target_link_libraries(rkmedia_audio_test easymedia)
 target_include_directories(rkmedia_audio_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_compile_features(rkmedia_audio_test PRIVATE cxx_std_11)
 install(TARGETS rkmedia_audio_test RUNTIME DESTINATION "bin")
+
+#--------------------------
+#  rkmedia_vi_md_test
+#--------------------------
+add_executable(rkmedia_vi_md_test rkmedia_vi_md_test.c)
+add_dependencies(rkmedia_vi_md_test easymedia)
+target_link_libraries(rkmedia_vi_md_test easymedia)
+target_include_directories(rkmedia_vi_md_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_vi_md_test RUNTIME DESTINATION "bin")

@@ -30,7 +30,7 @@ typedef struct {
   unsigned short ori_height;
   unsigned short ds_width;
   unsigned short ds_height;
-  MoveDetecInfo *data;
+  MoveDetecInfo data[4096];
 } MoveDetectEvent;
 
 typedef enum {

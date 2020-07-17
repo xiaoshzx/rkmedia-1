@@ -56,10 +56,11 @@ using LinkCaptureHandler =
 using PlayVideoHandler = std::add_pointer<void(Flow *f)>::type;
 using PlayAudioHandler = std::add_pointer<void(Flow *f)>::type;
 using CallBackHandler = std::add_pointer<void>::type;
-using UserCallBack = std::add_pointer<void(void* handler,
-    int type, void *ptr, int size)>::type;
-using OutputCallBack = std::add_pointer<void(void* handler,
-    std::shared_ptr<MediaBuffer> mb)>::type;
+using UserCallBack =
+    std::add_pointer<void(void *handler, int type, void *ptr, int size)>::type;
+using OutputCallBack = std::add_pointer<void(
+    void *handler, std::shared_ptr<MediaBuffer> mb)>::type;
+using EventCallBack = std::add_pointer<void(void *handler, void *data)>::type;
 
 class _API SlotMap {
 public:
@@ -154,14 +155,16 @@ public:
     out_handler_ = handler;
     out_callback_ = callback;
   }
+  void SetEventCallBack(CallBackHandler handler, EventCallBack callback) {
+    event_handler2_ = handler;
+    event_callback_ = callback;
+  }
   CallBackHandler GetUserHandler() { return user_handler_; }
   UserCallBack GetUserCallBack() { return user_callback_; }
 
   bool IsAllBuffEmpty();
   void DumpBase(std::string &dump_info);
-  virtual void Dump(std::string &dump_info) {
-    DumpBase(dump_info);
-  }
+  virtual void Dump(std::string &dump_info) { DumpBase(dump_info); }
 
 protected:
   class FlowInputMap {
@@ -256,6 +259,9 @@ protected:
     return f->SetOutput(input_vector[in_index], out_index);
   }
   static const FunctionProcess void_transaction00;
+
+  CallBackHandler event_handler2_;
+  EventCallBack event_callback_;
 
 private:
   volatile bool enable;
