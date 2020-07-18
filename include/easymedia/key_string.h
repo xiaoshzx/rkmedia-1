@@ -68,9 +68,7 @@
 #define KEY_HIGHER "higher"
 #define KEY_HIGHEST "highest"
 
-#define KEY_CQP "cqp"
-#define KEY_AQ_ONLY "aq_only"
-
+#define KEY_FIXQP "fixqp"
 #define KEY_VBR "vbr"
 #define KEY_CBR "cbr"
 

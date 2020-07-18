@@ -17,7 +17,7 @@ namespace easymedia {
 const char *rc_quality_strings[7] = {KEY_LOWEST,  KEY_LOWER, KEY_LOW,
   KEY_MEDIUM, KEY_HIGH, KEY_HIGHER, KEY_HIGHEST};
 
-const char *rc_mode_strings[2] = {KEY_VBR, KEY_CBR};
+const char *rc_mode_strings[3] = {KEY_VBR, KEY_CBR, KEY_FIXQP};
 
 static const char *convert2constchar(const std::string &s, const char *array[],
                                      size_t array_len) {

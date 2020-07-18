@@ -484,8 +484,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:cabac_idc", 0);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:trans8x8",
       (vconfig.trans_8x8 && (vconfig.profile == 100)) ? 1 : 0);
-    ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_init",
-      (rc_mode == MPP_ENC_RC_MODE_FIXQP) ? -1 : img_cfg.qp_init);
+    ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_init", img_cfg.qp_init);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_max", vconfig.qp_max);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_min", vconfig.qp_min);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_step", vconfig.qp_step);
@@ -495,8 +494,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
       vconfig.profile, vconfig.level, img_cfg.qp_init);
     break;
   case MPP_VIDEO_CodingHEVC:
-    ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_init",
-      (rc_mode == MPP_ENC_RC_MODE_FIXQP) ? -1 : img_cfg.qp_init);
+    ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_init", img_cfg.qp_init);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_max", vconfig.qp_max);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_min", vconfig.qp_min);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_step", vconfig.qp_step);

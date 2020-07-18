@@ -53,7 +53,7 @@ typedef struct {
   // "worst", "worse", "medium", "better", "best", "cqp", "aq_only"
   const char *rc_quality;
   // rc_mode - rate control mode
-  // "vbr", "cbr"
+  // "vbr", "cbr", "fixqp"
   const char *rc_mode;
 } VideoConfig;
 
@@ -126,7 +126,7 @@ typedef struct {
 
 namespace easymedia {
 extern const char *rc_quality_strings[7];
-extern const char *rc_mode_strings[2];
+extern const char *rc_mode_strings[3];
 const char *ConvertRcQuality(const std::string &s);
 bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
                              MediaConfig &mc);
