@@ -1340,12 +1340,12 @@ RK_S32 RK_MPI_AENC_CreateChn(AENC_CHN AencChn, const AENC_CHN_ATTR_S *pstAttr) {
     sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.mp2_attr.u32SampleRate;
     break;
   case RK_CODEC_TYPE_AAC:
-    sample_format = RK_SAMPLE_FMT_S16;
+    sample_format = RK_SAMPLE_FMT_FLTP;
     channels = g_aenc_chns[AencChn].aenc_attr.attr.aac_attr.u32Channels;
     sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.aac_attr.u32SampleRate;
     break;
   case RK_CODEC_TYPE_G726:
-    sample_format = RK_SAMPLE_FMT_FLTP;
+    sample_format = RK_SAMPLE_FMT_S16;
     channels = g_aenc_chns[AencChn].aenc_attr.attr.g726_attr.u32Channels;
     sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.g726_attr.u32SampleRate;
     break;
