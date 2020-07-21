@@ -587,8 +587,6 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
                            stVencChnAttr->stRcAttr.stH264Vbr.u32Gop);
     PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX,
                            stVencChnAttr->stRcAttr.stH264Vbr.u32MaxBitRate);
-    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX,
-                           stVencChnAttr->stRcAttr.stH264Vbr.u32MinBitRate);
     str_fps_in
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stH264Vbr.u32SrcFrameRateNum))
@@ -633,8 +631,6 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
                            stVencChnAttr->stRcAttr.stH265Vbr.u32Gop);
     PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX,
                            stVencChnAttr->stRcAttr.stH265Vbr.u32MaxBitRate);
-    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX,
-                           stVencChnAttr->stRcAttr.stH265Vbr.u32MinBitRate);
 
     str_fps_in
         .append(std::to_string(

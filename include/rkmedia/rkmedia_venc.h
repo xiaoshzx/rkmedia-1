@@ -53,7 +53,6 @@ typedef struct rkVENC_H264_VBR_S {
   RK_FR32 fr32DstFrameRateNum;
   RK_FR32 fr32DstFrameRateDen;
   RK_U32 u32MaxBitRate; // RW; Range:[2, 614400];the max bitrate
-  RK_U32 u32MinBitRate;
 } VENC_H264_VBR_S;
 
 /* the attribute of mjpege cbr*/
