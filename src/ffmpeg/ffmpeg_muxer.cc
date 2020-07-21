@@ -96,8 +96,10 @@ FFMPEGMuxer::~FFMPEGMuxer() {
     return;
   if (m_handler != nullptr) {
     // customIO, may not free opaque, it comes from outside.
-    av_free(context->pb->buffer);
-    av_free(context->pb);
+    if (context->pb && context->pb->buffer) {
+      av_free(context->pb->buffer);
+      av_free(context->pb);
+    }
   } else if (context->pb)
     avio_closep(&context->pb);
   avformat_free_context(context);
