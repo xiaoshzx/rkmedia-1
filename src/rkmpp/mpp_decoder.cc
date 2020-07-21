@@ -463,6 +463,7 @@ std::shared_ptr<MediaBuffer> MPPDecoder::FetchOutput() {
   MppFrame mppframe = NULL;
   MppCtx ctx = mpp_ctx->ctx;
   MppApi *mpi = mpp_ctx->mpi;
+RETRY_GET_FRAME:
   MPP_RET ret = mpi->decode_get_frame(ctx, &mppframe);
   errno = 0;
   LOGD("decode_get_frame ret = %d, mpp frame is %p\n", ret, mppframe);
@@ -483,12 +484,21 @@ std::shared_ptr<MediaBuffer> MPPDecoder::FetchOutput() {
     img_info.height = mpp_frame_get_height(mppframe);
     img_info.vir_width = mpp_frame_get_hor_stride(mppframe);
     img_info.vir_height = mpp_frame_get_ver_stride(mppframe);
+    mpp_frame_deinit(&mppframe);
+    mppframe = NULL;
     cfg.type = Type::Image;
     ret = mpi->control(ctx, MPP_DEC_SET_INFO_CHANGE_READY, NULL);
     if (ret != MPP_OK)
       LOG("info change ready failed ret = %d\n", ret);
     LOG("MppDec Info change get, %dx%d in (%dx%d)\n", img_info.width,
         img_info.height, img_info.vir_width, img_info.vir_height);
+
+    // Decoder in Blocking mode, and need_split = 0.
+    // This means that the decoder is in single-frame input and single-frame
+    // output mode, and it cannot output an empty buffer in this mode.
+    if ((timeout == MPP_POLL_BLOCK) && (need_split == 0))
+      goto RETRY_GET_FRAME;
+
     // return a zero size buffer, but contain image info
     auto mb = std::make_shared<ImageBuffer>();
     if (!mb) {

@@ -240,6 +240,10 @@ typedef struct rkOSD_REGION_INFO_S {
   RK_U8 u8Enable;
 } OSD_REGION_INFO_S;
 
+typedef struct rkVENC_RECV_PIC_PARAM_S {
+  RK_S32 s32RecvPicNum;
+} VENC_RECV_PIC_PARAM_S;
+
 #ifdef __cplusplus
 }
 #endif

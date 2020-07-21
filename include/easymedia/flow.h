@@ -162,6 +162,11 @@ public:
   CallBackHandler GetUserHandler() { return user_handler_; }
   UserCallBack GetUserCallBack() { return user_callback_; }
 
+  // Control the number of executions of threads inside Flow
+  // _run_times: -1, Endless loop; 0, skip process; > 0, do process cnt.
+  int SetRunTimes(int _run_times);
+  int GetRunTimesRemaining();
+
   bool IsAllBuffEmpty();
   void DumpBase(std::string &dump_info);
   virtual void Dump(std::string &dump_info) { DumpBase(dump_info); }
@@ -288,6 +293,9 @@ private:
 
   // FlowTag is used to distinguish Flow.
   std::string flow_tag;
+
+  // Control the number of executions of threads inside Flow
+  int run_times;
 
   DEFINE_ERR_GETSET()
   DECLARE_PART_FINAL_EXPOSE_PRODUCT(Flow)
