@@ -179,6 +179,8 @@ enum {
   /* system is busy*/
   RK_ERR_AI_BUSY,
   RK_ERR_AI_EXIST,
+  /* system is not open, had not initaled or enabled*/
+  RK_ERR_AI_NOTOPEN,
   RK_ERR_AI_NOT_CONFIG,
 
   /* invlalid device ID */

@@ -1182,6 +1182,32 @@ RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn) {
   return RK_ERR_SYS_OK;
 }
 
+RK_S32 RK_MPI_AI_SetVolume(AI_CHN AiChn, RK_S32 s32Volume) {
+  if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
+    return RK_ERR_AI_INVALID_DEVID;
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status <= CHN_STATUS_READY) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_NOTOPEN;
+  }
+  g_ai_chns[AiChn].rkmedia_flow->Control(easymedia::S_ALSA_VOLUME, &s32Volume);
+  g_ai_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AI_GetVolume(AI_CHN AiChn, RK_S32 *ps32Volume) {
+  if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
+    return RK_ERR_AI_INVALID_DEVID;
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status <= CHN_STATUS_READY) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_NOTOPEN;
+  }
+  g_ai_chns[AiChn].rkmedia_flow->Control(easymedia::G_ALSA_VOLUME, ps32Volume);
+  g_ai_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
 RK_S32 RK_MPI_AI_DisableChn(AI_CHN AiChn) {
   if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
     return RK_ERR_AI_INVALID_DEVID;

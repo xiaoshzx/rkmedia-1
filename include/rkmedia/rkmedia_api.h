@@ -101,6 +101,8 @@ _CAPI RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn);
 _CAPI RK_S32 RK_MPI_AI_SetChnAttr(VENC_CHN AiChn, const AI_CHN_ATTR_S *pstAttr);
 _CAPI RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn);
 _CAPI RK_S32 RK_MPI_AI_DisableChn(AI_CHN AiChn);
+_CAPI RK_S32 RK_MPI_AI_SetVolume(AI_CHN AiChn, RK_S32 s32Volume);
+_CAPI RK_S32 RK_MPI_AI_GetVolume(AI_CHN AiChn, RK_S32 *ps32Volume);
 
 /********************************************************************
  * Ao api
