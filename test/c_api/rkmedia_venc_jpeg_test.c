@@ -23,9 +23,9 @@ static void sigterm_handler(int sig) {
 
 void video_packet_cb(MEDIA_BUFFER mb) {
   static RK_U32 jpeg_id = 0;
-  printf("Get JPEG packet[%d]:ptr:%p, fd:%d, size:%zu, mode:%d, channel:%d\n", jpeg_id,
+  printf("Get JPEG packet[%d]:ptr:%p, fd:%d, size:%zu, mode:%d, channel:%d, timestamp:%lld\n", jpeg_id,
          RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb), RK_MPI_MB_GetSize(mb),
-         RK_MPI_MB_GetModeID(mb), RK_MPI_MB_GetChannelID(mb));
+         RK_MPI_MB_GetModeID(mb), RK_MPI_MB_GetChannelID(mb), RK_MPI_MB_GetTimestamp(mb));
 
   char jpeg_path[64];
   sprintf(jpeg_path, "/tmp/test_jpeg%d.jpeg", jpeg_id);

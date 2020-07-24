@@ -45,6 +45,14 @@ RK_U16 RK_MPI_MB_GetChannelID(MEDIA_BUFFER mb) {
   return mb_impl->chn_id;
 }
 
+RK_U64 RK_MPI_MB_GetTimestamp(MEDIA_BUFFER mb) {
+  if (!mb)
+    return RK_ID_UNKNOW;
+
+  MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)mb;
+  return mb_impl->timestamp;
+}
+
 RK_S32 RK_MPI_MB_ReleaseBuffer(MEDIA_BUFFER mb) {
   MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)mb;
   if (!mb)

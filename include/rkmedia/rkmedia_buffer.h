@@ -18,6 +18,7 @@ _CAPI int RK_MPI_MB_GetFD(MEDIA_BUFFER mb);
 _CAPI size_t RK_MPI_MB_GetSize(MEDIA_BUFFER mb);
 _CAPI MOD_ID_E RK_MPI_MB_GetModeID(MEDIA_BUFFER mb);
 _CAPI RK_U16 RK_MPI_MB_GetChannelID(MEDIA_BUFFER mb);
+_CAPI RK_U64 RK_MPI_MB_GetTimestamp(MEDIA_BUFFER mb);
 _CAPI RK_S32 RK_MPI_MB_ReleaseBuffer(MEDIA_BUFFER mb);
 
 #ifdef __cplusplus
