@@ -28,7 +28,7 @@ typedef enum rkCHN_STATUS {
   // ToDo...
 } CHN_STATUS;
 
-typedef struct _RkmediaVencAttr { VENC_ATTR_S attr; } RkmediaVencAttr;
+typedef struct _RkmediaVencAttr { VENC_CHN_ATTR_S attr; } RkmediaVencAttr;
 
 typedef struct _RkmediaVIAttr {
   char *path;
@@ -47,6 +47,14 @@ typedef struct _RkmediaChannel {
   MOD_ID_E mode_id;
   CHN_STATUS status;
   std::shared_ptr<easymedia::Flow> rkmedia_flow;
+  // Some functions need a pipeline to complete,
+  // the first Flow is placed in rkmedia_flow,
+  // and other flows are placed in rkmedia_flow_list for management.
+  // For example:
+  // vi flow --> venc flow --> file save flow
+  // rkmedia_flow : vi flow
+  // rkmedia_flow_list : venc flow : file save flow.
+  std::list<std::shared_ptr<easymedia::Flow>> rkmedia_flow_list;
   OutCbFunc cb;
   EventCbFunc event_cb;
   union {
@@ -331,31 +339,33 @@ RK_S32 RK_MPI_SYS_RegisterOutCb(const MPP_CHN_S *pstChn, OutCbFunc cb) {
 
   switch (pstChn->enModId) {
   case RK_ID_VI:
-    if (g_vi_chns[pstChn->s32ChnId].status < CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
-    flow = g_vi_chns[pstChn->s32ChnId].rkmedia_flow;
     target_chn = &g_vi_chns[pstChn->s32ChnId];
     break;
   case RK_ID_VENC:
-    if (g_venc_chns[pstChn->s32ChnId].status < CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
-    flow = g_venc_chns[pstChn->s32ChnId].rkmedia_flow;
     target_chn = &g_venc_chns[pstChn->s32ChnId];
     break;
   case RK_ID_AI:
-    if (g_ai_chns[pstChn->s32ChnId].status < CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
-    flow = g_ai_chns[pstChn->s32ChnId].rkmedia_flow;
     target_chn = &g_ai_chns[pstChn->s32ChnId];
     break;
   case RK_ID_AENC:
-    if (g_aenc_chns[pstChn->s32ChnId].status < CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
-    flow = g_aenc_chns[pstChn->s32ChnId].rkmedia_flow;
     target_chn = &g_aenc_chns[pstChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
+  }
+
+  if (target_chn->status < CHN_STATUS_OPEN)
+    return -RK_ERR_SYS_NOTREADY;
+
+  if (!target_chn->rkmedia_flow_list.empty())
+    flow = target_chn->rkmedia_flow_list.back();
+  else if (target_chn->rkmedia_flow)
+    flow = target_chn->rkmedia_flow;
+
+  if (!flow) {
+    LOG("ERROR: <ModeID:%d ChnID:%d> fatal error!"
+        "Status does not match the resource\n");
+    return -RK_ERR_SYS_NOT_PERM;
   }
 
   target_chn->cb = cb;
@@ -518,14 +528,145 @@ RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
 /********************************************************************
  * Venc api
  ********************************************************************/
+static RK_S32 RkmediaCreateJpegSnapPiple(RkmediaChannel *VenChn) {
+  std::shared_ptr<easymedia::Flow> video_encoder_flow;
+  std::shared_ptr<easymedia::Flow> video_decoder_flow;
+  std::shared_ptr<easymedia::Flow> video_jpeg_flow;
+
+  VENC_CHN_ATTR_S *stVencChnAttr = &VenChn->venc_attr.attr;
+  RK_S32 bps = 2000000;
+  RK_S32 video_width = stVencChnAttr->stVencAttr.u32PicWidth;
+  RK_S32 video_height = stVencChnAttr->stVencAttr.u32PicHeight;
+  RK_S32 vir_width = stVencChnAttr->stVencAttr.u32VirWidth;
+  RK_S32 vir_height = stVencChnAttr->stVencAttr.u32VirHeight;
+  std::string pixel_format =
+      ImageTypeToString(stVencChnAttr->stVencAttr.imageType);
+  std::string flow_name = "video_enc";
+  std::string flow_param = "";
+  std::string enc_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, VIDEO_H265);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_WIDTH, video_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, video_height);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, vir_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT, vir_height);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE, bps);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, bps);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, bps);
+  PARAM_STRING_APPEND(enc_param, KEY_VIDEO_GOP, "1");
+  PARAM_STRING_APPEND(enc_param, KEY_FPS, "25/0");
+  PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "25/0");
+  PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_FIXQP);
+  PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_QP_INIT, "20");
+
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
+  printf("\n#VideoEncoder flow param:\n%s\n", flow_param.c_str());
+  video_encoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!video_encoder_flow) {
+    LOG("ERROR: [%s]: Create flow %s failed\n", __func__, flow_name.c_str());
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+  flow_name = "video_dec";
+  flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, VIDEO_H265);
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, pixel_format);
+  std::string dec_param = "";
+  PARAM_STRING_APPEND(dec_param, KEY_INPUTDATATYPE, VIDEO_H265);
+  PARAM_STRING_APPEND_TO(dec_param, KEY_MPP_SPLIT_MODE, 0);
+  PARAM_STRING_APPEND_TO(dec_param, KEY_OUTPUT_TIMEOUT, -1);
+
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, dec_param);
+  printf("\n#VideoDecoder flow param:\n%s\n", flow_param.c_str());
+  video_decoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!video_decoder_flow) {
+    LOG("ERROR: [%s]: Create flow %s failed\n", __func__, flow_name.c_str());
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+  flow_name = "video_enc";
+  flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, IMAGE_JPEG);
+
+  enc_param = "";
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_WIDTH, video_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, video_height);
+
+  RK_S32 new_width = UPALIGNTO(video_width, 256);
+  if (((new_width / 256) % 2) == 0)
+    new_width += 256;
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, new_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT,
+                         UPALIGNTO(video_height, 8));
+
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
+  printf("\n#VideoEncoder:JPEG: flow param:\n%s\n", flow_param.c_str());
+  video_jpeg_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!video_jpeg_flow) {
+    LOG("ERROR: [%s]: Create flow %s failed\n", __func__, flow_name.c_str());
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+#if DEBUG_JPEG_SAVE_H265
+  std::shared_ptr<easymedia::Flow> video_save_flow;
+  flow_name = "file_write_flow";
+  flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_PATH, "/tmp/jpeg.h265");
+  PARAM_STRING_APPEND(flow_param, KEY_OPEN_MODE, "w+");
+  printf("\n#FileWrite:\n%s\n", flow_param.c_str());
+  video_save_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!video_save_flow) {
+    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+    exit(EXIT_FAILURE);
+  }
+  video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);
+#endif // DEBUG_JPEG_SAVE_H265
+
+  video_encoder_flow->SetFlowTag("JpegPreEncoder");
+  video_decoder_flow->SetFlowTag("JpegPreDecoder");
+  video_jpeg_flow->SetFlowTag("JpegEncoder");
+
+  // rkmedia flow bind.
+  video_decoder_flow->AddDownFlow(video_jpeg_flow, 0, 0);
+  video_encoder_flow->AddDownFlow(video_decoder_flow, 0, 0);
+
+  VenChn->rkmedia_flow = video_encoder_flow;
+  VenChn->rkmedia_flow_list.push_back(video_decoder_flow);
+  VenChn->rkmedia_flow_list.push_back(video_jpeg_flow);
+
+  VenChn->status = CHN_STATUS_OPEN;
+
+  return RK_ERR_SYS_OK;
+}
+
 RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
+
+  if (!stVencChnAttr)
+    return -RK_ERR_VENC_NULL_PTR;
 
   g_venc_mtx.lock();
   if (g_venc_chns[VeChn].status != CHN_STATUS_CLOSED) {
     g_venc_mtx.unlock();
     return -RK_ERR_VENC_EXIST;
+  }
+
+  // save venc_attr to venc chn.
+  memcpy(&g_venc_chns[VeChn].venc_attr, stVencChnAttr, sizeof(RkmediaVencAttr));
+
+  if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_JPEG) {
+    RK_S32 ret = RkmediaCreateJpegSnapPiple(&g_venc_chns[VeChn]);
+    g_venc_mtx.unlock();
+    return ret;
   }
 
   std::string flow_name = "video_enc";
@@ -546,7 +687,7 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT,
                          stVencChnAttr->stVencAttr.u32VirHeight);
   switch (stVencChnAttr->stVencAttr.enType) {
-  case CODEC_TYPE_H264:
+  case RK_CODEC_TYPE_H264:
     PARAM_STRING_APPEND_TO(enc_param, KEY_PROFILE,
                            stVencChnAttr->stVencAttr.u32Profile);
     break;
@@ -554,10 +695,7 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
     break;
   }
 
-  memcpy(&g_venc_chns[VeChn].venc_attr, stVencChnAttr,
-         sizeof(g_venc_chns[VeChn].venc_attr));
-
-  std::string str_fps_in, str_fsp;
+  std::string str_fps_in, str_fps;
   switch (stVencChnAttr->stRcAttr.enRcMode) {
   case VENC_RC_MODE_H264CBR:
     PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_CBR);
@@ -573,13 +711,13 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
             stVencChnAttr->stRcAttr.stH264Cbr.u32SrcFrameRateDen));
     PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps_in);
 
-    str_fsp
+    str_fps
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stH264Cbr.fr32DstFrameRateNum))
         .append("/")
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stH264Cbr.fr32DstFrameRateDen));
-    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fsp);
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
     break;
   case VENC_RC_MODE_H264VBR:
     PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_VBR);
@@ -595,13 +733,13 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
             stVencChnAttr->stRcAttr.stH264Vbr.u32SrcFrameRateDen));
     PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps_in);
 
-    str_fsp
+    str_fps
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stH264Vbr.fr32DstFrameRateNum))
         .append("/")
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stH264Vbr.fr32DstFrameRateDen));
-    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fsp);
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
     break;
   case VENC_RC_MODE_H265CBR:
     PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_CBR);
@@ -617,13 +755,13 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
             stVencChnAttr->stRcAttr.stH265Cbr.u32SrcFrameRateDen));
     PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps_in);
 
-    str_fsp
+    str_fps
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stH265Cbr.fr32DstFrameRateNum))
         .append("/")
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stH265Cbr.fr32DstFrameRateDen));
-    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fsp);
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
     break;
   case VENC_RC_MODE_H265VBR:
     PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_VBR);
@@ -640,13 +778,13 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
             stVencChnAttr->stRcAttr.stH265Vbr.u32SrcFrameRateDen));
     PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps_in);
 
-    str_fsp
+    str_fps
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stH265Vbr.fr32DstFrameRateNum))
         .append("/")
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stH265Vbr.fr32DstFrameRateDen));
-    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fsp);
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
     break;
   case VENC_RC_MODE_MJPEGCBR:
     PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_CBR);
@@ -660,13 +798,13 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
             stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateDen));
     PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps_in);
 
-    str_fsp
+    str_fps
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateNum))
         .append("/")
         .append(std::to_string(
             stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateDen));
-    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fsp);
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
     break;
   default:
     break;
@@ -698,22 +836,22 @@ RK_S32 RK_MPI_VENC_SetRcParam(VENC_CHN VeChn,
   VideoEncoderQp qp;
 
   qp.qp_init = pstRcParam->s32FirstFrameStartQp;
-  switch (g_venc_chns[VeChn].venc_attr.attr.enType) {
-  case CODEC_TYPE_H264:
+  switch (g_venc_chns[VeChn].venc_attr.attr.stVencAttr.enType) {
+  case RK_CODEC_TYPE_H264:
     qp.qp_step = pstRcParam->stParamH264.u32StepQp;
     qp.qp_max = pstRcParam->stParamH264.u32MaxQp;
     qp.qp_min = pstRcParam->stParamH264.u32MinQp;
     qp.qp_max_i = pstRcParam->stParamH264.u32MaxIQp;
     qp.qp_min_i = pstRcParam->stParamH264.u32MinIQp;
     break;
-  case CODEC_TYPE_H265:
+  case RK_CODEC_TYPE_H265:
     qp.qp_step = pstRcParam->stParamH265.u32StepQp;
     qp.qp_max = pstRcParam->stParamH265.u32MaxQp;
     qp.qp_min = pstRcParam->stParamH265.u32MinQp;
     qp.qp_max_i = pstRcParam->stParamH265.u32MaxIQp;
     qp.qp_min_i = pstRcParam->stParamH265.u32MinIQp;
     break;
-  case CODEC_TYPE_JPEG:
+  case RK_CODEC_TYPE_JPEG:
     break;
   default:
     break;
@@ -905,7 +1043,24 @@ RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn) {
     return -RK_ERR_VENC_BUSY;
   }
 
-  g_venc_chns[VeChn].rkmedia_flow.reset();
+  if (g_venc_chns[VeChn].rkmedia_flow) {
+    if (!g_venc_chns[VeChn].rkmedia_flow_list.empty()) {
+      auto ptrRkmediaFlow = g_venc_chns[VeChn].rkmedia_flow_list.front();
+      g_venc_chns[VeChn].rkmedia_flow->RemoveDownFlow(ptrRkmediaFlow);
+    }
+    g_venc_chns[VeChn].rkmedia_flow.reset();
+  }
+
+  while (!g_venc_chns[VeChn].rkmedia_flow_list.empty()) {
+    auto ptrRkmediaFlow0 = g_venc_chns[VeChn].rkmedia_flow_list.front();
+    g_venc_chns[VeChn].rkmedia_flow_list.pop_front();
+    if (!g_venc_chns[VeChn].rkmedia_flow_list.empty()) {
+      auto ptrRkmediaFlow1 = g_venc_chns[VeChn].rkmedia_flow_list.front();
+      ptrRkmediaFlow0->RemoveDownFlow(ptrRkmediaFlow1);
+    }
+    ptrRkmediaFlow0.reset();
+  }
+
   g_venc_chns[VeChn].status = CHN_STATUS_CLOSED;
   g_venc_mtx.unlock();
 
@@ -1087,6 +1242,22 @@ RK_S32 RK_MPI_VENC_SetBitMap(VENC_CHN VeChn,
                                           &rkmedia_osd_rgn);
 
   return ret;
+}
+
+RK_S32 RK_MPI_VENC_StartRecvFrame(VENC_CHN VeChn,
+                                  const VENC_RECV_PIC_PARAM_S *pstRecvParam) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return -RK_ERR_VENC_INVALID_CHNID;
+
+  if (!pstRecvParam)
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+
+  if (!g_venc_chns[VeChn].rkmedia_flow)
+    return -RK_ERR_VENC_NOTREADY;
+
+  g_venc_chns[VeChn].rkmedia_flow->SetRunTimes(pstRecvParam->s32RecvPicNum);
+
+  return RK_ERR_SYS_OK;
 }
 
 /********************************************************************

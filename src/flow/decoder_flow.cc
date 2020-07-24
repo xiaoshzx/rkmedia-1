@@ -26,6 +26,8 @@ private:
   std::vector<std::shared_ptr<MediaBuffer>> out_buffers;
   size_t out_index;
 
+  bool is_single_frame_out;
+
   friend bool do_decode(Flow *f, MediaBufferVector &input_vector);
 };
 
@@ -64,6 +66,29 @@ VideoDecoderFlow::VideoDecoderFlow(const char *param)
     SetError(-EINVAL);
     return;
   }
+
+  std::string split_mode;
+  std::string stimeout;
+  std::list<std::pair<const std::string, std::string &>> req_list;
+  req_list.push_back(std::pair<const std::string, std::string &>(
+      KEY_MPP_SPLIT_MODE, split_mode));
+  req_list.push_back(std::pair<const std::string, std::string &>(
+      KEY_OUTPUT_TIMEOUT, stimeout));
+  parse_media_param_match(param, params, req_list);
+
+  int auto_split = 0;
+  int tout = 0;
+  if (!split_mode.empty())
+    auto_split = std::stoi(split_mode);
+  if (!stimeout.empty())
+    tout = std::stoi(stimeout);
+
+  is_single_frame_out = false;
+  if (!auto_split && (tout < 0)) {
+    LOG("MPP Decoder: Enable single frame output mode!\n");
+    is_single_frame_out = true;
+  }
+
   if (decoder->SendInput(nullptr) < 0 && errno == ENOSYS)
     support_async = false;
   SetFlowTag("VideoDecoderFlow");
@@ -93,6 +118,8 @@ bool do_decode(Flow *f, MediaBufferVector &input_vector) {
         break;
       if (flow->SetOutput(output, 0))
         ret = true;
+      if (flow->is_single_frame_out)
+        break;
     } while (true);
   } else {
     output = std::make_shared<ImageBuffer>();

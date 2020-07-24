@@ -127,19 +127,23 @@ static void check_consume_time(const char *name, int expect, int exactly) {
 #endif
 
 void FlowCoroutine::RunOnce() {
-  bool ret;
+  bool ret = true;
   (this->*fetch_input_func)(in_vector);
+
+  if (flow->GetRunTimesRemaining()) {
 #ifndef NDEBUG
-  {
-    AutoDuration ad;
+    {
+      AutoDuration ad;
 #endif
-    ret = (*th_run)(flow, in_vector);
+      ret = (*th_run)(flow, in_vector);
 #ifndef NDEBUG
-    if (expect_process_time > 0)
-      check_consume_time(name.c_str(), expect_process_time,
-                         (int)(ad.Get() / 1000));
-  }
+      if (expect_process_time > 0)
+        check_consume_time(name.c_str(), expect_process_time,
+                          (int)(ad.Get() / 1000));
+    }
 #endif // DEBUG
+  }
+
   for (int idx : out_slots) {
     auto &fm = flow->downflowmap[idx];
     std::list<Flow::FlowInputMap> flows;
@@ -309,7 +313,8 @@ Flow::Flow()
       event_handler2_(nullptr), event_callback_(nullptr), enable(true),
       quit(false), event_handler_(nullptr), play_video_handler_(nullptr),
       play_audio_handler_(nullptr), user_handler_(nullptr),
-      user_callback_(nullptr), out_handler_(nullptr), out_callback_(nullptr) {}
+      user_callback_(nullptr), out_handler_(nullptr), out_callback_(nullptr),
+      run_times(-1) {}
 
 Flow::~Flow() { StopAllThread(); }
 
@@ -365,6 +370,21 @@ bool Flow::IsAllBuffEmpty() {
   }
 
   return true;
+}
+
+int Flow::SetRunTimes(int _run_times) {
+  run_times = _run_times;
+  LOG("Flow:%s set run_times to %d\n", flow_tag.c_str(), run_times);
+  return run_times;
+}
+
+int Flow::GetRunTimesRemaining() {
+  int remaining_value = run_times;
+
+  if (run_times > 0)
+    run_times--;
+
+  return remaining_value;
 }
 
 void Flow::DumpBase(std::string &dump_info) {

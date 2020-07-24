@@ -47,3 +47,12 @@ add_dependencies(rkmedia_vi_md_test easymedia)
 target_link_libraries(rkmedia_vi_md_test easymedia)
 target_include_directories(rkmedia_vi_md_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_vi_md_test RUNTIME DESTINATION "bin")
+
+#--------------------------
+#  rkmedia_venc_jpeg_test
+#--------------------------
+add_executable(rkmedia_venc_jpeg_test rkmedia_venc_jpeg_test.c)
+add_dependencies(rkmedia_venc_jpeg_test easymedia)
+target_link_libraries(rkmedia_venc_jpeg_test easymedia)
+target_include_directories(rkmedia_venc_jpeg_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_venc_jpeg_test RUNTIME DESTINATION "bin")
