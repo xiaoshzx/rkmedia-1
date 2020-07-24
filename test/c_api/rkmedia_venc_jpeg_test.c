@@ -112,7 +112,7 @@ int main() {
     return -1;
   }
 
-  RK_MPI_VENC_InitOsd(0);
+  RK_MPI_VENC_RGN_InitOsd(0);
 
   BITMAP_S BitMap;
   BitMap.enPixelFormat = PIXEL_FORMAT_ARGB_8888;
@@ -139,7 +139,7 @@ int main() {
   RngInfo.u32Height = 256;
   RngInfo.u8Enable = 1;
   RngInfo.u8Inverse = 0;
-  RK_MPI_VENC_SetBitMap(0, &RngInfo, &BitMap);
+  RK_MPI_VENC_RGN_SetBitMap(0, &RngInfo, &BitMap);
 
   printf("%s initial finish\n", __func__);
   signal(SIGINT, sigterm_handler);

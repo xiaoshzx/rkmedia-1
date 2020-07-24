@@ -1082,7 +1082,7 @@ RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn, VENC_GOP_MODE_E GopMode) {
   return RK_ERR_SYS_OK;
 }
 
-RK_S32 RK_MPI_VENC_InitOsd(VENC_CHN VeChn) {
+RK_S32 RK_MPI_VENC_RGN_InitOsd(VENC_CHN VeChn) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
 
@@ -1179,15 +1179,27 @@ static RK_VOID Argb8888_To_Region_Data(const BITMAP_S *pstBitmap, RK_U8 *data,
   }
 }
 
-RK_S32 RK_MPI_VENC_SetBitMap(VENC_CHN VeChn,
+RK_S32 RK_MPI_VENC_RGN_SetBitMap(VENC_CHN VeChn,
                              const OSD_REGION_INFO_S *pstRgnInfo,
                              const BITMAP_S *pstBitmap) {
-  RK_U8 rkmedia_osd_data[OSD_PIX_NUM_MAX] = {0xFF};
+  RK_U8 *rkmedia_osd_data;
   RK_U32 total_pix_num = 0;
   RK_S32 ret = RK_ERR_SYS_OK;
 
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
+
+  if (pstRgnInfo && !pstRgnInfo->u8Enable) {
+    OsdRegionData rkmedia_osd_rgn;
+    memset(&rkmedia_osd_rgn, 0, sizeof(rkmedia_osd_rgn));
+    rkmedia_osd_rgn.region_id = pstRgnInfo->enRegionId;
+    rkmedia_osd_rgn.enable = pstRgnInfo->u8Enable;
+    ret = easymedia::video_encoder_set_osd_region(g_venc_chns[VeChn].rkmedia_flow,
+                                                  &rkmedia_osd_rgn);
+    if (ret)
+      ret = -RK_ERR_VENC_NOT_PERM;
+    return ret;
+  }
 
   if (!pstBitmap || !pstBitmap->pData || !pstBitmap->u32Width ||
       !pstBitmap->u32Height)
@@ -1205,11 +1217,10 @@ RK_S32 RK_MPI_VENC_SetBitMap(VENC_CHN VeChn,
   }
 
   total_pix_num = pstRgnInfo->u32Width * pstRgnInfo->u32Height;
-  if (total_pix_num > OSD_PIX_NUM_MAX) {
-    LOG("ERROR: RgnInfo pixels(%d) exceed the maximum number of osd "
-        "pixels(%d)\n",
-        total_pix_num, OSD_PIX_NUM_MAX);
-    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  rkmedia_osd_data = (RK_U8 *)malloc(total_pix_num);
+  if (!rkmedia_osd_data) {
+    LOG("ERROR: No space left! RgnInfo pixels(%d)\n", total_pix_num);
+    return -RK_ERR_VENC_NOMEM;
   }
 
   switch (pstBitmap->enPixelFormat) {
@@ -1244,6 +1255,9 @@ RK_S32 RK_MPI_VENC_SetBitMap(VENC_CHN VeChn,
   rkmedia_osd_rgn.enable = pstRgnInfo->u8Enable;
   easymedia::video_encoder_set_osd_region(g_venc_chns[VeChn].rkmedia_flow,
                                           &rkmedia_osd_rgn);
+
+  if (rkmedia_osd_data)
+    free(rkmedia_osd_data);
 
   return ret;
 }
