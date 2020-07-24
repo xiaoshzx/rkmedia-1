@@ -45,6 +45,7 @@ typedef ALGO_MD_ATTR_S RkmediaMDAttr;
 
 typedef struct _RkmediaChannel {
   MOD_ID_E mode_id;
+  RK_U16 chn_id;
   CHN_STATUS status;
   std::shared_ptr<easymedia::Flow> rkmedia_flow;
   // Some functions need a pipeline to complete,
@@ -91,6 +92,7 @@ std::mutex g_algo_md_mtx;
 static void Reset_Channel_Table(RkmediaChannel *tbl, int cnt, MOD_ID_E mid) {
   for (int i = 0; i < cnt; i++) {
     tbl[i].mode_id = mid;
+    tbl[i].chn_id = i;
     tbl[i].status = CHN_STATUS_CLOSED;
     tbl[i].cb = nullptr;
   }
@@ -330,6 +332,7 @@ FlowOutputCallback(void *handle,
   mb->size = rkmedia_mb->GetValidSize();
   mb->rkmedia_mb = rkmedia_mb;
   mb->mode_id = target_chn->mode_id;
+  mb->chn_id = target_chn->chn_id;
   target_chn->cb(mb);
 }
 

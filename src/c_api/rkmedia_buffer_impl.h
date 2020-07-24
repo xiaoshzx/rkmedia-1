@@ -11,10 +11,11 @@
 #include "rkmedia_common.h"
 
 typedef struct _rkMEDIA_BUFFER_S {
-  void *ptr;
-  int fd;
-  size_t size;
-  MOD_ID_E mode_id;
+  void *ptr;              // Virtual address of buffer
+  int fd;                 // dma buffer fd
+  size_t size;            // The size of the buffer
+  MOD_ID_E mode_id;       // The module to which the buffer belongs
+  RK_U16 chn_id;          // The channel to which the buffer belongs
   std::shared_ptr<easymedia::MediaBuffer> rkmedia_mb;
 } MEDIA_BUFFER_IMPLE;
 
