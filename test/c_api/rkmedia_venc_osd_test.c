@@ -80,7 +80,7 @@ int main() {
   stEncChn.s32ChnId = 0;
   RK_MPI_SYS_RegisterOutCb(&stEncChn, video_packet_cb);
 
-  RK_MPI_VENC_InitOsd(0);
+  RK_MPI_VENC_RGN_InitOsd(0);
 
   // Generate a test bitmap, bitmap width and height 64 x 256,
   // color distribution is as follows:
@@ -122,7 +122,7 @@ int main() {
   RngInfo.u32Height = 256;
   RngInfo.u8Enable = 1;
   RngInfo.u8Inverse = 0;
-  RK_MPI_VENC_SetBitMap(0, &RngInfo, &BitMap);
+  RK_MPI_VENC_RGN_SetBitMap(0, &RngInfo, &BitMap);
 
   // Case 2: The width and height of the canvas are half of the bitmap
   RngInfo.enRegionId = REGION_ID_1;
@@ -130,7 +130,7 @@ int main() {
   RngInfo.u32PosY = 0;
   RngInfo.u32Width = 32;
   RngInfo.u32Height = 128;
-  RK_MPI_VENC_SetBitMap(0, &RngInfo, &BitMap);
+  RK_MPI_VENC_RGN_SetBitMap(0, &RngInfo, &BitMap);
 
   // Case 3: The width and height of the canvas are twice that of the bitmap
   RngInfo.enRegionId = REGION_ID_2;
@@ -138,7 +138,7 @@ int main() {
   RngInfo.u32PosY = 0;
   RngInfo.u32Width = 80;
   RngInfo.u32Height = 272;
-  RK_MPI_VENC_SetBitMap(0, &RngInfo, &BitMap);
+  RK_MPI_VENC_RGN_SetBitMap(0, &RngInfo, &BitMap);
 
   // Bind VI and VENC
   MPP_CHN_S stSrcChn;
@@ -153,6 +153,12 @@ int main() {
 
   printf("%s initial finish\n", __func__);
   signal(SIGINT, sigterm_handler);
+
+  sleep(3);
+  printf("Disable osd region 0....\n");
+  RngInfo.enRegionId = REGION_ID_0;
+  RngInfo.u8Enable = 0;
+  RK_MPI_VENC_RGN_SetBitMap(0, &RngInfo, NULL);
 
   while (!quit) {
     usleep(100);

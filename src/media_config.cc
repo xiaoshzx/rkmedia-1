@@ -565,8 +565,10 @@ int video_encoder_set_osd_region(
   OsdRegionData *rdata =
     (OsdRegionData *)malloc(sizeof(OsdRegionData) + buffer_size);
   memcpy((void *)rdata, (void *)region_data, sizeof(OsdRegionData));
-  rdata->buffer = (uint8_t *)rdata + sizeof(OsdRegionData);
-  memcpy(rdata->buffer, region_data->buffer, buffer_size);
+  if (buffer_size) {
+    rdata->buffer = (uint8_t *)rdata + sizeof(OsdRegionData);
+    memcpy(rdata->buffer, region_data->buffer, buffer_size);
+  }
 
   auto pbuff = std::make_shared<ParameterBuffer>(0);
   pbuff->SetPtr(rdata, sizeof(OsdRegionData) + buffer_size);
