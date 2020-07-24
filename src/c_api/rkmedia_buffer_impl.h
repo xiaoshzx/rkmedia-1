@@ -16,6 +16,7 @@ typedef struct _rkMEDIA_BUFFER_S {
   size_t size;            // The size of the buffer
   MOD_ID_E mode_id;       // The module to which the buffer belongs
   RK_U16 chn_id;          // The channel to which the buffer belongs
+  RK_U64 timestamp;       // buffer timesatmp
   std::shared_ptr<easymedia::MediaBuffer> rkmedia_mb;
 } MEDIA_BUFFER_IMPLE;
 

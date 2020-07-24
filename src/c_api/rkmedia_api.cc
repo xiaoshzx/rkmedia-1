@@ -333,6 +333,7 @@ FlowOutputCallback(void *handle,
   mb->rkmedia_mb = rkmedia_mb;
   mb->mode_id = target_chn->mode_id;
   mb->chn_id = target_chn->chn_id;
+  mb->timestamp = (RK_U64)rkmedia_mb->GetUSTimeStamp();
   target_chn->cb(mb);
 }
 
