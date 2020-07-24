@@ -37,9 +37,17 @@ MOD_ID_E RK_MPI_MB_GetModeID(MEDIA_BUFFER mb) {
   return mb_impl->mode_id;
 }
 
-RK_S32 RK_MPI_MB_ReleaseBuffer(MEDIA_BUFFER buffer) {
-  MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)buffer;
-  if (!buffer)
+RK_U16 RK_MPI_MB_GetChannelID(MEDIA_BUFFER mb) {
+  if (!mb)
+    return RK_ID_UNKNOW;
+
+  MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)mb;
+  return mb_impl->chn_id;
+}
+
+RK_S32 RK_MPI_MB_ReleaseBuffer(MEDIA_BUFFER mb) {
+  MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)mb;
+  if (!mb)
     return -RK_ERR_SYS_ILLEGAL_PARAM;
 
   if (mb_impl->rkmedia_mb)
