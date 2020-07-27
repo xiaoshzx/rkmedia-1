@@ -1012,6 +1012,7 @@ RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
   regions.w = pstRoiAttr->stRect.u32Width;
   regions.h = pstRoiAttr->stRect.u32Height;
 
+  regions.intra = pstRoiAttr->bIntra;
   regions.area_map_en = pstRoiAttr->bEnable;
   regions.abs_qp_en = pstRoiAttr->bAbsQp;
   regions.qp_area_idx = pstRoiAttr->u32Index;

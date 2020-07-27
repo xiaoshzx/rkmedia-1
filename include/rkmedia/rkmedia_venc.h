@@ -200,7 +200,8 @@ typedef struct hiVENC_ROI_ATTR_S {
                    // QP.HI_TURE: absolute QP.
   RK_S32 s32Qp; // RW; Range:[-51, 51]; QP value,only relative mode can QP value
                 // less than 0.
-  RECT_S stRect; // RW; Region of an ROI
+  RK_BOOL bIntra; // flag of forced intra macroblock
+  RECT_S stRect;  // RW; Region of an ROI
 } VENC_ROI_ATTR_S;
 
 // Maximum number of pixels for osd
