@@ -66,6 +66,7 @@ typedef struct _RkmediaChannel {
     RkmediaAENCAttr aenc_attr;
     RkmediaMDAttr md_attr;
   };
+  RK_U16 bind_ref;
 } RkmediaChannel;
 
 RkmediaChannel g_vi_chns[VI_MAX_CHN_NUM];
@@ -95,6 +96,7 @@ static void Reset_Channel_Table(RkmediaChannel *tbl, int cnt, MOD_ID_E mid) {
     tbl[i].chn_id = i;
     tbl[i].status = CHN_STATUS_CLOSED;
     tbl[i].cb = nullptr;
+    tbl[i].bind_ref = 0;
   }
 }
 
@@ -126,26 +128,18 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
 
   switch (pstSrcChn->enModId) {
   case RK_ID_VI:
-    if (g_vi_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
     src = g_vi_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_vi_chns[pstSrcChn->s32ChnId];
     break;
   case RK_ID_VENC:
-    if (g_venc_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
     src = g_venc_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_venc_chns[pstSrcChn->s32ChnId];
     break;
   case RK_ID_AI:
-    if (g_ai_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
     src = g_ai_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_ai_chns[pstSrcChn->s32ChnId];
     break;
   case RK_ID_AENC:
-    if (g_aenc_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
     src = g_aenc_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_aenc_chns[pstSrcChn->s32ChnId];
     break;
@@ -153,28 +147,26 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
 
+  if ((src_chn->status < CHN_STATUS_OPEN) || (!src)) {
+    LOG("ERROR: %s Src Mode[%d]:Chn[%d] is not ready!\n", __func__,
+        pstSrcChn->enModId, pstSrcChn->s32ChnId);
+    return -RK_ERR_SYS_NOTREADY;
+  }
+
   switch (pstDestChn->enModId) {
   case RK_ID_VENC:
-    if (g_venc_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
     sink = g_venc_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_venc_chns[pstDestChn->s32ChnId];
     break;
   case RK_ID_AO:
-    if (g_ao_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
     sink = g_ao_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_ao_chns[pstDestChn->s32ChnId];
     break;
   case RK_ID_AENC:
-    if (g_aenc_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
     sink = g_aenc_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_aenc_chns[pstDestChn->s32ChnId];
     break;
   case RK_ID_ALGO_MD:
-    if (g_algo_md_chns[pstDestChn->s32ChnId].status != CHN_STATUS_OPEN)
-      return -RK_ERR_SYS_NOTREADY;
     sink = g_algo_md_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_algo_md_chns[pstDestChn->s32ChnId];
     break;
@@ -182,14 +174,9 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
 
-  if (!src) {
-    LOG("ERROR: %s Src Chn[%d] is not ready!\n", __func__, pstSrcChn->s32ChnId);
-    return -RK_ERR_SYS_NOTREADY;
-  }
-
-  if (!sink) {
-    LOG("ERROR: %s Dst Chn[%d] is not ready!\n", __func__,
-        pstDestChn->s32ChnId);
+  if ((dst_chn->status < CHN_STATUS_OPEN) || (!sink)) {
+    LOG("ERROR: %s Dst Mode[%d]:Chn[%d] is not ready!\n", __func__,
+        pstDestChn->enModId, pstDestChn->s32ChnId);
     return -RK_ERR_SYS_NOTREADY;
   }
 
@@ -198,7 +185,9 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
 
   // change status frome OPEN to BIND.
   src_chn->status = CHN_STATUS_BIND;
+  src_chn->bind_ref++;
   dst_chn->status = CHN_STATUS_BIND;
+  dst_chn->bind_ref++;
 
   return RK_ERR_SYS_OK;
 }
@@ -212,32 +201,22 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
 
   switch (pstSrcChn->enModId) {
   case RK_ID_VI:
-    if (g_vi_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_BIND)
-      return -RK_ERR_SYS_NOTREADY;
     src = g_vi_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_vi_chns[pstSrcChn->s32ChnId];
     break;
   case RK_ID_VENC:
-    if (g_venc_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_BIND)
-      return -RK_ERR_SYS_NOTREADY;
     src = g_venc_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_venc_chns[pstSrcChn->s32ChnId];
     break;
   case RK_ID_AI:
-    if (g_ai_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_BIND)
-      return -RK_ERR_SYS_NOTREADY;
     src = g_ai_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_ai_chns[pstSrcChn->s32ChnId];
     break;
   case RK_ID_AO:
-    if (g_ao_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_BIND)
-      return -RK_ERR_SYS_NOTREADY;
     src = g_ao_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_ao_chns[pstSrcChn->s32ChnId];
     break;
   case RK_ID_AENC:
-    if (g_aenc_chns[pstSrcChn->s32ChnId].status != CHN_STATUS_BIND)
-      return -RK_ERR_SYS_NOTREADY;
     src = g_aenc_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_aenc_chns[pstSrcChn->s32ChnId];
     break;
@@ -245,34 +224,33 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
 
+  if ((src_chn->status != CHN_STATUS_BIND))
+    return -RK_ERR_SYS_NOT_PERM;
+
+  if ((src_chn->bind_ref <= 0) || (!src)) {
+    LOG("ERROR: %s Src Mode[%d]:Chn[%d]'s parameter does not match the status!\n",
+        __func__, pstSrcChn->enModId, pstSrcChn->s32ChnId);
+    return -RK_ERR_SYS_NOT_PERM;
+  }
+
   switch (pstDestChn->enModId) {
   case RK_ID_VI:
-    if (g_vi_chns[pstDestChn->s32ChnId].status != CHN_STATUS_BIND)
-      return -RK_ERR_SYS_NOTREADY;
     sink = g_vi_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_vi_chns[pstDestChn->s32ChnId];
     break;
   case RK_ID_VENC:
-    if (g_venc_chns[pstDestChn->s32ChnId].status != CHN_STATUS_BIND)
-      return -RK_ERR_SYS_NOTREADY;
     sink = g_venc_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_venc_chns[pstDestChn->s32ChnId];
     break;
   case RK_ID_AI:
-    if (g_ai_chns[pstDestChn->s32ChnId].status != CHN_STATUS_BIND)
-      return -RK_ERR_SYS_NOTREADY;
     sink = g_ai_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_ai_chns[pstDestChn->s32ChnId];
     break;
   case RK_ID_AO:
-    if (g_ao_chns[pstDestChn->s32ChnId].status != CHN_STATUS_BIND)
-      return -RK_ERR_SYS_NOTREADY;
     sink = g_ao_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_ao_chns[pstDestChn->s32ChnId];
     break;
   case RK_ID_AENC:
-    if (g_aenc_chns[pstDestChn->s32ChnId].status != CHN_STATUS_BIND)
-      return -RK_ERR_SYS_NOTREADY;
     sink = g_aenc_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_aenc_chns[pstDestChn->s32ChnId];
     break;
@@ -280,23 +258,29 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
 
-  if (!src) {
-    LOG("ERROR: %s Src Chn[%d] is not ready!\n", __func__, pstSrcChn->s32ChnId);
-    return -RK_ERR_SYS_NOTREADY;
-  }
+  if ((dst_chn->status != CHN_STATUS_BIND))
+    return -RK_ERR_SYS_NOT_PERM;
 
-  if (!sink) {
-    LOG("ERROR: %s Dst Chn[%d] is not ready!\n", __func__,
-        pstDestChn->s32ChnId);
-    return -RK_ERR_SYS_NOTREADY;
+  if ((dst_chn->bind_ref <= 0) || (!sink)) {
+    LOG("ERROR: %s Dst Mode[%d]:Chn[%d]'s parameter does not match the status!\n",
+        __func__, pstDestChn->enModId, pstDestChn->s32ChnId);
+    return -RK_ERR_SYS_NOT_PERM;
   }
 
   // Rkmedia flow unbind
   src->RemoveDownFlow(sink);
 
+  src_chn->bind_ref--;
+  dst_chn->bind_ref--;
   // change status frome BIND to OPEN.
-  src_chn->status = CHN_STATUS_OPEN;
-  dst_chn->status = CHN_STATUS_OPEN;
+  if (src_chn->bind_ref <= 0) {
+    src_chn->status = CHN_STATUS_OPEN;
+    src_chn->bind_ref = 0;
+  }
+  if (dst_chn->bind_ref == 0) {
+    dst_chn->status = CHN_STATUS_OPEN;
+    dst_chn->bind_ref = 0;
+  }
 
   return RK_ERR_SYS_OK;
 }
