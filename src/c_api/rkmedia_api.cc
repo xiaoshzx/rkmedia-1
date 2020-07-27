@@ -228,7 +228,8 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
     return -RK_ERR_SYS_NOT_PERM;
 
   if ((src_chn->bind_ref <= 0) || (!src)) {
-    LOG("ERROR: %s Src Mode[%d]:Chn[%d]'s parameter does not match the status!\n",
+    LOG("ERROR: %s Src Mode[%d]:Chn[%d]'s parameter does not match the "
+        "status!\n",
         __func__, pstSrcChn->enModId, pstSrcChn->s32ChnId);
     return -RK_ERR_SYS_NOT_PERM;
   }
@@ -262,7 +263,8 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
     return -RK_ERR_SYS_NOT_PERM;
 
   if ((dst_chn->bind_ref <= 0) || (!sink)) {
-    LOG("ERROR: %s Dst Mode[%d]:Chn[%d]'s parameter does not match the status!\n",
+    LOG("ERROR: %s Dst Mode[%d]:Chn[%d]'s parameter does not match the "
+        "status!\n",
         __func__, pstDestChn->enModId, pstDestChn->s32ChnId);
     return -RK_ERR_SYS_NOT_PERM;
   }
@@ -1066,7 +1068,7 @@ RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn, VENC_GOP_MODE_E GopMode) {
   return RK_ERR_SYS_OK;
 }
 
-RK_S32 RK_MPI_VENC_RGN_InitOsd(VENC_CHN VeChn) {
+RK_S32 RK_MPI_VENC_RGN_Init(VENC_CHN VeChn) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
 
@@ -1164,8 +1166,8 @@ static RK_VOID Argb8888_To_Region_Data(const BITMAP_S *pstBitmap, RK_U8 *data,
 }
 
 RK_S32 RK_MPI_VENC_RGN_SetBitMap(VENC_CHN VeChn,
-                             const OSD_REGION_INFO_S *pstRgnInfo,
-                             const BITMAP_S *pstBitmap) {
+                                 const OSD_REGION_INFO_S *pstRgnInfo,
+                                 const BITMAP_S *pstBitmap) {
   RK_U8 *rkmedia_osd_data;
   RK_U32 total_pix_num = 0;
   RK_S32 ret = RK_ERR_SYS_OK;
@@ -1173,13 +1175,18 @@ RK_S32 RK_MPI_VENC_RGN_SetBitMap(VENC_CHN VeChn,
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
 
+  if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN) {
+    LOG("ERROR: Venc[%d] should be opened before set bitmap!\n");
+    return -RK_ERR_VENC_NOTREADY;
+  }
+
   if (pstRgnInfo && !pstRgnInfo->u8Enable) {
     OsdRegionData rkmedia_osd_rgn;
     memset(&rkmedia_osd_rgn, 0, sizeof(rkmedia_osd_rgn));
     rkmedia_osd_rgn.region_id = pstRgnInfo->enRegionId;
     rkmedia_osd_rgn.enable = pstRgnInfo->u8Enable;
-    ret = easymedia::video_encoder_set_osd_region(g_venc_chns[VeChn].rkmedia_flow,
-                                                  &rkmedia_osd_rgn);
+    ret = easymedia::video_encoder_set_osd_region(
+        g_venc_chns[VeChn].rkmedia_flow, &rkmedia_osd_rgn);
     if (ret)
       ret = -RK_ERR_VENC_NOT_PERM;
     return ret;
@@ -1219,13 +1226,8 @@ RK_S32 RK_MPI_VENC_RGN_SetBitMap(VENC_CHN VeChn,
   default:
     LOG("ERROR: Not support bitmap pixel format:%d\n",
         pstBitmap->enPixelFormat);
-    ret = RK_ERR_VENC_NOT_SUPPORT;
+    ret = -RK_ERR_VENC_NOT_SUPPORT;
     break;
-  }
-
-  if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN) {
-    LOG("ERROR: Venc[%d] should be opened before set bitmap!\n");
-    return -RK_ERR_VENC_NOTREADY;
   }
 
   OsdRegionData rkmedia_osd_rgn;
@@ -1237,11 +1239,110 @@ RK_S32 RK_MPI_VENC_RGN_SetBitMap(VENC_CHN VeChn,
   rkmedia_osd_rgn.height = pstRgnInfo->u32Height;
   rkmedia_osd_rgn.inverse = pstRgnInfo->u8Inverse;
   rkmedia_osd_rgn.enable = pstRgnInfo->u8Enable;
-  easymedia::video_encoder_set_osd_region(g_venc_chns[VeChn].rkmedia_flow,
-                                          &rkmedia_osd_rgn);
+  ret = easymedia::video_encoder_set_osd_region(g_venc_chns[VeChn].rkmedia_flow,
+                                                &rkmedia_osd_rgn);
+  if (ret)
+    ret = -RK_ERR_VENC_NOT_PERM;
 
   if (rkmedia_osd_data)
     free(rkmedia_osd_data);
+
+  return ret;
+}
+
+RK_S32 RK_MPI_VENC_RGN_SetCover(VENC_CHN VeChn,
+                                const OSD_REGION_INFO_S *pstRgnInfo,
+                                const COVER_INFO_S *pstCoverInfo) {
+  RK_U8 *rkmedia_cover_data;
+  RK_U32 total_pix_num = 0;
+  RK_S32 ret = RK_ERR_SYS_OK;
+  RK_U8 color_id = 0xFF;
+
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return -RK_ERR_VENC_INVALID_CHNID;
+
+  if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN) {
+    LOG("ERROR: Venc[%d] should be opened before set cover!\n");
+    return -RK_ERR_VENC_NOTREADY;
+  }
+
+  if (pstRgnInfo && !pstRgnInfo->u8Enable) {
+    OsdRegionData rkmedia_osd_rgn;
+    memset(&rkmedia_osd_rgn, 0, sizeof(rkmedia_osd_rgn));
+    rkmedia_osd_rgn.region_id = pstRgnInfo->enRegionId;
+    rkmedia_osd_rgn.enable = pstRgnInfo->u8Enable;
+    ret = easymedia::video_encoder_set_osd_region(
+        g_venc_chns[VeChn].rkmedia_flow, &rkmedia_osd_rgn);
+    if (ret)
+      ret = -RK_ERR_VENC_NOT_PERM;
+    return ret;
+  }
+
+  if (!pstCoverInfo)
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+
+  if (!pstRgnInfo || !pstRgnInfo->u32Width || !pstRgnInfo->u32Height)
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+
+  if ((pstRgnInfo->u32PosX % 16) || (pstRgnInfo->u32PosY % 16) ||
+      (pstRgnInfo->u32Width % 16) || (pstRgnInfo->u32Height % 16)) {
+    LOG("ERROR: <x, y, w, h> = <%d, %d, %d, %d> must be 16 aligned!\n",
+        pstRgnInfo->u32PosX, pstRgnInfo->u32PosY, pstRgnInfo->u32Width,
+        pstRgnInfo->u32Height);
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+  total_pix_num = pstRgnInfo->u32Width * pstRgnInfo->u32Height;
+  rkmedia_cover_data = (RK_U8 *)malloc(total_pix_num);
+  if (!rkmedia_cover_data) {
+    LOG("ERROR: No space left! RgnInfo pixels(%d)\n", total_pix_num);
+    return -RK_ERR_VENC_NOMEM;
+  }
+
+  RK_U8 value_r, value_g, value_b, value_a;
+  switch (pstCoverInfo->enPixelFormat) {
+  case PIXEL_FORMAT_ARGB_1555:
+    value_a = (RK_U8)((pstCoverInfo->u32Color & 0x00008000) >> 15);
+    value_r = (RK_U8)((pstCoverInfo->u32Color & 0x00007C00) >> 10);
+    value_g = (RK_U8)((pstCoverInfo->u32Color & 0x000003E0) >> 5);
+    value_b = (RK_U8)((pstCoverInfo->u32Color & 0x0000001F));
+    break;
+  case PIXEL_FORMAT_ARGB_8888:
+    value_a = (RK_U8)((pstCoverInfo->u32Color & 0xF0000000) >> 24);
+    value_r = (RK_U8)((pstCoverInfo->u32Color & 0x00FF0000) >> 16);
+    value_g = (RK_U8)((pstCoverInfo->u32Color & 0x0000FF00) >> 8);
+    value_b = (RK_U8)((pstCoverInfo->u32Color & 0x000000FF));
+    break;
+  default:
+    LOG("ERROR: Not support cover pixel format:%d\n",
+        pstCoverInfo->enPixelFormat);
+    return -RK_ERR_VENC_NOT_SUPPORT;
+  }
+
+  // find and fill color
+  if (value_a == 0x00)
+    color_id = PALETTE_TABLE_LEN - 1;
+  else
+    color_id = find_color(bgra8888_palette_table, PALETTE_TABLE_LEN, value_r,
+                          value_g, value_b);
+  memset(rkmedia_cover_data, color_id, total_pix_num);
+
+  OsdRegionData rkmedia_osd_rgn;
+  rkmedia_osd_rgn.buffer = rkmedia_cover_data;
+  rkmedia_osd_rgn.region_id = pstRgnInfo->enRegionId;
+  rkmedia_osd_rgn.pos_x = pstRgnInfo->u32PosX;
+  rkmedia_osd_rgn.pos_y = pstRgnInfo->u32PosY;
+  rkmedia_osd_rgn.width = pstRgnInfo->u32Width;
+  rkmedia_osd_rgn.height = pstRgnInfo->u32Height;
+  rkmedia_osd_rgn.inverse = pstRgnInfo->u8Inverse;
+  rkmedia_osd_rgn.enable = pstRgnInfo->u8Enable;
+  ret = easymedia::video_encoder_set_osd_region(g_venc_chns[VeChn].rkmedia_flow,
+                                                &rkmedia_osd_rgn);
+  if (ret)
+    ret = -RK_ERR_VENC_NOT_PERM;
+
+  if (rkmedia_cover_data)
+    free(rkmedia_cover_data);
 
   return ret;
 }

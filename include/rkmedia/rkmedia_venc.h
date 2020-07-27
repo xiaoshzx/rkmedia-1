@@ -229,6 +229,11 @@ typedef struct rkBITMAP_S {
   RK_VOID *pData;                   /* Address of Bitmap's data */
 } BITMAP_S;
 
+typedef struct rkCOVER_INFO_S {
+  OSD_PIXEL_FORMAT_E enPixelFormat; /* Bitmap's pixel format */
+  RK_U32 u32Color;                  /* Covered area color */
+} COVER_INFO_S;
+
 typedef struct rkOSD_REGION_INFO_S {
   OSD_REGION_ID_E enRegionId;
   RK_U32 u32PosX;
