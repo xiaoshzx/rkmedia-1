@@ -87,12 +87,14 @@ _CAPI RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
 
 _CAPI RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn, VENC_GOP_MODE_E GopMode);
 
-_CAPI RK_S32 RK_MPI_VENC_RGN_InitOsd(VENC_CHN VeChn);
+_CAPI RK_S32 RK_MPI_VENC_RGN_Init(VENC_CHN VeChn);
 
 _CAPI RK_S32 RK_MPI_VENC_RGN_SetBitMap(VENC_CHN VeChn,
-                                   const OSD_REGION_INFO_S *pstRgnInfo,
-                                   const BITMAP_S *pstBitmap);
-
+                                       const OSD_REGION_INFO_S *pstRgnInfo,
+                                       const BITMAP_S *pstBitmap);
+_CAPI RK_S32 RK_MPI_VENC_RGN_SetCover(VENC_CHN VeChn,
+                                      const OSD_REGION_INFO_S *pstRgnInfo,
+                                      const COVER_INFO_S *pstCoverInfo);
 _CAPI RK_S32 RK_MPI_VENC_StartRecvFrame(
     VENC_CHN VeChn, const VENC_RECV_PIC_PARAM_S *pstRecvParam);
 _CAPI RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn);
