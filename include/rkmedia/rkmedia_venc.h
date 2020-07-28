@@ -90,6 +90,14 @@ typedef enum rkVENC_GOP_MODE_E {
   VENC_GOPMODE_BUTT,
 } VENC_GOP_MODE_E;
 
+typedef enum rkVENC_ROTATION_E {
+  VENC_ROTATION_0 = 0,
+  VENC_ROTATION_90 = 90,
+  VENC_ROTATION_180 = 180,
+  VENC_ROTATION_270 = 270,
+  VENC_ROTATION_BUTT
+} VENC_ROTATION_E;
+
 /*the attribute of jpege*/
 typedef struct rkVENC_ATTR_JPEG_S {
   // reserved
@@ -129,6 +137,7 @@ typedef struct rkVENC_ATTR_S {
                        // get stream mode is slice mode or frame mode
   RK_U32 u32PicWidth;  // RW; width of a picture to be encoded, in pixel
   RK_U32 u32PicHeight; // RW; height of a picture to be encoded, in pixel
+  VENC_ROTATION_E enRotation;
   union {
     VENC_ATTR_H264_S stAttrH264e;   // attributes of H264e
     VENC_ATTR_H265_S stAttrH265e;   // attributes of H265e

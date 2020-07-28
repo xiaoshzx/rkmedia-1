@@ -80,6 +80,7 @@ int main() {
   venc_chn_attr.stVencAttr.u32PicHeight = 1080;
   venc_chn_attr.stVencAttr.u32VirWidth = 1920;
   venc_chn_attr.stVencAttr.u32VirHeight = 1080;
+  // venc_chn_attr.stVencAttr.enRotation = VENC_ROTATION_90;
   ret = RK_MPI_VENC_CreateChn(0, &venc_chn_attr);
   if (ret) {
     printf("Create Venc failed! ret=%d\n", ret);
