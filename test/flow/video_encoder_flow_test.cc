@@ -39,7 +39,7 @@ void encoder_output_cb(void *handle, std::shared_ptr<easymedia::MediaBuffer> mb)
     fwrite(mb->GetPtr(), 1, mb->GetValidSize(), save_file);
 }
 
-static char optstr[] = "?:i:o:w:h:f:t:m:s:u:c:";
+static char optstr[] = "?:i:o:w:h:f:t:m:s:u:c:r:";
 
 static void print_usage(char *name) {
   printf("usage example for normal mode: \n");
@@ -56,6 +56,7 @@ static void print_usage(char *name) {
   printf("\t0:disable\t1:enable\n");
   printf("#[-c] Enable Output Callback:\n");
   printf("\t0:disable\t1:enable\n");
+  printf("#[-r] support rotation: 0, 90, 180, 270\n");
 }
 
 int main(int argc, char **argv) {
@@ -71,6 +72,7 @@ int main(int argc, char **argv) {
   int userdata_enable = 0;
   int output_cb_enable = 0;
   char cb_str[32] = "<Output Callback Test>";
+  int rotation = 0;
 
   std::string output_path;
   std::string input_path;
@@ -134,6 +136,10 @@ int main(int argc, char **argv) {
     case 'c':
       output_cb_enable = atoi(optarg);
       printf("#IN ARGS: output_cb_enable: %d\n", output_cb_enable);
+      break;
+    case 'r':
+      rotation = atoi(optarg);
+      printf("#IN ARGS: rotation: %d\n", rotation);
       break;
     case '?':
     default:
@@ -270,9 +276,10 @@ RESTART:
   PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE, bps);
   PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, bps * 17 / 16);
   PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, bps / 16);
-  PARAM_STRING_APPEND(enc_param, KEY_FPS, "30/0");
-  PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "30/0");
+  PARAM_STRING_APPEND(enc_param, KEY_FPS, "30/1");
+  PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "30/1");
   PARAM_STRING_APPEND_TO(enc_param, KEY_FULL_RANGE, 1);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_ROTATION, rotation);
 #endif
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);

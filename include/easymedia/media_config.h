@@ -47,6 +47,8 @@ typedef struct {
   int full_range;
   // reference frame config.
   int ref_frm_cfg;
+  // rotation:0, 90, 180, 270;
+  int rotation;
   // quality - quality parameter
   //    (extra CQP level means special constant-qp (CQP) mode)
   //    (extra AQ_ONLY means special aq only mode)
