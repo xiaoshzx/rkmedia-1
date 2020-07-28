@@ -997,28 +997,33 @@ RK_S32 RK_MPI_VENC_InsertUserData(VENC_CHN VeChn, RK_U8 *pu8Data,
   return RK_ERR_SYS_OK;
 }
 
-RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
-                              const VENC_ROI_ATTR_S *pstRoiAttr) {
+RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn, const VENC_ROI_ATTR_S *pstRoiAttr,
+                              RK_S32 region_cnt) {
 
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN)
     return -RK_ERR_VENC_NOTREADY;
+  if (pstRoiAttr == nullptr && region_cnt > 0)
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
 
   g_venc_mtx.lock();
-  EncROIRegion regions;
-  regions.x = pstRoiAttr->stRect.s32X;
-  regions.y = pstRoiAttr->stRect.s32Y;
-  regions.w = pstRoiAttr->stRect.u32Width;
-  regions.h = pstRoiAttr->stRect.u32Height;
+  EncROIRegion regions[region_cnt];
+  for (int i = 0; i < region_cnt; i++) {
+    regions[i].x = pstRoiAttr[i].stRect.s32X;
+    regions[i].y = pstRoiAttr[i].stRect.s32Y;
+    regions[i].w = pstRoiAttr[i].stRect.u32Width;
+    regions[i].h = pstRoiAttr[i].stRect.u32Height;
 
-  regions.intra = pstRoiAttr->bIntra;
-  regions.area_map_en = pstRoiAttr->bEnable;
-  regions.abs_qp_en = pstRoiAttr->bAbsQp;
-  regions.qp_area_idx = pstRoiAttr->u32Index;
-  regions.quality = pstRoiAttr->s32Qp;
+    regions[i].intra = pstRoiAttr[i].bIntra;
+    regions[i].area_map_en = pstRoiAttr[i].bEnable;
+    regions[i].abs_qp_en = pstRoiAttr[i].bAbsQp;
+    regions[i].qp_area_idx = pstRoiAttr[i].u32Index;
+    regions[i].quality = pstRoiAttr[i].s32Qp;
+  }
 
-  video_encoder_set_roi_regions(g_venc_chns[VeChn].rkmedia_flow, &regions, 1);
+  video_encoder_set_roi_regions(g_venc_chns[VeChn].rkmedia_flow, regions,
+                                region_cnt);
 
   g_venc_mtx.unlock();
   return RK_ERR_SYS_OK;
