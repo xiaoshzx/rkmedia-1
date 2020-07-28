@@ -163,13 +163,20 @@ int V4L2MediaCtl::InitHwInfos() {
     /* Enumerate entities, pads and links. */
     media_device_enumerate(device);
 
-    if (strcmp(sys_path, "/dev/media1") == 0) {
-      get_ispp_subdevs(device, sys_path, &rkispp_hw_info);
-      goto media_unref;
-    } else if (strcmp(sys_path, "/dev/media0") == 0) {
+    struct media_entity *entity = nullptr;
+    entity = media_get_entity_by_name(device,
+               RKISP_SUBDEV_NAME, strlen(RKISP_SUBDEV_NAME));
+    if (entity != NULL) {
+      LOG("find %s: %s\n", sys_path, RKISP_SUBDEV_NAME);
       get_isp_subdevs(device, sys_path, &rkisp_hw_info);
       goto media_unref;
-    } else {
+    }
+
+    entity = media_get_entity_by_name(device,
+               RKIISPP_SUBDEV_NAME, strlen(RKIISPP_SUBDEV_NAME));
+    if (entity != NULL) {
+      LOG("find %s: %s\n", sys_path, RKIISPP_SUBDEV_NAME);
+      get_ispp_subdevs(device, sys_path, &rkispp_hw_info);
       goto media_unref;
     }
 
