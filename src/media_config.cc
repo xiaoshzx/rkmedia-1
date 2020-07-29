@@ -488,6 +488,27 @@ int video_encoder_set_qp(
   return 0;
 }
 
+int jpeg_encoder_set_quant(
+  std::shared_ptr<Flow> &enc_flow, int quant) {
+  if (!enc_flow)
+    return -EINVAL;
+
+  if ((quant > 10) || (quant < 1)) {
+    LOG("ERROR: quant should be within [1, 10]\n");
+    return -EINVAL;
+  }
+
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  VideoEncoderQp *qp_struct =
+    (VideoEncoderQp *)malloc(sizeof(VideoEncoderQp));
+  memset(qp_struct, 0, sizeof(VideoEncoderQp));
+  qp_struct->qp_init = quant;
+  pbuff->SetPtr(qp_struct, sizeof(VideoEncoderQp));
+  enc_flow->Control(VideoEncoder::kQPChange, pbuff);
+
+  return 0;
+}
+
 int video_encoder_force_idr(std::shared_ptr<Flow> &enc_flow) {
   if (!enc_flow)
     return -EINVAL;

@@ -315,22 +315,36 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
     MediaConfig &cfg = GetConfig();
     int target_fps = cfg.vid_cfg.frame_rate;
     int target_bpsmax = cfg.vid_cfg.bit_rate_max;
+    int enable_bps = 1;
     frame_cnt_1s += 1;
     stream_size_1s += packet_len;
+    if (target_fps <= 0) {
+      target_fps = 30;
+      enable_bps = 0;
+    }
     //Refresh every second
-    if ((frame_cnt_1s + 1) % target_fps == 0) {
+    if ((frame_cnt_1s % target_fps) == 0) {
         // Calculate the frame rate based on the system time.
-        cur_ts = gettimeofday() / 1000;
-        encoded_fps = ((float)target_fps / (cur_ts - last_ts)) * 1000;
+        cur_ts = gettimeofday();
+        if (last_ts)
+          encoded_fps = ((float)target_fps / (cur_ts - last_ts)) * 1000000;
+        else
+          encoded_fps = 0;
+
         last_ts = cur_ts;
-        // convert bytes to bits
-        encoded_bps = stream_size_1s * 8;
+        if (enable_bps) {
+          // convert bytes to bits
+          encoded_bps = stream_size_1s * 8;
+          LOG("MPP ENCODER: bps:%d, actual_bps:%d, fps:%d, actual_fps:%f\n",
+              target_bpsmax, encoded_bps, target_fps, encoded_fps);
+        } else {
+          LOG("MPP ENCODER: fps statistical period:%d, actual_fps:%f\n",
+              target_fps, encoded_fps);
+        }
+
         // reset 1s variable
         stream_size_1s = 0;
         frame_cnt_1s = 0;
-        LOG("[INFO: MPP ENCODER] bps:%d, actual_bps:%d, "
-          "fps:%d, actual_fps:%f\n",
-          target_bpsmax, encoded_bps, target_fps, encoded_fps);
     }
   } else if (cur_ts) {
     // clear tmp statistics variable.
