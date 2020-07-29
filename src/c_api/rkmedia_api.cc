@@ -524,6 +524,7 @@ static RK_S32 RkmediaCreateJpegSnapPiple(RkmediaChannel *VenChn) {
   std::shared_ptr<easymedia::Flow> video_jpeg_flow;
 
   VENC_CHN_ATTR_S *stVencChnAttr = &VenChn->venc_attr.attr;
+  VENC_ROTATION_E enRotation = stVencChnAttr->stVencAttr.enRotation;
   RK_S32 bps = 2000000;
   RK_S32 video_width = stVencChnAttr->stVencAttr.u32PicWidth;
   RK_S32 video_height = stVencChnAttr->stVencAttr.u32PicHeight;
@@ -549,6 +550,7 @@ static RK_S32 RkmediaCreateJpegSnapPiple(RkmediaChannel *VenChn) {
   PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "25/0");
   PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_FIXQP);
   PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_QP_INIT, "20");
+  PARAM_STRING_APPEND_TO(enc_param, KEY_ROTATION, enRotation);
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   printf("\n#VideoEncoder flow param:\n%s\n", flow_param.c_str());
@@ -584,16 +586,23 @@ static RK_S32 RkmediaCreateJpegSnapPiple(RkmediaChannel *VenChn) {
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, IMAGE_JPEG);
 
-  enc_param = "";
-  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_WIDTH, video_width);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, video_height);
+  RK_S32 jpeg_width = video_width;
+  RK_S32 jpeg_heigth = video_height;
+  if ((enRotation == VENC_ROTATION_90) || (enRotation == VENC_ROTATION_270)) {
+    jpeg_width = video_height;
+    jpeg_heigth = video_width;
+  }
 
-  RK_S32 new_width = UPALIGNTO(video_width, 256);
+  enc_param = "";
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_WIDTH, jpeg_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, jpeg_heigth);
+
+  RK_S32 new_width = UPALIGNTO(jpeg_width, 256);
   if (((new_width / 256) % 2) == 0)
     new_width += 256;
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, new_width);
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT,
-                         UPALIGNTO(video_height, 8));
+                         UPALIGNTO(jpeg_heigth, 8));
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   printf("\n#VideoEncoder:JPEG: flow param:\n%s\n", flow_param.c_str());
@@ -650,6 +659,14 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
     return -RK_ERR_VENC_EXIST;
   }
 
+  if ((stVencChnAttr->stVencAttr.enRotation != VENC_ROTATION_0) &&
+      (stVencChnAttr->stVencAttr.enRotation != VENC_ROTATION_90) &&
+      (stVencChnAttr->stVencAttr.enRotation != VENC_ROTATION_180) &&
+      (stVencChnAttr->stVencAttr.enRotation != VENC_ROTATION_270)) {
+    LOG("WARN: Venc[%d]: rotation invalid! use default 0\n", VeChn);
+    stVencChnAttr->stVencAttr.enRotation = VENC_ROTATION_0;
+  }
+
   // save venc_attr to venc chn.
   memcpy(&g_venc_chns[VeChn].venc_attr, stVencChnAttr, sizeof(RkmediaVencAttr));
 
@@ -676,6 +693,8 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
                          stVencChnAttr->stVencAttr.u32VirWidth);
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT,
                          stVencChnAttr->stVencAttr.u32VirHeight);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_ROTATION,
+                         stVencChnAttr->stVencAttr.enRotation);
   switch (stVencChnAttr->stVencAttr.enType) {
   case RK_CODEC_TYPE_H264:
     PARAM_STRING_APPEND_TO(enc_param, KEY_PROFILE,
