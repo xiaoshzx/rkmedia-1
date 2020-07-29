@@ -13,6 +13,9 @@
 
 #include "v4l2_utils.h"
 
+#define RKISP_SUBDEV_NAME "rkisp-isp-subdev"
+#define RKIISPP_SUBDEV_NAME "rkispp-subdev"
+
 namespace easymedia {
 
 class V4L2Context {
