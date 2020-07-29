@@ -546,8 +546,19 @@ static RK_S32 RkmediaCreateJpegSnapPiple(RkmediaChannel *VenChn) {
   PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, bps);
   PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, bps);
   PARAM_STRING_APPEND(enc_param, KEY_VIDEO_GOP, "1");
-  PARAM_STRING_APPEND(enc_param, KEY_FPS, "25/0");
-  PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "25/0");
+  // set output fps
+  std::string str_fps;
+  RK_U32 u32FpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateNum;
+  RK_U32 u32FpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateDen;
+  str_fps.append(std::to_string(u32FpsNum)).append("/").append(std::to_string(u32FpsDen));
+  PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps);
+  // set input fps
+  str_fps = "";
+  u32FpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateNum;
+  u32FpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateDen;
+  str_fps.append(std::to_string(u32FpsNum)).append("/").append(std::to_string(u32FpsDen));
+  PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
+  // jpeg pre encoder work in fixqp mode
   PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_FIXQP);
   PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_QP_INIT, "20");
   PARAM_STRING_APPEND_TO(enc_param, KEY_ROTATION, enRotation);
