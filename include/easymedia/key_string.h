@@ -51,6 +51,7 @@
 #define KEY_LEVEL "level"
 #define KEY_VIDEO_GOP "gop"
 #define KEY_PROFILE "profile"
+#define KEY_ROTATION "rotation"
 #define KEY_COMPRESS_RC_QUALITY "rc_quality"
 #define KEY_COMPRESS_RC_MODE "rc_mode"
 #define KEY_NEED_EXTRA_OUTPUT "need_extra_output"

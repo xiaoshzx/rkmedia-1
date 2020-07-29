@@ -141,6 +141,7 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     GET_STRING_TO_INT(vid_cfg.profile, params, KEY_PROFILE, 0)
     GET_STRING_TO_INT(vid_cfg.full_range, params, KEY_FULL_RANGE, 0)
     GET_STRING_TO_INT(vid_cfg.ref_frm_cfg, params, KEY_REF_FRM_CFG, 0)
+    GET_STRING_TO_INT(vid_cfg.rotation, params, KEY_ROTATION, 0)
 
     if (ParseMediaConfigFps(params, vid_cfg) < 0)
       return false;
@@ -263,6 +264,7 @@ std::string to_param_string(const VideoConfig &vid_cfg) {
   PARAM_STRING_APPEND_TO(ret, KEY_H264_TRANS_8x8, vid_cfg.trans_8x8);
   PARAM_STRING_APPEND_TO(ret, KEY_FULL_RANGE, vid_cfg.full_range);
   PARAM_STRING_APPEND_TO(ret, KEY_REF_FRM_CFG, vid_cfg.ref_frm_cfg);
+  PARAM_STRING_APPEND_TO(ret, KEY_ROTATION, vid_cfg.rotation);
   return ret;
 }
 

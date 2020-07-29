@@ -306,7 +306,6 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
   ImageInfo &image_info = cfg.img_cfg.image_info;
   MppPollType timeout = MPP_POLL_BLOCK;
   MppFrameFormat pic_type = ConvertToMppPixFmt(image_info.pix_fmt);
-  int line_size = image_info.vir_width;
   int ret = 0;
 
   if (!enc_cfg) {
@@ -391,6 +390,49 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
   int fps_out_den = vconfig.frame_rate_den;
   int gop = vconfig.gop_size;
   int full_range = vconfig.full_range;
+  MppEncRotationCfg rotation = MPP_ENC_ROT_0;
+
+  switch (vconfig.rotation) {
+  case 0:
+    rotation = MPP_ENC_ROT_0;
+    LOG("MPP Encoder: rotaion = 0\n");
+    break;
+  case 90:
+    LOG("MPP Encoder: rotaion = 90\n");
+    rotation = MPP_ENC_ROT_90;
+    break;
+  case 180:
+    LOG("MPP Encoder: rotaion = 180\n");
+    rotation = MPP_ENC_ROT_180;
+    break;
+  case 270:
+    LOG("MPP Encoder: rotaion = 270\n");
+    rotation = MPP_ENC_ROT_270;
+    break;
+  default:
+    LOG("ERROR: MPP Encoder: rotaion(%d) is invalid!\n", vconfig.rotation);
+    return false;
+  }
+
+  // encoder not support fbc rotation.
+  if ((image_info.pix_fmt == PIX_FMT_FBC0) ||
+      (image_info.pix_fmt == PIX_FMT_FBC2)) {
+    if ((rotation == MPP_ENC_ROT_90) || (rotation == MPP_ENC_ROT_270)) {
+      int tmp_value = image_info.width;
+      image_info.width = image_info.height;
+      image_info.height = tmp_value;
+      tmp_value = image_info.vir_width;
+      image_info.vir_width = image_info.vir_height;
+      image_info.vir_height = tmp_value;
+      LOG("MPP Encoder: rotation in fbc mode, Resolution "
+        "from %d(%d)x%d(%d) to %d(%d)x%d(%d)\n",
+        image_info.height, image_info.vir_height,
+        image_info.width, image_info.vir_width,
+        image_info.width, image_info.vir_width,
+        image_info.height, image_info.vir_height);
+    }
+    rotation = MPP_ENC_ROT_0;
+  }
 
   //Three bit rate configuration methods:
   //  1. Straight-through mode: all three code rate values must be valid.
@@ -415,6 +457,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
     return false;
   }
 
+  int line_size = image_info.vir_width;
   if (pic_type == MPP_FMT_YUV422_YUYV || pic_type == MPP_FMT_YUV422_UYVY)
     line_size *= 2;
 
@@ -437,6 +480,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
   ret |= mpp_enc_cfg_set_s32(enc_cfg, "prep:hor_stride", line_size);
   ret |= mpp_enc_cfg_set_s32(enc_cfg, "prep:ver_stride", image_info.vir_height);
   ret |= mpp_enc_cfg_set_s32(enc_cfg, "prep:format", pic_type);
+  ret |= mpp_enc_cfg_set_s32(enc_cfg, "prep:rotation", rotation);
   if (full_range)
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "prep:range", MPP_FRAME_RANGE_JPEG);
 
