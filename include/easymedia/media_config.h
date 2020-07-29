@@ -192,6 +192,8 @@ _API int video_encoder_set_userdata(std::shared_ptr<Flow> &enc_flow,
   void *data, int len, int all_frames = 0);
 _API int video_encoder_enable_statistics(std::shared_ptr<Flow> &enc_flow,
   int enable);
+// Set jpeg encoder quant, value frome 1 to 10.
+_API int jpeg_encoder_set_quant(std::shared_ptr<Flow> &enc_flow, int quant);
 } // namespace easymedia
 
 #endif // #ifndef EASYMEDIA_MEDIA_CONFIG_H_

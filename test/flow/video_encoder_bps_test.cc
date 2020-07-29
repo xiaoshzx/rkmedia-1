@@ -202,19 +202,24 @@ int main(int argc, char **argv) {
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, video_enc_type);
 
-  VideoEncoderCfg vcfg;
-  memset(&vcfg, 0, sizeof(vcfg));
-  vcfg.type = (char *)video_enc_type.c_str();
-  vcfg.fps = video_fps;
-  vcfg.rc_mode = KEY_CBR;
-  vcfg.max_bps = bpsmax;
-  ImageInfo image_info;
-  image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
-  image_info.width = video_width;
-  image_info.height = video_height;
-  image_info.vir_width = vir_width;
-  image_info.vir_height = vir_height;
-  enc_param = easymedia::get_video_encoder_config_string(image_info, vcfg);
+  enc_param = "";
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_WIDTH, video_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, video_height);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, vir_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT, vir_height);
+  if (video_enc_type != IMAGE_JPEG) {
+    int bps = video_width * video_height * video_fps / 14;
+    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE, bps);
+    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, bps * 17 / 16);
+    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, bps / 16);
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, "30/1");
+    PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "30/1");
+    PARAM_STRING_APPEND_TO(enc_param, KEY_FULL_RANGE, 1);
+    PARAM_STRING_APPEND_TO(enc_param, KEY_ROTATION, 0);
+  } else {
+    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_QP_INIT, 8);
+  }
+
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   printf("\n#VideoEncoder flow param:\n%s\n", flow_param.c_str());
   video_encoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
@@ -240,60 +245,68 @@ int main(int argc, char **argv) {
 
   video_encoder_flow->AddDownFlow(video_save_flow, 0, 0);
   video_read_flow->AddDownFlow(video_encoder_flow, 0, 0);
-
   LOG("%s initial finish\n", argv[0]);
 
-  if (video_enc_type == VIDEO_H264) {
-    easymedia::msleep(2000);
-    LOG("Change profile frome 100 to 66...\n");
-    easymedia::video_encoder_set_avc_profile(video_encoder_flow, 66);
-  }
-
-  LOG("\n#Encoder in CBR MODE for 5s....\n");
-  easymedia::msleep(5000);
-
-  LOG("\n#Encoder with new qp for 5s....\n");
-  VideoEncoderQp qps;
-  memset(&qps, 0, sizeof(qps));
-  qps.qp_init = 30;
-  qps.qp_max = 51;
-  qps.qp_min = 6;
-  qps.qp_step = 6;
-  qps.qp_max_i = 48;
-  qps.qp_min_i = 10;
-  easymedia::video_encoder_set_qp(video_encoder_flow, qps);
-  easymedia::msleep(5000);
-
-  LOG("\n#Encoder in VBR MODE for 5s....\n");
-  easymedia::video_encoder_set_rc_mode(video_encoder_flow, KEY_VBR);
-  easymedia::msleep(5000);
-
-  const char *rc_level[7] = {
-    KEY_HIGHEST,
-    KEY_HIGHER,
-    KEY_HIGH,
-    KEY_MEDIUM,
-    KEY_LOW,
-    KEY_LOWER,
-    KEY_LOWEST
-  };
-
-  for (int i = 0; !quit && (i < 30); i++) {
-    srand((unsigned)time(NULL));
-    int level_id = rand() % 7;
-    LOG("\n#Encoder in [%s] Quality for 20s....\n", rc_level[level_id]);
-    easymedia::video_encoder_set_rc_quality(video_encoder_flow, rc_level[level_id]);
-    easymedia::msleep(20000);
-  }
-
-  LOG("\n#Encoder start bps change test....\n");
-  bpsmax = video_width * video_height * video_fps / 4;
-  int bpsmin = video_width * video_height * video_fps / 60;
-  int bpsstep = (bpsmax - bpsmin / 4);
-  for (int i = 0; !quit && (i < 4); i++) {
-    LOG("[%d] bps:%d keep 5s...\n", i, bpsmin + i * bpsstep);
-    easymedia::video_encoder_set_bps(video_encoder_flow, bpsmin + i * bpsstep);
+  /*****************************************************
+   * JPEG only supports quant configuration.
+   *****************************************************/
+  if (video_enc_type == IMAGE_JPEG) {
+    easymedia::msleep(3000);
+    for (int i = 1; i <= 10; i++) {
+      easymedia::jpeg_encoder_set_quant(video_encoder_flow, i);
+      LOG("Change jpeg quant to %d, keep 3s....\n", i);
+      easymedia::msleep(3000);
+    }
+  } else {
+    /*****************************************************
+     * AVC/HEVC: RC test.
+     *****************************************************/
+    LOG("\n#Encoder in CBR MODE for 5s....\n");
     easymedia::msleep(5000);
+
+    LOG("\n#Encoder with new qp for 5s....\n");
+    VideoEncoderQp qps;
+    memset(&qps, 0, sizeof(qps));
+    qps.qp_init = 30;
+    qps.qp_max = 51;
+    qps.qp_min = 6;
+    qps.qp_step = 6;
+    qps.qp_max_i = 48;
+    qps.qp_min_i = 10;
+    easymedia::video_encoder_set_qp(video_encoder_flow, qps);
+    easymedia::msleep(5000);
+
+    LOG("\n#Encoder in VBR MODE for 5s....\n");
+    easymedia::video_encoder_set_rc_mode(video_encoder_flow, KEY_VBR);
+    easymedia::msleep(5000);
+
+    const char *rc_level[7] = {
+      KEY_HIGHEST,
+      KEY_HIGHER,
+      KEY_HIGH,
+      KEY_MEDIUM,
+      KEY_LOW,
+      KEY_LOWER,
+      KEY_LOWEST
+    };
+
+    for (int i = 0; !quit && (i < 30); i++) {
+      srand((unsigned)time(NULL));
+      int level_id = rand() % 7;
+      LOG("\n#Encoder in [%s] Quality for 20s....\n", rc_level[level_id]);
+      easymedia::video_encoder_set_rc_quality(video_encoder_flow, rc_level[level_id]);
+      easymedia::msleep(20000);
+    }
+
+    LOG("\n#Encoder start bps change test....\n");
+    bpsmax = video_width * video_height * video_fps / 4;
+    int bpsmin = video_width * video_height * video_fps / 60;
+    int bpsstep = (bpsmax - bpsmin / 4);
+    for (int i = 0; !quit && (i < 4); i++) {
+      LOG("[%d] bps:%d keep 5s...\n", i, bpsmin + i * bpsstep);
+      easymedia::video_encoder_set_bps(video_encoder_flow, bpsmin + i * bpsstep);
+      easymedia::msleep(5000);
+    }
   }
 
   video_read_flow->RemoveDownFlow(video_encoder_flow);

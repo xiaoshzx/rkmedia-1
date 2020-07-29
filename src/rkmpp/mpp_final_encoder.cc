@@ -157,7 +157,13 @@ bool MPPMJPEGConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
   }
 
   if (change & VideoEncoder::kQPChange) {
-    int quant = val->GetValue();
+    VideoEncoderQp *qps = (VideoEncoderQp *)val->GetPtr();
+    if (val->GetSize() < sizeof(VideoEncoderQp)) {
+      LOG("ERROR: MPP Encoder: Incomplete VideoEncoderQp information\n");
+      return false;
+    }
+    LOG("MPP Encoder[JPEG]: new quant:%d\n", qps->qp_init);
+    int quant = qps->qp_init;
     ENCODER_CFG_CHECK(quant, 1, 10, ENCODER_CFG_INVALID, "JPEG:quant");
     int ret = mpp_enc_cfg_set_s32(enc_cfg, "jpeg:quant", quant);
     if (ret) {
