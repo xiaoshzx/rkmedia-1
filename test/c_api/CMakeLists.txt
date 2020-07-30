@@ -84,3 +84,12 @@ add_dependencies(rkmedia_venc_cover_test easymedia)
 target_link_libraries(rkmedia_venc_cover_test easymedia)
 target_include_directories(rkmedia_venc_cover_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_venc_cover_test RUNTIME DESTINATION "bin")
+
+#--------------------------
+#  rkmedia_venc_offline_test
+#--------------------------
+add_executable(rkmedia_venc_offline_test rkmedia_venc_offline_test.c)
+add_dependencies(rkmedia_venc_offline_test easymedia)
+target_link_libraries(rkmedia_venc_offline_test easymedia)
+target_include_directories(rkmedia_venc_offline_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_venc_offline_test RUNTIME DESTINATION "bin")

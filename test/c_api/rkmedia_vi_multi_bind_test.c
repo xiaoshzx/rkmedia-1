@@ -61,7 +61,7 @@ int main() {
   // config rc attr
   venc_chn_attr.stRcAttr.enRcMode = VENC_RC_MODE_H264CBR;
   venc_chn_attr.stRcAttr.stH264Cbr.u32Gop = 30;
-  venc_chn_attr.stRcAttr.stH264Cbr.u32BitRate = 2000000; //2Mb
+  venc_chn_attr.stRcAttr.stH264Cbr.u32BitRate = 2000000; // 2Mb
   venc_chn_attr.stRcAttr.stH264Cbr.fr32DstFrameRateDen = 1;
   venc_chn_attr.stRcAttr.stH264Cbr.fr32DstFrameRateNum = 30;
   venc_chn_attr.stRcAttr.stH264Cbr.u32SrcFrameRateDen = 1;
@@ -75,7 +75,7 @@ int main() {
   // Create h265 encoder:venc[1]
   venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_H265;
   venc_chn_attr.stRcAttr.stH265Cbr.u32Gop = 30;
-  venc_chn_attr.stRcAttr.stH265Cbr.u32BitRate = 1500000; //1.5Mb
+  venc_chn_attr.stRcAttr.stH265Cbr.u32BitRate = 1500000; // 1.5Mb
   venc_chn_attr.stRcAttr.stH265Cbr.fr32DstFrameRateDen = 1;
   venc_chn_attr.stRcAttr.stH265Cbr.fr32DstFrameRateNum = 30;
   venc_chn_attr.stRcAttr.stH265Cbr.u32SrcFrameRateDen = 1;

@@ -121,8 +121,8 @@ int main() {
   BitMap.pData = malloc(BitMap.u32Width * 4 * BitMap.u32Height);
   RK_U8 *ColorData = (RK_U8 *)BitMap.pData;
   RK_U16 ColorBlockSize = BitMap.u32Height * BitMap.u32Width;
-  set_argb8888_buffer((RK_U32 *)ColorData,
-                      ColorBlockSize / 4, TEST_ARGB32_YELLOW);
+  set_argb8888_buffer((RK_U32 *)ColorData, ColorBlockSize / 4,
+                      TEST_ARGB32_YELLOW);
   set_argb8888_buffer((RK_U32 *)(ColorData + ColorBlockSize),
                       ColorBlockSize / 4, TEST_ARGB32_TRANS);
   set_argb8888_buffer((RK_U32 *)(ColorData + 2 * ColorBlockSize),

@@ -22,9 +22,10 @@ static void sigterm_handler(int sig) {
 
 void move_detection_cb(EVENT_S *pstEvent) {
   if (pstEvent) {
-    printf("@@@ MD: ModeID:%d, EventType:%x, Get movement info[%d]: ORI:%dx%d\n",
-           pstEvent->mode_id, pstEvent->type, pstEvent->md_event.u16Cnt,
-           pstEvent->md_event.u32Width, pstEvent->md_event.u32Height);
+    printf(
+        "@@@ MD: ModeID:%d, EventType:%x, Get movement info[%d]: ORI:%dx%d\n",
+        pstEvent->mode_id, pstEvent->type, pstEvent->md_event.u16Cnt,
+        pstEvent->md_event.u32Width, pstEvent->md_event.u32Height);
     for (int i = 0; i < pstEvent->md_event.u16Cnt; i++) {
       printf("--> %d rect:(%d, %d, %d, %d)\n", i,
              pstEvent->md_event.stRects[i].s32X,

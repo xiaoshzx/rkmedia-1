@@ -53,6 +53,11 @@ _CAPI RK_S32 RK_MPI_SYS_RegisterOutCb(const MPP_CHN_S *pstChn, OutCbFunc cb);
 _CAPI RK_S32 RK_MPI_SYS_RegisterEventCb(const MPP_CHN_S *pstChn,
                                         EventCbFunc cb);
 
+_CAPI RK_S32 RK_MPI_SYS_SendMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
+                                        MEDIA_BUFFER buffer);
+_CAPI MEDIA_BUFFER RK_MPI_SYS_GetMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
+                                             RK_S32 s32MilliSec);
+
 /********************************************************************
  * Vi api
  ********************************************************************/
