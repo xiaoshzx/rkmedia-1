@@ -12,10 +12,11 @@ add_definitions(-g -O0 -ggdb -gdwarf -funwind-tables -rdynamic)
 
 add_definitions(-DDEBUG)
 
+aux_source_directory(common COMMON_SRC)
 #--------------------------
 # rkmedia_vi_venc_test
 #--------------------------
-add_executable(rkmedia_vi_venc_test rkmedia_vi_venc_test.c)
+add_executable(rkmedia_vi_venc_test rkmedia_vi_venc_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_vi_venc_test easymedia)
 target_link_libraries(rkmedia_vi_venc_test easymedia)
 target_include_directories(rkmedia_vi_venc_test PRIVATE ${CMAKE_SOURCE_DIR}/include)

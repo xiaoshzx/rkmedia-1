@@ -94,6 +94,7 @@ include_directories(./)
 if(USE_RKAIQ)
     find_package(RkAiq REQUIRED)
     include_directories(${RKAIQ_INCLUDE_DIRS})
+    add_definitions(-DRKAIQ)
 endif()
 
 # ----------------------------------------------------------------------------

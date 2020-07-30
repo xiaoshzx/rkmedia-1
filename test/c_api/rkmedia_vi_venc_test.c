@@ -13,6 +13,7 @@
 
 #include "rkmedia_api.h"
 #include "rkmedia_venc.h"
+#include "common/sample_common.h"
 
 static bool quit = false;
 static void sigterm_handler(int sig) {
@@ -28,6 +29,12 @@ void video_packet_cb(MEDIA_BUFFER mb) {
 }
 
 int main() {
+
+#ifdef RKAIQ
+  SAMPLE_COMM_ISP_Init(RK_AIQ_WORKING_MODE_NORMAL);
+  SAMPLE_COMM_ISP_Run();
+#endif
+
   VENC_CHN_ATTR_S venc_chn_attr;
   venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_H264;
   venc_chn_attr.stVencAttr.imageType = IMAGE_TYPE_NV12;
@@ -95,6 +102,10 @@ int main() {
   while (!quit) {
     usleep(100);
   }
+
+#ifdef RKAIQ
+  SAMPLE_COMM_ISP_Stop(); //isp aiq stop before vi streamoff
+#endif
 
   printf("%s exit!\n", __func__);
   RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
