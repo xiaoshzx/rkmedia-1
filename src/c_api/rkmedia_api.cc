@@ -690,7 +690,7 @@ RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
 /********************************************************************
  * Venc api
  ********************************************************************/
-static RK_S32 RkmediaCreateJpegSnapPiple(RkmediaChannel *VenChn) {
+static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   std::shared_ptr<easymedia::Flow> video_encoder_flow;
   std::shared_ptr<easymedia::Flow> video_decoder_flow;
   std::shared_ptr<easymedia::Flow> video_jpeg_flow;
@@ -722,6 +722,8 @@ static RK_S32 RkmediaCreateJpegSnapPiple(RkmediaChannel *VenChn) {
   std::string str_fps;
   RK_U32 u32FpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateNum;
   RK_U32 u32FpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateDen;
+  if (!u32FpsNum)
+    u32FpsNum = u32FpsDen = 1;
   str_fps.append(std::to_string(u32FpsNum))
       .append("/")
       .append(std::to_string(u32FpsDen));
@@ -730,6 +732,8 @@ static RK_S32 RkmediaCreateJpegSnapPiple(RkmediaChannel *VenChn) {
   str_fps = "";
   u32FpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateNum;
   u32FpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateDen;
+  if (!u32FpsNum)
+    u32FpsNum = u32FpsDen = 1;
   str_fps.append(std::to_string(u32FpsNum))
       .append("/")
       .append(std::to_string(u32FpsDen));
@@ -747,6 +751,11 @@ static RK_S32 RkmediaCreateJpegSnapPiple(RkmediaChannel *VenChn) {
     LOG("ERROR: [%s]: Create flow %s failed\n", __func__, flow_name.c_str());
     return -RK_ERR_VENC_ILLEGAL_PARAM;
   }
+
+  if (pixel_format == IMAGE_FBC0)
+    pixel_format = IMAGE_NV12;
+  else if (pixel_format == IMAGE_FBC2)
+    pixel_format = IMAGE_NV16;
 
   flow_name = "video_dec";
   flow_param = "";
@@ -859,7 +868,7 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   memcpy(&g_venc_chns[VeChn].venc_attr, stVencChnAttr, sizeof(RkmediaVencAttr));
 
   if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_JPEG) {
-    RK_S32 ret = RkmediaCreateJpegSnapPiple(&g_venc_chns[VeChn]);
+    RK_S32 ret = RkmediaCreateJpegSnapPipeline(&g_venc_chns[VeChn]);
     g_venc_mtx.unlock();
     return ret;
   }
