@@ -34,7 +34,7 @@ typedef enum rkCHN_STATUS {
 typedef struct _RkmediaVencAttr { VENC_CHN_ATTR_S attr; } RkmediaVencAttr;
 
 typedef struct _RkmediaVIAttr {
-  char *path;
+  const char *path;
   VI_CHN_ATTR_S attr;
 } RkmediaVIAttr;
 
@@ -182,10 +182,10 @@ RK_S32 RK_MPI_SYS_Init() {
   LOG_INIT();
 
   // memset(g_vi_dev, 0, VI_MAX_DEV_NUM * sizeof(RkmediaVideoDev));
-  g_vi_chns[0].vi_attr.path = (char *)"/dev/video13"; // rkispp_bypass
-  g_vi_chns[1].vi_attr.path = (char *)"/dev/video14"; // rkispp_scal0
-  g_vi_chns[2].vi_attr.path = (char *)"/dev/video15"; // rkispp_scal1
-  g_vi_chns[3].vi_attr.path = (char *)"/dev/video16"; // rkispp_scal2
+  g_vi_chns[0].vi_attr.path = "rkispp_m_bypass"; // rkispp_bypass
+  g_vi_chns[1].vi_attr.path = "rkispp_scale0"; // rkispp_scal0
+  g_vi_chns[2].vi_attr.path = "rkispp_scale1"; // rkispp_scal1
+  g_vi_chns[3].vi_attr.path = "rkispp_scale2"; // rkispp_scal2
 
   Reset_Channel_Table(g_vi_chns, VI_MAX_CHN_NUM, RK_ID_VI);
   Reset_Channel_Table(g_venc_chns, VENC_MAX_CHN_NUM, RK_ID_VENC);
