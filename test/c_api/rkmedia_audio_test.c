@@ -16,6 +16,9 @@
 #define AAC_NB_SAMPLES 1024
 #define MP2_NB_SAMPLES 1152
 #define ALSA_PATH "default:CARD=rockchiprk809co" // get from "arecord -L"
+//#define ALSA_PATH "default" // get from "arecord -L"
+#define VQEFILE "./vqefiles/16k/RKAP_AecPara.bin"
+
 static bool quit = false;
 static void sigterm_handler(int sig) {
   fprintf(stderr, "signal %d\n", sig);
@@ -24,6 +27,7 @@ static void sigterm_handler(int sig) {
 
 FILE *fp = NULL;
 static RK_U32 g_enWorkSampleRate = 16000;
+static RK_U32 g_s32VqeFrameSample = 320; // 20ms;
 
 static void audio_packet_cb(MEDIA_BUFFER mb) {
   printf("Get Audio Encoded packet:ptr:%p, fd:%d, size:%zu, mode:%d\n",
@@ -218,13 +222,107 @@ static RK_VOID FILE_ADEC_AO(char *file_path) {
 
   sleep(10);
 }
+
+/* 0: close, 1: talk, 2: record */
+static RK_U32 u32AiVqeType = 1;
+/* 0: close, 1: open */
+static RK_U32 u32AoVqeType = 1;
+
+/******************************************************************************
+* function : Ai ->VqeProcess-> Ao
+******************************************************************************/
+RK_S32 AI_VqeProcess_AO(RK_VOID) {
+  AI_TALKVQE_CONFIG_S stAiVqeTalkAttr;
+  AI_RECORDVQE_CONFIG_S stAiVqeRecordAttr;
+  AO_VQE_CONFIG_S stAoVqeAttr;
+  MPP_CHN_S mpp_chn_ai, mpp_chn_ao;
+
+  if (1 == u32AiVqeType) {
+    memset(&stAiVqeTalkAttr, 0, sizeof(AI_TALKVQE_CONFIG_S));
+    stAiVqeTalkAttr.s32WorkSampleRate = g_enWorkSampleRate;
+    stAiVqeTalkAttr.s32FrameSample = g_s32VqeFrameSample;
+    strcpy(stAiVqeTalkAttr.aParamFilePath, VQEFILE);
+    stAiVqeTalkAttr.u32OpenMask =
+        AI_TALKVQE_MASK_AEC | AI_TALKVQE_MASK_ANR | AI_TALKVQE_MASK_AGC;
+  } else if (2 == u32AiVqeType) {
+    memset(&stAiVqeRecordAttr, 0, sizeof(AI_RECORDVQE_CONFIG_S));
+    stAiVqeRecordAttr.s32WorkSampleRate = g_enWorkSampleRate;
+    stAiVqeRecordAttr.s32FrameSample = g_s32VqeFrameSample;
+    stAiVqeRecordAttr.stAnrConfig.fPostAddGain = 0;
+    stAiVqeRecordAttr.stAnrConfig.fGmin = -30;
+    stAiVqeRecordAttr.stAnrConfig.fNoiseFactor = 0.98;
+    stAiVqeRecordAttr.u32OpenMask = AI_RECORDVQE_MASK_ANR;
+  }
+
+  if (1 == u32AoVqeType) {
+    memset(&stAoVqeAttr, 0, sizeof(AO_VQE_CONFIG_S));
+    stAoVqeAttr.s32WorkSampleRate = g_enWorkSampleRate;
+    stAoVqeAttr.s32FrameSample = g_s32VqeFrameSample;
+    strcpy(stAoVqeAttr.aParamFilePath, VQEFILE);
+    stAoVqeAttr.u32OpenMask = AO_VQE_MASK_ANR | AO_VQE_MASK_AGC;
+  }
+
+  RK_MPI_SYS_Init();
+  mpp_chn_ai.enModId = RK_ID_AI;
+  mpp_chn_ai.s32ChnId = 0;
+  mpp_chn_ao.enModId = RK_ID_AO;
+  mpp_chn_ao.s32ChnId = 0;
+
+  AI_CHN_ATTR_S ai_attr;
+  ai_attr.pcAudioNode = ALSA_PATH;
+  ai_attr.enSampleFormat = RK_SAMPLE_FMT_S16;
+  ai_attr.u32NbSamples = 1024;
+  ai_attr.u32SampleRate = g_enWorkSampleRate;
+  ai_attr.u32Channels = 2;
+
+  AO_CHN_ATTR_S ao_attr;
+  ao_attr.pcAudioNode = ALSA_PATH;
+  ao_attr.enSampleFormat = RK_SAMPLE_FMT_S16;
+  ao_attr.u32NbSamples = 1024;
+  ao_attr.u32SampleRate = g_enWorkSampleRate;
+  ao_attr.u32Channels = 2;
+
+  // 1. create AI
+  RK_MPI_AI_SetChnAttr(mpp_chn_ai.s32ChnId, &ai_attr);
+  RK_MPI_AI_EnableChn(mpp_chn_ai.s32ChnId);
+  if (1 == u32AiVqeType) {
+    RK_MPI_AI_SetTalkVqeAttr(mpp_chn_ai.s32ChnId, &stAiVqeTalkAttr);
+    RK_MPI_AI_EnableVqe(mpp_chn_ai.s32ChnId);
+  } else if (2 == u32AiVqeType) {
+    RK_MPI_AI_SetRecordVqeAttr(mpp_chn_ai.s32ChnId, &stAiVqeRecordAttr);
+    RK_MPI_AI_EnableVqe(mpp_chn_ai.s32ChnId);
+  }
+  // 2. create AO
+  RK_MPI_AO_SetChnAttr(mpp_chn_ao.s32ChnId, &ao_attr);
+  RK_MPI_AO_EnableChn(mpp_chn_ao.s32ChnId);
+  if (1 == u32AoVqeType) {
+    RK_MPI_AO_SetVqeAttr(mpp_chn_ao.s32ChnId, &stAoVqeAttr);
+    RK_MPI_AO_EnableVqe(mpp_chn_ao.s32ChnId);
+  }
+  // 3. bind AI-AO
+  RK_MPI_SYS_Bind(&mpp_chn_ai, &mpp_chn_ao);
+
+  printf("%s initial finish\n", __func__);
+  signal(SIGINT, sigterm_handler);
+  while (!quit) {
+    usleep(100);
+  }
+
+  printf("%s exit!\n", __func__);
+  RK_MPI_SYS_UnBind(&mpp_chn_ai, &mpp_chn_ao);
+  RK_MPI_AI_DisableChn(mpp_chn_ai.s32ChnId);
+  RK_MPI_AO_DisableChn(mpp_chn_ao.s32ChnId);
+
+  return RK_SUCCESS;
+}
+
 static RK_VOID RKMEDIA_AUDIO_Usage() {
   printf("\n\n/Usage:./rkmdia_audio <index> <sampleRate> [filePath]/\n");
   printf("\tindex and its function list below\n");
   printf("\t0:  start AI to AO loop\n");
   printf("\t1:  send audio frame to AENC channel from AI, save them\n");
   printf("\t2:  read audio stream from file, decode and send AO\n");
-  // printf("\t3:  start AI(VQE process), then send to AO\n");
+  printf("\t3:  start AI(VQE process), then send to AO\n");
   // printf("\t4:  start AI to Extern Resampler\n");
   printf("\n");
   printf("\tsampleRate list:\n");
@@ -269,6 +367,9 @@ int main(int argc, char *argv[]) {
     break;
   case 2:
     FILE_ADEC_AO(pFilePath);
+    break;
+  case 3:
+    AI_VqeProcess_AO();
   default:
     break;
   }

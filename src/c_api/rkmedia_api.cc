@@ -2024,6 +2024,24 @@ RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn) {
   return RK_ERR_SYS_OK;
 }
 
+RK_S32 RK_MPI_AI_DisableChn(AI_CHN AiChn) {
+  if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
+    return RK_ERR_AI_INVALID_DEVID;
+
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status == CHN_STATUS_BIND) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_BUSY;
+  }
+
+  RkmediaChnClearBuffer(&g_ai_chns[AiChn]);
+  g_ai_chns[AiChn].rkmedia_flow.reset();
+  g_ai_chns[AiChn].status = CHN_STATUS_CLOSED;
+  g_ai_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
 RK_S32 RK_MPI_AI_SetVolume(AI_CHN AiChn, RK_S32 s32Volume) {
   if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
     return RK_ERR_AI_INVALID_DEVID;
@@ -2050,25 +2068,121 @@ RK_S32 RK_MPI_AI_GetVolume(AI_CHN AiChn, RK_S32 *ps32Volume) {
   return RK_ERR_SYS_OK;
 }
 
-RK_S32 RK_MPI_AI_DisableChn(AI_CHN AiChn) {
+RK_S32 RK_MPI_AI_EnableVqe(AI_CHN AiChn) {
   if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
     return RK_ERR_AI_INVALID_DEVID;
-
   g_ai_mtx.lock();
-  if (g_ai_chns[AiChn].status == CHN_STATUS_BIND) {
+  if (g_ai_chns[AiChn].status <= CHN_STATUS_READY) {
     g_ai_mtx.unlock();
-    return -RK_ERR_AI_BUSY;
+    return -RK_ERR_AI_NOTOPEN;
   }
-
-  RkmediaChnClearBuffer(&g_ai_chns[AiChn]);
-
-  g_ai_chns[AiChn].rkmedia_flow.reset();
-  g_ai_chns[AiChn].status = CHN_STATUS_CLOSED;
+  RK_BOOL bEnable = RK_TRUE;
+  g_ai_chns[AiChn].rkmedia_flow->Control(easymedia::S_VQE_ENABLE, &bEnable);
   g_ai_mtx.unlock();
-
   return RK_ERR_SYS_OK;
 }
 
+RK_S32 RK_MPI_AI_DisableVqe(AI_CHN AiChn) {
+  if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
+    return RK_ERR_AI_INVALID_DEVID;
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status <= CHN_STATUS_READY) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_NOTOPEN;
+  }
+  RK_BOOL bEnable = RK_FALSE;
+  g_ai_chns[AiChn].rkmedia_flow->Control(easymedia::S_VQE_ENABLE, &bEnable);
+  g_ai_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AI_SetTalkVqeAttr(AI_CHN AiChn,
+                                AI_TALKVQE_CONFIG_S *pstVqeConfig) {
+  if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
+    return RK_ERR_AI_INVALID_DEVID;
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status <= CHN_STATUS_READY) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_NOTOPEN;
+  }
+  VQE_CONFIG_S config;
+  config.u32VQEMode = VQE_MODE_AI_TALK;
+  config.stAiTalkConfig.u32OpenMask = pstVqeConfig->u32OpenMask;
+  config.stAiTalkConfig.s32FrameSample = pstVqeConfig->s32FrameSample;
+  config.stAiTalkConfig.s32WorkSampleRate = pstVqeConfig->s32WorkSampleRate;
+  strncpy(config.stAiTalkConfig.aParamFilePath, pstVqeConfig->aParamFilePath,
+          MAX_FILE_PATH_LEN - 1);
+  g_ai_chns[AiChn].rkmedia_flow->Control(easymedia::S_VQE_ATTR, &config);
+  g_ai_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AI_GetTalkVqeAttr(AI_CHN AiChn,
+                                AI_TALKVQE_CONFIG_S *pstVqeConfig) {
+  if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
+    return RK_ERR_AI_INVALID_DEVID;
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status <= CHN_STATUS_READY) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_NOTOPEN;
+  }
+  VQE_CONFIG_S config;
+  g_ai_chns[AiChn].rkmedia_flow->Control(easymedia::G_VQE_ATTR, &config);
+  pstVqeConfig->u32OpenMask = config.stAiTalkConfig.u32OpenMask;
+  pstVqeConfig->s32FrameSample = config.stAiTalkConfig.s32FrameSample;
+  pstVqeConfig->s32WorkSampleRate = config.stAiTalkConfig.s32WorkSampleRate;
+  strncpy(pstVqeConfig->aParamFilePath, config.stAiTalkConfig.aParamFilePath,
+          MAX_FILE_PATH_LEN - 1);
+  g_ai_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AI_SetRecordVqeAttr(AI_CHN AiChn,
+                                  AI_RECORDVQE_CONFIG_S *pstVqeConfig) {
+  if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
+    return RK_ERR_AI_INVALID_DEVID;
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status <= CHN_STATUS_READY) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_NOTOPEN;
+  }
+  VQE_CONFIG_S config;
+  config.u32VQEMode = VQE_MODE_AI_RECORD;
+  config.stAiRecordConfig.u32OpenMask = pstVqeConfig->u32OpenMask;
+  config.stAiRecordConfig.s32FrameSample = pstVqeConfig->s32FrameSample;
+  config.stAiRecordConfig.s32WorkSampleRate = pstVqeConfig->s32WorkSampleRate;
+  config.stAiRecordConfig.stAnrConfig.fPostAddGain =
+      pstVqeConfig->stAnrConfig.fPostAddGain;
+  config.stAiRecordConfig.stAnrConfig.fGmin = pstVqeConfig->stAnrConfig.fGmin;
+  config.stAiRecordConfig.stAnrConfig.fNoiseFactor =
+      pstVqeConfig->stAnrConfig.fNoiseFactor;
+  g_ai_chns[AiChn].rkmedia_flow->Control(easymedia::S_VQE_ATTR, &config);
+  g_ai_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AI_GetRecordVqeAttr(AI_CHN AiChn,
+                                  AI_RECORDVQE_CONFIG_S *pstVqeConfig) {
+  if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
+    return RK_ERR_AI_INVALID_DEVID;
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status <= CHN_STATUS_READY) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_NOTOPEN;
+  }
+  VQE_CONFIG_S config;
+  g_ai_chns[AiChn].rkmedia_flow->Control(easymedia::G_VQE_ATTR, &config);
+  pstVqeConfig->u32OpenMask = config.stAiRecordConfig.u32OpenMask;
+  pstVqeConfig->s32FrameSample = config.stAiRecordConfig.s32FrameSample;
+  pstVqeConfig->s32WorkSampleRate = config.stAiRecordConfig.s32WorkSampleRate;
+  pstVqeConfig->stAnrConfig.fPostAddGain =
+      config.stAiRecordConfig.stAnrConfig.fPostAddGain;
+  pstVqeConfig->stAnrConfig.fGmin = config.stAiRecordConfig.stAnrConfig.fGmin;
+  pstVqeConfig->stAnrConfig.fNoiseFactor =
+      config.stAiRecordConfig.stAnrConfig.fNoiseFactor;
+  g_ai_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
 /********************************************************************
  * Ao api
  ********************************************************************/
@@ -2154,6 +2268,74 @@ RK_S32 RK_MPI_AO_GetVolume(AO_CHN AoChn, RK_S32 *ps32Volume) {
     return -RK_ERR_AO_NOTOPEN;
   }
   g_ao_chns[AoChn].rkmedia_flow->Control(easymedia::G_ALSA_VOLUME, ps32Volume);
+  g_ao_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AO_EnableVqe(AO_CHN AoChn) {
+  if ((AoChn < 0) || (AoChn > AO_MAX_CHN_NUM))
+    return RK_ERR_AO_INVALID_DEVID;
+  g_ao_mtx.lock();
+  if (g_ao_chns[AoChn].status <= CHN_STATUS_READY) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AO_NOTOPEN;
+  }
+  RK_BOOL bEnable = RK_TRUE;
+  g_ao_chns[AoChn].rkmedia_flow->Control(easymedia::S_VQE_ENABLE, &bEnable);
+  g_ao_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AO_DisableVqe(AO_CHN AoChn) {
+  if ((AoChn < 0) || (AoChn > AO_MAX_CHN_NUM))
+    return RK_ERR_AO_INVALID_DEVID;
+  g_ao_mtx.lock();
+  if (g_ao_chns[AoChn].status <= CHN_STATUS_READY) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AO_NOTOPEN;
+  }
+  RK_BOOL bEnable = RK_FALSE;
+  g_ao_chns[AoChn].rkmedia_flow->Control(easymedia::S_VQE_ENABLE, &bEnable);
+  g_ao_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AO_SetVqeAttr(AO_CHN AoChn, AO_VQE_CONFIG_S *pstVqeConfig) {
+  if ((AoChn < 0) || (AoChn > AO_MAX_CHN_NUM))
+    return RK_ERR_AO_INVALID_DEVID;
+  g_ao_mtx.lock();
+  if (g_ao_chns[AoChn].status <= CHN_STATUS_READY) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AO_NOTOPEN;
+  }
+  VQE_CONFIG_S config;
+  config.u32VQEMode = VQE_MODE_AO;
+  config.stAoConfig.u32OpenMask = pstVqeConfig->u32OpenMask;
+  config.stAoConfig.s32FrameSample = pstVqeConfig->s32FrameSample;
+  config.stAoConfig.s32WorkSampleRate = pstVqeConfig->s32WorkSampleRate;
+  strncpy(config.stAoConfig.aParamFilePath, pstVqeConfig->aParamFilePath,
+          MAX_FILE_PATH_LEN - 1);
+  g_ao_chns[AoChn].rkmedia_flow->Control(easymedia::S_VQE_ATTR, &config);
+  g_ao_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AO_GetVqeAttr(AO_CHN AoChn, AO_VQE_CONFIG_S *pstVqeConfig) {
+  if ((AoChn < 0) || (AoChn > AO_MAX_CHN_NUM))
+    return RK_ERR_AO_INVALID_DEVID;
+  g_ao_mtx.lock();
+  if (g_ao_chns[AoChn].status <= CHN_STATUS_READY) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AO_NOTOPEN;
+  }
+
+  VQE_CONFIG_S config;
+  g_ao_chns[AoChn].rkmedia_flow->Control(easymedia::G_VQE_ATTR, &config);
+  pstVqeConfig->u32OpenMask = config.stAoConfig.u32OpenMask;
+  pstVqeConfig->s32FrameSample = config.stAoConfig.s32FrameSample;
+  pstVqeConfig->s32WorkSampleRate = config.stAoConfig.s32WorkSampleRate;
+  strncpy(pstVqeConfig->aParamFilePath, config.stAoConfig.aParamFilePath,
+          MAX_FILE_PATH_LEN - 1);
   g_ao_mtx.unlock();
   return RK_ERR_SYS_OK;
 }

@@ -89,7 +89,7 @@ AECFilter::AECFilter(const char *param) : aec_handle(nullptr), prebuf(nullptr) {
 
   LOG("AEC: param file = %s\n", param_path.c_str());
 
-  aec_handle = AEC_Init(&state);
+  aec_handle = AEC_Init(&state, AEC_TX_TYPE);
   assert(aec_handle);
 
   if (format == SAMPLE_FMT_S16)

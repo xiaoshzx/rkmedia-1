@@ -54,6 +54,8 @@ typedef enum {
 #define RK_SUCCESS 0
 #define RK_FAILURE (-1)
 
+#define MAX_FILE_PATH_LEN    256
+
 typedef enum rk_IMAGE_TYPE_E {
   IMAGE_TYPE_UNKNOW = 0,
   IMAGE_TYPE_GRAY8,

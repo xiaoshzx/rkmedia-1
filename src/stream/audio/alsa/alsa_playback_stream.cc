@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <errno.h>
 
+#include "../rk_audio.h"
 #include "alsa_utils.h"
 #include "alsa_volume.h"
 #include "buffer.h"
@@ -48,6 +49,10 @@ private:
   snd_pcm_t *alsa_handle;
   size_t frame_size;
   int interleaved;
+
+  bool bVqeEnable;
+  VQE_CONFIG_S stVqeConfig;
+  AUDIO_VQE_S *pstVqeHandle;
 };
 
 const int AlsaPlayBackStream::kStartDelays = 2; // number delays of periods
@@ -56,7 +61,7 @@ const int AlsaPlayBackStream::kPresetSampleRate =
     48000; // the same to asound.conf
 const int AlsaPlayBackStream::kPresetMinBufferSize = 8192;
 AlsaPlayBackStream::AlsaPlayBackStream(const char *param)
-    : alsa_handle(NULL), frame_size(0) {
+    : alsa_handle(NULL), frame_size(0), bVqeEnable(false), pstVqeHandle(NULL) {
   memset(&sample_info, 0, sizeof(sample_info));
   sample_info.fmt = SAMPLE_FMT_NONE;
   std::map<std::string, std::string> params;
@@ -69,6 +74,9 @@ AlsaPlayBackStream::AlsaPlayBackStream(const char *param)
   else
     LOG("missing some necessary param\n");
   interleaved = SampleFormatToInterleaved(sample_info.fmt);
+
+  memset(&stVqeConfig, 0, sizeof(stVqeConfig));
+  stVqeConfig.u32VQEMode = VQE_MODE_BUTT;
 }
 
 AlsaPlayBackStream::~AlsaPlayBackStream() {
@@ -160,6 +168,16 @@ out:
 bool AlsaPlayBackStream::Write(std::shared_ptr<MediaBuffer> mb) {
 
   if (mb->IsValid()) {
+    if (pstVqeHandle && !bVqeEnable) {
+      RK_AUDIO_VQE_Deinit(pstVqeHandle);
+      pstVqeHandle = NULL;
+    }
+    if (pstVqeHandle) {
+      int ret =
+          RK_AUDIO_VQE_Handle(pstVqeHandle, mb->GetPtr(), mb->GetValidSize());
+      if (ret < 0)
+        return 0;
+    }
     Write(mb->GetPtr(), 1, mb->GetValidSize());
     return 0;
   }
@@ -392,6 +410,32 @@ int AlsaPlayBackStream::IoCtrl(unsigned long int request, ...) {
     int volume;
     ret = GetPlaybackVolume(device, volume);
     *((int *)arg) = volume;
+    break;
+  case S_VQE_ENABLE:
+    bVqeEnable = *((int *)arg);
+    if (bVqeEnable) {
+      if (pstVqeHandle) {
+        LOG("already enabled\n");
+        return -1;
+      }
+      if (stVqeConfig.u32VQEMode != VQE_MODE_AO) {
+        LOG("wrong u32VQEMode\n");
+        return -1;
+      }
+      pstVqeHandle = RK_AUDIO_VQE_Init(sample_info, &stVqeConfig);
+      if (!pstVqeHandle)
+        return -1;
+    }
+    break;
+  case S_VQE_ATTR:
+    if (bVqeEnable) {
+      LOG("bVqeEnable already enable, please disable it before set attr");
+      return -1;
+    }
+    stVqeConfig = *((VQE_CONFIG_S *)arg);
+    break;
+  case G_VQE_ATTR:
+    *((VQE_CONFIG_S *)arg) = stVqeConfig;
     break;
   default:
     ret = -1;

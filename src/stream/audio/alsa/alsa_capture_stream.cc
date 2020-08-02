@@ -13,6 +13,8 @@
 #include "buffer.h"
 #include "media_type.h"
 #include "utils.h"
+#include "../rk_audio.h"
+
 extern "C" {
 #define __STDC_CONSTANT_MACROS
 #include <libavutil/mathematics.h>
@@ -52,10 +54,16 @@ private:
   int interleaved;
   int64_t buffer_time;
   int buffer_duration;
+
+  // for audio process, like aec/anr
+  bool bVqeEnable;
+  VQE_CONFIG_S stVqeConfig;
+  AUDIO_VQE_S *pstVqeHandle;
 };
 
 AlsaCaptureStream::AlsaCaptureStream(const char *param)
-    : alsa_handle(NULL), frame_size(0), buffer_time(-1), buffer_duration(-1) {
+    : alsa_handle(NULL), frame_size(0), buffer_time(-1), buffer_duration(-1),
+    bVqeEnable(false), pstVqeHandle(NULL) {
   memset(&sample_info, 0, sizeof(sample_info));
   sample_info.fmt = SAMPLE_FMT_NONE;
   std::map<std::string, std::string> params;
@@ -68,6 +76,9 @@ AlsaCaptureStream::AlsaCaptureStream(const char *param)
   else
     LOG("missing some necessary param\n");
   interleaved = SampleFormatToInterleaved(sample_info.fmt);
+
+  memset(&stVqeConfig, 0, sizeof(stVqeConfig));
+  stVqeConfig.u32VQEMode = VQE_MODE_BUTT;
 }
 
 AlsaCaptureStream::~AlsaCaptureStream() {
@@ -177,7 +188,20 @@ std::shared_ptr<MediaBuffer> AlsaCaptureStream::Read() {
     buffer_duration = av_rescale(sample_info.nb_samples, AV_TIME_BASE,
                                  sample_info.sample_rate);
   }
+
+read_one_frame:
   read_cnt = Read(sample_buffer->GetPtr(), frame_size, sample_info.nb_samples);
+  // dynamic close audio vqe
+  if (pstVqeHandle && !bVqeEnable) {
+    RK_AUDIO_VQE_Deinit(pstVqeHandle);
+    pstVqeHandle = NULL;
+  }
+  if (pstVqeHandle && read_cnt > 0) {
+    int ret = RK_AUDIO_VQE_Handle(pstVqeHandle, sample_buffer->GetPtr(), read_cnt * frame_size);
+	 if (ret < 0)
+      goto read_one_frame;
+  }
+
   sample_buffer->SetValidSize(read_cnt * frame_size);
   sample_buffer->SetSamples(read_cnt);
   sample_buffer->SetUSTimeStamp(buffer_time);
@@ -269,6 +293,33 @@ int AlsaCaptureStream::IoCtrl(unsigned long int request, ...) {
     int volume;
     ret = GetCaptureVolume(device, volume);
     *((int *)arg) = volume;
+    break;
+  case S_VQE_ENABLE:
+    bVqeEnable = *((int *)arg);
+    if (bVqeEnable) {
+      if (pstVqeHandle) {
+        LOG("already enabled\n");
+        return -1;
+      }
+      if (stVqeConfig.u32VQEMode == VQE_MODE_BUTT ||
+          stVqeConfig.u32VQEMode == VQE_MODE_AO) {
+        LOG("wrong u32VQEMode\n");
+        return -1;
+      }
+      pstVqeHandle = RK_AUDIO_VQE_Init(sample_info, &stVqeConfig);
+      if (!pstVqeHandle)
+        return -1;
+    }
+    break;
+  case S_VQE_ATTR:
+    if (bVqeEnable) {
+      LOG("bVqeEnable already enable, please disable it before set attr");
+      return -1;
+    }
+    stVqeConfig = *((VQE_CONFIG_S *)arg);
+    break;
+  case G_VQE_ATTR:
+    *((VQE_CONFIG_S *)arg) = stVqeConfig;
     break;
   default:
     ret = -1;

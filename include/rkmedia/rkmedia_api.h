@@ -129,6 +129,12 @@ _CAPI RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn);
 _CAPI RK_S32 RK_MPI_AI_DisableChn(AI_CHN AiChn);
 _CAPI RK_S32 RK_MPI_AI_SetVolume(AI_CHN AiChn, RK_S32 s32Volume);
 _CAPI RK_S32 RK_MPI_AI_GetVolume(AI_CHN AiChn, RK_S32 *ps32Volume);
+_CAPI RK_S32 RK_MPI_AI_SetTalkVqeAttr(AI_CHN AiChn, AI_TALKVQE_CONFIG_S*pstVqeConfig);
+_CAPI RK_S32 RK_MPI_AI_GetTalkVqeAttr(AI_CHN AiChn, AI_TALKVQE_CONFIG_S*pstVqeConfig);
+_CAPI RK_S32 RK_MPI_AI_SetRecordVqeAttr(AI_CHN AiChn, AI_RECORDVQE_CONFIG_S*pstVqeConfig);
+_CAPI RK_S32 RK_MPI_AI_GetRecordVqeAttr(AI_CHN AiChn, AI_RECORDVQE_CONFIG_S*pstVqeConfig);
+_CAPI RK_S32 RK_MPI_AI_EnableVqe(AI_CHN AiChn);
+_CAPI RK_S32 RK_MPI_AI_DisableVqe(AI_CHN AiChn);
 
 /********************************************************************
  * Ao api
@@ -138,6 +144,10 @@ _CAPI RK_S32 RK_MPI_AO_EnableChn(AO_CHN AoChn);
 _CAPI RK_S32 RK_MPI_AO_DisableChn(AO_CHN AoChn);
 _CAPI RK_S32 RK_MPI_AO_SetVolume(AO_CHN AoChn, RK_S32 s32Volume);
 _CAPI RK_S32 RK_MPI_AO_GetVolume(AO_CHN AoChn, RK_S32 *ps32Volume);
+_CAPI RK_S32 RK_MPI_AO_SetVqeAttr(AO_CHN AoChn, AO_VQE_CONFIG_S *pstVqeConfig);
+_CAPI RK_S32 RK_MPI_AO_GetVqeAttr(AO_CHN AoChn, AO_VQE_CONFIG_S *pstVqeConfig);
+_CAPI RK_S32 RK_MPI_AO_EnableVqe(AO_CHN AoChn);
+_CAPI RK_S32 RK_MPI_AO_DisableVqe(AO_CHN AoChn);
 
 /********************************************************************
  * Aenc api

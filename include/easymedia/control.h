@@ -93,6 +93,9 @@ enum {
   // int
   S_ALSA_VOLUME = 10300,
   G_ALSA_VOLUME,
+  S_VQE_ENABLE,
+  S_VQE_ATTR,
+  G_VQE_ATTR,
 
   // Through Guard controls
   // int

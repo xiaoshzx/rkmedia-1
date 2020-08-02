@@ -14,6 +14,29 @@ typedef struct rkAI_CHN_ATTR_S {
   RK_U32 u32SampleRate;
   RK_U32 u32NbSamples;
 } AI_CHN_ATTR_S;
+
+#define AI_TALKVQE_MASK_AEC 0x1
+#define AI_TALKVQE_MASK_ANR 0x2
+#define AI_TALKVQE_MASK_AGC 0x4
+typedef struct rkAI_TALKVQE_CONFIG_S {
+  RK_U32 u32OpenMask;
+  RK_S32 s32WorkSampleRate;
+  RK_S32 s32FrameSample;
+  RK_CHAR aParamFilePath[MAX_FILE_PATH_LEN];
+} AI_TALKVQE_CONFIG_S;
+
+#define AI_RECORDVQE_MASK_ANR 0x1
+typedef struct rkAI_RECORDVQE_CONFIG_S {
+  RK_U32 u32OpenMask;
+  RK_S32 s32WorkSampleRate;
+  RK_S32 s32FrameSample;
+  struct {
+    RK_FLOAT fPostAddGain; /* post-gain 0*/
+    RK_FLOAT fGmin;        /* spectral gain floor,unit:(dB),default:-30dB */
+    RK_FLOAT fNoiseFactor; /* noise suppression factor,default:0.98 */
+  } stAnrConfig;
+} AI_RECORDVQE_CONFIG_S;
+
 #ifdef __cplusplus
 }
 #endif

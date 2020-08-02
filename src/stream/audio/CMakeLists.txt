@@ -15,6 +15,7 @@ if(ALSA_PLAYBACK OR ALSA_CAPTURE)
   set(EASY_MEDIA_STREAM_ALSA_LIBS asound)
   set(EASY_MEDIA_STREAM_ALSA_SOURCE_FILES
 	  stream/audio/alsa/alsa_utils.cc
+	  stream/audio/rk_audio.cc
 	  stream/audio/alsa/alsa_volume.cc)
 
   if(ALSA_PLAYBACK)

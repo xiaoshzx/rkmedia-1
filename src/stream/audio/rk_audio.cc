@@ -1,314 +1,375 @@
 // Copyright 2019 Fuzhou Rockchip Electronics Co., Ltd. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#include <string.h>
 
 #include "rk_audio.h"
+#include "sound.h"
 
 #include "utils.h"
 
-#ifdef AEC_AGC_ANR_ALGORITHM
+#if 1
 extern "C" {
-#include "rk_voice_prointerface.h"
+#include <AP_AEC.h>
+#include <AP_ANR.h>
 }
 
 #define RK_AUDIO_BUFFER_MAX_SIZE 12288
+#define ALGO_FRAME_TIMS_MS 20 // 20ms
 
-static void rk_voice_setpara(short int *pshw_params, short int shw_len) {
-  short int shwcnt;
+typedef struct rkAUDIO_QUEUE_S {
+  int buffer_size;
+  char *buffer;
+  int roffset;
+} AUDIO_QUEUE_S;
 
-  for (shwcnt = 0; shwcnt < shw_len; shwcnt++)
-    pshw_params[shwcnt] = 0;
+struct rkAUDIO_VQE_S {
+  AUDIO_QUEUE_S *in_queue;  /* for before process */
+  AUDIO_QUEUE_S *out_queue; /* for after process */
+  VQE_CONFIG_S stVqeConfig;
+  SampleInfo sample_info;
+  RKAP_Handle ap_handle;
+};
 
-  /* ----- 0.total ------ */
-  pshw_params[0] = 16000;
-  pshw_params[1] = 320;
-  /* ------ 1.AEC ------ */
-  pshw_params[10] = 1;
-  pshw_params[11] = 320;
-  pshw_params[12] = 1;
-  pshw_params[13] = 0;
-  pshw_params[14] = 160;
-  pshw_params[15] = 16;
-  pshw_params[16] = 0;
-  pshw_params[17] = 320;
-  pshw_params[18] = 640;
-  pshw_params[19] = 16000;
-  pshw_params[20] = 320;
-  pshw_params[21] = 32;
-  pshw_params[22] = 1;
-  pshw_params[23] = 1;
-  pshw_params[24] = 0;
-  pshw_params[25] = 1;
-  pshw_params[26] = 320;
-  pshw_params[27] = 32;
-  pshw_params[28] = 200;
-  pshw_params[29] = 5;
-  pshw_params[30] = 10;
-  pshw_params[31] = 1;
-  pshw_params[32] = 10;
-  pshw_params[33] = 20;
-  pshw_params[34] = (short int)(0.3f * (1 << 15));
-  pshw_params[35] = 1;
-  pshw_params[36] = 32;
-  pshw_params[37] = 5;
-  pshw_params[38] = 1;
-  pshw_params[39] = 10;
-  pshw_params[40] = 3;
-  pshw_params[41] = 3;
-  pshw_params[42] = (short int)(0.30f * (1 << 15));
-  pshw_params[43] = (short int)(0.04f * (1 << 15));
-  pshw_params[44] = (short int)(0.40f * (1 << 15));
-  pshw_params[45] = (short int)(0.25f * (1 << 15));
-  pshw_params[46] = (short int)(0.0313f * (1 << 15));
-  pshw_params[47] = (short int)(0.0625 * (1 << 15));
-  pshw_params[48] = (short int)(0.0938 * (1 << 15));
-  pshw_params[49] = (short int)(0.1250 * (1 << 15));
-  pshw_params[50] = (short int)(0.1563 * (1 << 15));
-  pshw_params[51] = (short int)(0.1875 * (1 << 15));
-  pshw_params[52] = (short int)(0.2188 * (1 << 15));
-  pshw_params[53] = (short int)(0.2500 * (1 << 15));
-  pshw_params[54] = (short int)(0.2813 * (1 << 15));
-  pshw_params[55] = (short int)(0.3125 * (1 << 15));
-  pshw_params[56] = (short int)(0.3438 * (1 << 15));
-  pshw_params[57] = (short int)(0.3750 * (1 << 15));
-  pshw_params[58] = (short int)(0.4063 * (1 << 15));
-  pshw_params[59] = (short int)(0.4375 * (1 << 15));
-  pshw_params[60] = (short int)(0.4688 * (1 << 15));
-  pshw_params[61] = (short int)(0.5000 * (1 << 15));
-  pshw_params[62] = (short int)(0.5313 * (1 << 15));
-  pshw_params[63] = (short int)(0.5625 * (1 << 15));
-  pshw_params[64] = (short int)(0.5938 * (1 << 15));
-  pshw_params[65] = (short int)(0.6250 * (1 << 15));
-  pshw_params[66] = (short int)(0.6563 * (1 << 15));
-  pshw_params[67] = (short int)(0.6875 * (1 << 15));
-  pshw_params[68] = (short int)(0.7188 * (1 << 15));
-  pshw_params[69] = (short int)(0.7500 * (1 << 15));
-  pshw_params[70] = (short int)(0.7813 * (1 << 15));
-  pshw_params[71] = (short int)(0.8125 * (1 << 15));
-  pshw_params[72] = (short int)(0.8438 * (1 << 15));
-  pshw_params[73] = (short int)(0.8750 * (1 << 15));
-  pshw_params[74] = (short int)(0.9063 * (1 << 15));
-  pshw_params[75] = (short int)(0.9375 * (1 << 15));
-  pshw_params[76] = (short int)(0.9688 * (1 << 15));
-  pshw_params[77] = (short int)(1.0000 * (1 << 15));
-
-  /* ------ 2.ANR ------ */
-  pshw_params[90] = 1;
-  pshw_params[91] = 16000;
-  pshw_params[92] = 320;
-  pshw_params[93] = 32;
-  pshw_params[94] = 2;
-
-  pshw_params[110] = 1;
-  pshw_params[111] = 16000;
-  pshw_params[112] = 320;
-  pshw_params[113] = 32;
-  pshw_params[114] = 2;
-
-  /* ------ 3.AGC ------ */
-  pshw_params[130] = 1;
-  pshw_params[131] = 16000;
-  pshw_params[132] = 320;
-  pshw_params[133] = (short int)(6.0f * (1 << 5));
-  pshw_params[134] = (short int)(-55.0f * (1 << 5));
-  pshw_params[135] = (short int)(-46.0f * (1 << 5));
-  pshw_params[136] = (short int)(-24.0f * (1 << 5));
-  pshw_params[137] = (short int)(1.2f * (1 << 12));
-  pshw_params[138] = (short int)(0.8f * (1 << 12));
-  pshw_params[139] = (short int)(0.4f * (1 << 12));
-  pshw_params[140] = 40;
-  pshw_params[141] = 80;
-  pshw_params[142] = 80;
-
-  pshw_params[150] = 0;
-  pshw_params[151] = 16000;
-  pshw_params[152] = 320;
-  pshw_params[153] = (short int)(6.0f * (1 << 5));
-  pshw_params[154] = (short int)(-55.0f * (1 << 5));
-  pshw_params[155] = (short int)(-46.0f * (1 << 5));
-  pshw_params[156] = (short int)(-24.0f * (1 << 5));
-  pshw_params[157] = (short int)(1.2f * (1 << 12));
-  pshw_params[158] = (short int)(0.8f * (1 << 12));
-  pshw_params[159] = (short int)(0.4f * (1 << 12));
-  pshw_params[160] = 40;
-  pshw_params[161] = 80;
-  pshw_params[162] = 80;
-
-  /* ------ 4.EQ ------ */
-  pshw_params[170] = 0;
-  pshw_params[171] = 320;
-  pshw_params[172] = 1;
-  pshw_params[173] = (short int)(1.0f * (1 << 15));
-
-  pshw_params[330] = 0;
-  pshw_params[331] = 320;
-  pshw_params[332] = 1;
-  pshw_params[333] = (short int)(1.0f * (1 << 15));
-
-  /* ------ 5.CNG ------ */
-  pshw_params[490] = 1;
-  pshw_params[491] = 16000;
-  pshw_params[492] = 320;
-  pshw_params[493] = 2;
-  pshw_params[494] = 10;
-  pshw_params[495] = (short int)(0.92f * (1 << 15));
-  pshw_params[496] = (short int)(0.3f * (1 << 15));
+static AUDIO_QUEUE_S *queue_create(int buf_size) {
+  AUDIO_QUEUE_S *queue = (AUDIO_QUEUE_S *)calloc(sizeof(AUDIO_QUEUE_S), 1);
+  if (!queue)
+    return NULL;
+  queue->buffer = (char *)malloc(buf_size);
+  return queue;
+}
+static void queue_free(AUDIO_QUEUE_S *queue) {
+  if (queue) {
+    if (queue->buffer)
+      free(queue->buffer);
+    free(queue);
+  }
 }
 
-/* for before process */
-static int g_capture_buffer_size = 0;
-static char *g_capture_buffer = NULL;
-/* for after process */
-static int g_captureout_buffer_size = 0;
-static char *g_captureout_buffer = NULL;
+static int queue_size(AUDIO_QUEUE_S *queue) { return queue->buffer_size; }
 
-static uint8_t trans_mark = 0;
-
-static int queue_capture_buffer(void *buffer, int bytes) {
+static int queue_write(AUDIO_QUEUE_S *queue, const unsigned char *buffer,
+                       int bytes) {
   if ((buffer == NULL) || (bytes <= 0)) {
     LOG("queue_capture_buffer buffer error!");
     return -1;
   }
-  if (g_capture_buffer_size + bytes > BUFFER_MAX_SIZE) {
+  if (queue->buffer_size + bytes > RK_AUDIO_BUFFER_MAX_SIZE) {
     LOG("unexpected cap buffer size too big!! return!");
     return -1;
   }
 
-  memcpy((char *)g_capture_buffer + g_capture_buffer_size, (char *)buffer,
-         bytes);
-  g_capture_buffer_size += bytes;
-  return 0;
+  memcpy((char *)queue->buffer + queue->buffer_size, (char *)buffer, bytes);
+  queue->buffer_size += bytes;
+  return bytes;
 }
 
-int queue_captureout_buffer(void *buffer, int bytes) {
+static int queue_read(AUDIO_QUEUE_S *queue, unsigned char *buffer, int bytes) {
   if ((buffer == NULL) || (bytes <= 0)) {
-    LOG("queue_captureout_buffer buffer error!");
+    LOG("queue_capture_buffer buffer error!");
     return -1;
   }
-  if (g_captureout_buffer_size + bytes > RK_AUDIO_BUFFER_MAX_SIZE) {
-    LOG("unexpected cap out buffer size too big!! return!");
+  if ((queue->roffset + bytes) > queue->buffer_size) {
+    LOG("queue_read  error!");
+    return -1;
+  }
+  memcpy(buffer, queue->buffer + queue->roffset, bytes);
+  queue->roffset += bytes;
+  return bytes;
+}
+
+static void queue_tune(AUDIO_QUEUE_S *queue) {
+  queue->buffer_size = queue->buffer_size - queue->roffset;
+  queue->roffset = 0;
+  /* Copy the rest of the sample to the beginning of the Buffer */
+  memcpy(queue->buffer, queue->buffer + queue->roffset, queue->buffer_size);
+}
+
+int AI_TALKVQE_Init(AUDIO_VQE_S *handle, VQE_CONFIG_S *config) {
+  SampleInfo sample_info = handle->sample_info;
+
+  // 1. check params
+  if (!(sample_info.fmt == SAMPLE_FMT_S16 &&
+        (sample_info.sample_rate == 8000 ||
+         sample_info.sample_rate == 16000))) {
+    LOG("check failed: sample_info.fmt == SAMPLE_FMT_S16 && \
+			(sample_info.sample_rate == 8000 || sample_info.sample_rate == 16000))");
+    return -1;
+  }
+  if (sample_info.channels != 2) {
+    LOG("check failed: aec channels must equal 2");
     return -1;
   }
 
-  memcpy((char *)g_captureout_buffer + g_captureout_buffer_size, (char *)buffer,
-         bytes);
-  g_captureout_buffer_size += bytes;
+  RKAP_AEC_State state;
+  state.swSampleRate = sample_info.sample_rate; // 8k|16k
+  state.swFrameLen =
+      ALGO_FRAME_TIMS_MS * sample_info.sample_rate / 1000; // hard code 20ms
+  state.pathPara = config->stAiTalkConfig.aParamFilePath;
+  LOG("AEC: param file = %s\n", state.pathPara);
+  AEC_DumpVersion();
+  handle->ap_handle = AEC_Init(&state, AEC_TX_TYPE);
+  if (!handle->ap_handle) {
+    LOG("AEC: init failed\n");
+    return -1;
+  }
   return 0;
 }
 
-bool rk_aec_agc_anr_algorithm_support() { return true; }
+int AI_TALKVQE_Deinit(AUDIO_VQE_S *handle) {
+  AEC_Destroy(handle->ap_handle);
+  return 0;
+}
 
-int rk_voice_init(const SampleInfo &sample_info, short int ashw_para[500]) {
-  if (sample_info.sample_rate != 16000) {
-    LOG("rk aec_agc_anr_algorithm only support sample_rate 16000.\n");
+static int AI_TALKVQE_Process(AUDIO_VQE_S *handle, unsigned char *in,
+                              unsigned char *out) {
+  // for hardware refs signal
+  int16_t *sigin;
+  int16_t *sigref;
+  int16_t bytes =
+      handle->stVqeConfig.stAiTalkConfig.s32FrameSample * 4; // S16 && 2 channel
+
+  unsigned char prebuf[bytes] = {0};
+  unsigned char sigout[bytes / 2] = {0};
+  int nb_samples = bytes / 4;
+
+  sigin = (int16_t *)prebuf;
+  sigref = (int16_t *)prebuf + nb_samples;
+  for (int i = 0; i < nb_samples; i++) {
+    sigin[i] = *((int16_t *)in + i * 2);
+    sigref[i] = *((int16_t *)in + i * 2 + 1);
+  }
+  AEC_Process(handle->ap_handle, sigin, sigref, (int16_t *)sigout);
+
+  int16_t *tmp2 = (int16_t *)sigout;
+  int16_t *tmp1 = (int16_t *)out;
+  for (int j = 0; j < nb_samples; j++) {
+    *tmp1++ = *tmp2;
+    *tmp1++ = *tmp2++;
+  }
+  return 0;
+}
+
+int AI_RECORDVQE_Init(AUDIO_VQE_S *handle, VQE_CONFIG_S *config) {
+  SampleInfo sample_info = handle->sample_info;
+
+  if (!(sample_info.channels == 1 && sample_info.fmt == SAMPLE_FMT_S16 &&
+        (sample_info.sample_rate >= 8000 &&
+         sample_info.sample_rate <= 48000))) {
+    LOG("check failed: (sample_info.channels == 1 && sample_info.fmt == SAMPLE_FMT_S16 && \
+		 (sample_info.sample_rate >= 8000 && sample_info.sample_rate <= 48000))");
     return -1;
   }
-  rk_voice_setpara(ashw_para, 500);
-  trans_mark = 0;
 
-  if (g_capture_buffer == NULL) {
-    g_capture_buffer = (char *)malloc(BUFFER_MAX_SIZE);
-    if (g_capture_buffer == NULL) {
-      LOG("malloc g_capture_buffer error");
-      return -1;
-    }
+  RKAP_ANR_State state;
+  state.swSampleRate = sample_info.sample_rate; // 8k|16k; // 8-48k
+  state.swFrameLen =
+      ALGO_FRAME_TIMS_MS * sample_info.sample_rate / 1000; // hard code 20ms
+  state.fGmin = config->stAiRecordConfig.stAnrConfig.fGmin;
+  state.fPostAddGain = config->stAiRecordConfig.stAnrConfig.fPostAddGain;
+  state.fNoiseFactor = config->stAiRecordConfig.stAnrConfig.fNoiseFactor;
+  ANR_DumpVersion();
+  handle->ap_handle = ANR_Init(&state);
+  if (!handle->ap_handle) {
+    LOG("ANR: init failed\n");
+    return -1;
   }
-
-  if (g_captureout_buffer == NULL) {
-    g_captureout_buffer = (char *)malloc(BUFFER_MAX_SIZE);
-    if (g_captureout_buffer == NULL) {
-      LOG("malloc g_capture_buffer error");
-      return -1;
-    }
-  }
-  VOICE_Init(ashw_para);
+  return 0;
 }
 
-void rk_voice_handle(void *buffer, int bytes) {
-  int i, j;
-  int16_t *tmp1 = NULL;
-  int16_t *tmp2 = NULL;
-  int16_t *left = NULL;
-  int16_t *right = NULL;
+int AI_RECORDVQE_Deinit(AUDIO_VQE_S *handle) {
+  ANR_Destroy(handle->ap_handle);
+  return 0;
+}
 
-  /* hard code 1280bytes/320frames/16K stereo/20ms processed one at a time */
-  queue_capture_buffer(buffer, bytes);
+static int AI_RECORDVQE_Process(AUDIO_VQE_S *handle, unsigned char *in,
+                                unsigned char *out) {
+  ANR_Process(handle->ap_handle, (int16_t *)in, (int16_t *)out);
+  return 0;
+}
 
-  for (i = 0; i < g_capture_buffer_size / 1280; i++) {
-    int16_t tmp_short = 320;
-    short tmp_buffer[tmp_short * 2];
-    memset(tmp_buffer, 0x00, tmp_short * 2);
+int AO_VQE_Init(AUDIO_VQE_S *handle, VQE_CONFIG_S *config) {
+  SampleInfo sample_info = handle->sample_info;
 
-    short in[tmp_short];
-    memset(in, 0x00, tmp_short);
-
-    short ref[tmp_short];
-    memset(ref, 0x00, tmp_short);
-
-    short out[tmp_short];
-    memset(out, 0x00, tmp_short);
-
-    tmp1 = (int16_t *)g_capture_buffer + i * 320 * 2;
-    left = (int16_t *)ref;
-    right = (int16_t *)in;
-    for (j = 0; j < tmp_short; j++) {
-      *left++ = *tmp1++;
-      *right++ = *tmp1++;
-    }
-
-    if (trans_mark) {
-      VOICE_ProcessTx((int16_t *)in, (int16_t *)ref, (int16_t *)out, 320);
-    } else {
-      /* Use ProcessRx to do ANR */
-      VOICE_ProcessRx((int16_t *)in, (int16_t *)out, 320);
-    }
-
-    memset(tmp_buffer, 0x00, tmp_short * 2);
-
-    tmp2 = (int16_t *)out;
-    tmp1 = (int16_t *)tmp_buffer;
-    for (j = 0; j < tmp_short; j++) {
-      *tmp1++ = *tmp2;
-      *tmp1++ = *tmp2++;
-    }
-
-    queue_captureout_buffer(tmp_buffer, 320 * 4);
+  if (!(sample_info.fmt == SAMPLE_FMT_S16 &&
+        (sample_info.sample_rate == 8000 ||
+         sample_info.sample_rate == 16000))) {
+    LOG("check failed: sample_info.fmt == SAMPLE_FMT_S16 && \
+		 (sample_info.sample_rate == 8000 || sample_info.sample_rate == 16000))");
+    return -1;
   }
-  /* Samples still keep in queuePlaybackBuffer */
-  g_capture_buffer_size = g_capture_buffer_size - 1280 * i;
+
+  RKAP_AEC_State state;
+  state.swSampleRate = sample_info.sample_rate; // 8k|16k
+  state.swFrameLen =
+      ALGO_FRAME_TIMS_MS * sample_info.sample_rate / 1000; // hard code 20ms
+  state.pathPara = config->stAoConfig.aParamFilePath;
+  LOG("AEC: param file = %s\n", state.pathPara);
+  handle->ap_handle = AEC_Init(&state, AEC_RX_TYPE);
+  if (!handle->ap_handle) {
+    LOG("AEC: init failed\n");
+    return -1;
+  }
+  return 0;
+}
+
+int AO_VQE_Deinit(AUDIO_VQE_S *handle) {
+  AEC_Destroy(handle->ap_handle);
+  return 0;
+}
+
+static int AO_VQE_Process(AUDIO_VQE_S *handle, unsigned char *in,
+                          unsigned char *out) {
+  SampleInfo sample_info = handle->sample_info;
+
+  if (sample_info.channels == 1) {
+    AEC_Process(handle->ap_handle, (int16_t *)in, NULL, (int16_t *)out);
+    return 0;
+  }
+
+  int16_t *left;
+  int16_t bytes =
+      handle->stVqeConfig.stAiTalkConfig.s32FrameSample * 4; // S16 && 2 channel
+
+  unsigned char prebuf[bytes] = {0};
+  unsigned char sigout[bytes / 2] = {0};
+  int nb_samples = bytes / 4;
+
+  left = (int16_t *)prebuf;
+  for (int i = 0; i < nb_samples; i++) {
+    left[i] = *((int16_t *)in + i * 2);
+  }
+  AEC_Process(handle->ap_handle, left, NULL, (int16_t *)sigout);
+
+  int16_t *tmp2 = (int16_t *)sigout;
+  int16_t *tmp1 = (int16_t *)out;
+  for (int j = 0; j < nb_samples; j++) {
+    *tmp1++ = *tmp2;
+    *tmp1++ = *tmp2++;
+  }
+  return 0;
+}
+
+static int VQE_Process(AUDIO_VQE_S *handle, unsigned char *in,
+                       unsigned char *out) {
+  int ret;
+  switch (handle->stVqeConfig.u32VQEMode) {
+  case VQE_MODE_AI_TALK:
+    ret = AI_TALKVQE_Process(handle, in, out);
+    break;
+  case VQE_MODE_AO:
+    ret = AO_VQE_Process(handle, in, out);
+    break;
+  case VQE_MODE_AI_RECORD:
+    ret = AI_RECORDVQE_Process(handle, in, out);
+    break;
+  default:
+    ret = -1;
+    break;
+  }
+  return ret;
+}
+
+bool RK_AUDIO_VQE_Support() { return true; }
+
+AUDIO_VQE_S *RK_AUDIO_VQE_Init(const SampleInfo &sample_info,
+                               VQE_CONFIG_S *config) {
+  int ret = -1;
+  AUDIO_VQE_S *handle = (AUDIO_VQE_S *)calloc(sizeof(AUDIO_VQE_S), 1);
+  if (!handle)
+    return NULL;
+
+  handle->in_queue = queue_create(RK_AUDIO_BUFFER_MAX_SIZE);
+  handle->out_queue = queue_create(RK_AUDIO_BUFFER_MAX_SIZE);
+
+  handle->sample_info = sample_info;
+  handle->stVqeConfig = *config;
+
+  switch (config->u32VQEMode) {
+  case VQE_MODE_AI_TALK:
+    ret = AI_TALKVQE_Init(handle, config);
+    break;
+  case VQE_MODE_AO:
+    ret = AO_VQE_Init(handle, config);
+    break;
+  case VQE_MODE_AI_RECORD:
+    ret = AI_RECORDVQE_Init(handle, config);
+    break;
+  case VQE_MODE_BUTT:
+  default:
+    ret = -1;
+    break;
+  }
+  if (ret == 0)
+    return handle;
+
+  if (handle) {
+    free(handle->in_queue);
+    free(handle->out_queue);
+    free(handle);
+  }
+  return NULL;
+}
+
+int RK_AUDIO_VQE_Handle(AUDIO_VQE_S *handle, void *buffer, int bytes) {
+  int16_t nm_samples = ALGO_FRAME_TIMS_MS * handle->sample_info.sample_rate /
+                       1000; // hard code 20ms
+  int16_t frame_bytes = nm_samples * 2 * handle->sample_info.channels;
+
+  // 1. data in queue
+  queue_write(handle->in_queue, (unsigned char *)buffer, bytes);
+
+  // 2. peek data from in queue, do audio process, data out queue
+  for (int i = 0; i < queue_size(handle->in_queue) / frame_bytes; i++) {
+    unsigned char in[frame_bytes] = {0};
+    unsigned char out[frame_bytes] = {0};
+    queue_read(handle->in_queue, in, frame_bytes);
+    VQE_Process(handle, in, out);
+    queue_write(handle->out_queue, out, frame_bytes);
+  }
   /* Copy the rest of the sample to the beginning of the Buffer */
-  memcpy((char *)g_capture_buffer, (char *)(g_capture_buffer + i * 1280),
-         g_capture_buffer_size);
+  queue_tune(handle->in_queue);
 
-  if (g_captureout_buffer_size >= bytes) {
-    memcpy((char *)buffer, (char *)g_captureout_buffer, bytes);
-    g_captureout_buffer_size = g_captureout_buffer_size - bytes;
-    memcpy((char *)g_captureout_buffer, (char *)(g_captureout_buffer + bytes),
-           g_captureout_buffer_size);
+  // 2. peek data from out queue
+  if (queue_size(handle->out_queue) >= bytes) {
+    queue_read(handle->out_queue, (unsigned char *)buffer, bytes);
+    queue_tune(handle->out_queue);
+    return 0;
   } else {
-    LOG("g_captureout_buffer_size: less than 1024 frames\n");
+    LOG("%s: queue size %d less than %d\n", __func__, queue_size(handle->out_queue), bytes);
+    return -1;
   }
 }
 
-void rk_voice_deinit() {
-  if (g_capture_buffer) {
-    free(g_capture_buffer);
-    g_capture_buffer = NULL;
+void RK_AUDIO_VQE_Deinit(AUDIO_VQE_S *handle) {
+  queue_free(handle->in_queue);
+  queue_free(handle->out_queue);
+
+  switch (handle->stVqeConfig.u32VQEMode) {
+  case VQE_MODE_AI_TALK:
+    AI_TALKVQE_Deinit(handle);
+    break;
+  case VQE_MODE_AO:
+    AO_VQE_Deinit(handle);
+    break;
+  case VQE_MODE_AI_RECORD:
+    AI_RECORDVQE_Deinit(handle);
+    break;
+  case VQE_MODE_BUTT:
+  default:
+    break;
   }
-  if (g_captureout_buffer) {
-    free(g_captureout_buffer);
-    g_captureout_buffer = NULL;
-  }
-  VOICE_Destory();
 }
+// void rk_audio_process_bind(AUDIO_VQE_S *tx, AUDIO_VQE_S *rx) {
+//}
 
 #else
-bool rk_aec_agc_anr_algorithm_support() { return false; }
-int rk_voice_init(const SampleInfo &sample_info _UNUSED,
-                  short int ashw_para[500] _UNUSED) {
+bool RK_AUDIO_VQE_Support() { return false; }
+int RK_AUDIO_VQE_Init(const SampleInfo &sample_info, VQE_CONFIG_S *config) {
   return 0;
 }
-void rk_voice_open(short int ashw_para[500] _UNUSED) {}
-void rk_voice_handle(void *buffer _UNUSED, int bytes _UNUSED) {}
-void rk_voice_deinit() {}
+int RK_AUDIO_VQE_Handle(void *buffer _UNUSED, int bytes _UNUSED) {}
+void RK_AUDIO_VQE_Deinit() {}
+void rk_audio_process_bind(AUDIO_VQE_S *tx, AUDIO_VQE_S *rx); // for aec tx rx
+
 #endif
