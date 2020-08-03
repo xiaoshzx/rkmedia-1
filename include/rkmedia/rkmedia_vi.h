@@ -15,6 +15,12 @@ typedef struct rkVI_CHN_ATTR_S {
   IMAGE_TYPE_E pix_fmt;
   RK_U32 buffer_cnt;
 } VI_CHN_ATTR_S;
+
+typedef struct rkVIDEO_REGION_INFO_S {
+  RK_U32 u32RegionNum; /* count of the region */
+  RECT_S *pstRegion; /* region attribute */
+} VIDEO_REGION_INFO_S;
+
 #ifdef __cplusplus
 }
 #endif

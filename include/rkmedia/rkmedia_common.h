@@ -140,6 +140,10 @@ enum {
   /* channel exists */
   RK_ERR_VI_EXIST,
   RK_ERR_VI_NOT_CONFIG,
+  RK_ERR_VI_TIMEOUT,
+  RK_ERR_VI_BUF_EMPTY,
+  RK_ERR_VI_ILLEGAL_PARAM,
+  RK_ERR_VI_NOTREADY,
 
   /***********************************
    * VideoEncoder error types

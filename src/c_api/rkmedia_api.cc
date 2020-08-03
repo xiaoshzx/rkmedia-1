@@ -75,6 +75,11 @@ typedef struct _RkmediaChannel {
   std::mutex buffer_mtx;
   std::condition_variable buffer_cond;
   std::list<MEDIA_BUFFER> buffer_list;
+
+  // used for region luma.
+  std::mutex luma_buf_mtx;
+  std::condition_variable luma_buf_cond;
+  std::shared_ptr<easymedia::MediaBuffer> luma_rkmedia_buf;
 } RkmediaChannel;
 
 RkmediaChannel g_vi_chns[VI_MAX_CHN_NUM];
@@ -174,6 +179,7 @@ static void Reset_Channel_Table(RkmediaChannel *tbl, int cnt, MOD_ID_E mid) {
     tbl[i].chn_id = i;
     tbl[i].status = CHN_STATUS_CLOSED;
     tbl[i].cb = nullptr;
+    tbl[i].event_cb = nullptr;
     tbl[i].bind_ref = 0;
   }
 }
@@ -183,9 +189,9 @@ RK_S32 RK_MPI_SYS_Init() {
 
   // memset(g_vi_dev, 0, VI_MAX_DEV_NUM * sizeof(RkmediaVideoDev));
   g_vi_chns[0].vi_attr.path = "rkispp_m_bypass"; // rkispp_bypass
-  g_vi_chns[1].vi_attr.path = "rkispp_scale0"; // rkispp_scal0
-  g_vi_chns[2].vi_attr.path = "rkispp_scale1"; // rkispp_scal1
-  g_vi_chns[3].vi_attr.path = "rkispp_scale2"; // rkispp_scal2
+  g_vi_chns[1].vi_attr.path = "rkispp_scale0";   // rkispp_scal0
+  g_vi_chns[2].vi_attr.path = "rkispp_scale1";   // rkispp_scal1
+  g_vi_chns[3].vi_attr.path = "rkispp_scale2";   // rkispp_scal2
 
   Reset_Channel_Table(g_vi_chns, VI_MAX_CHN_NUM, RK_ID_VI);
   Reset_Channel_Table(g_venc_chns, VENC_MAX_CHN_NUM, RK_ID_VENC);
@@ -260,8 +266,12 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
 
   // Rkmedia flow bind
   src->AddDownFlow(sink, 0, 0);
-  // Clear output callback
-  src->SetOutputCallBack(NULL, NULL);
+  // Generally, after the previous Chn is bound to the next stage,
+  // FlowOutputCallback will be disabled.Because the VI needs to calculate
+  // the brightness, the VI still retains the FlowOutputCallback after
+  // binding the lower-level Chn.
+  if (src_chn->mode_id != RK_ID_VI)
+    src->SetOutputCallBack(NULL, NULL);
 
   // change status frome OPEN to BIND.
   src_chn->status = CHN_STATUS_BIND;
@@ -384,6 +394,19 @@ FlowOutputCallback(void *handle,
         "callback!\n",
         __func__, target_chn->mode_id, target_chn->status);
     return;
+  }
+
+  if (target_chn->mode_id == RK_ID_VI) {
+    std::unique_lock<std::mutex> lck(target_chn->luma_buf_mtx);
+    target_chn->luma_rkmedia_buf = rkmedia_mb;
+    target_chn->luma_buf_cond.notify_all();
+    // Generally, after the previous Chn is bound to the next stage,
+    // FlowOutputCallback will be disabled. Because the VI needs to
+    // calculate the brightness, the VI still retains the FlowOutputCallback
+    // after binding the lower-level Chn. It is judged here that if Chn is VI,
+    // and the VI status is BIND, return immediately.
+    if(target_chn->status == CHN_STATUS_BIND)
+      return;
   }
 
   // RK_MPI_SYS_GetMediaBuffer and output callback function,
@@ -671,18 +694,106 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
 
 RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   if ((ViPipe < 0) || (ViChn < 0) || (ViChn > VI_MAX_CHN_NUM))
-    return -1;
+    return -RK_ERR_SYS_ILLEGAL_PARAM;
 
   g_vi_mtx.lock();
   if (g_vi_chns[ViChn].status == CHN_STATUS_BIND) {
     g_vi_mtx.unlock();
-    return -1;
+    return -RK_ERR_SYS_NOT_PERM;
   }
 
   RkmediaChnClearBuffer(&g_vi_chns[ViChn]);
   g_vi_chns[ViChn].rkmedia_flow.reset();
   g_vi_chns[ViChn].status = CHN_STATUS_CLOSED;
+  g_vi_chns[ViChn].luma_buf_mtx.lock();
+  g_vi_chns[ViChn].luma_rkmedia_buf.reset();
+  g_vi_chns[ViChn].luma_buf_cond.notify_all();
+  g_vi_chns[ViChn].luma_buf_mtx.unlock();
   g_vi_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+static RK_U64
+rkmediaCalculateRegionLuma(std::shared_ptr<easymedia::ImageBuffer> &rkmedia_mb,
+                           const RECT_S *ptrRect) {
+  RK_U64 sum = 0;
+  ImageInfo &imgInfo = rkmedia_mb->GetImageInfo();
+
+  if ((imgInfo.pix_fmt != PIX_FMT_YUV420P) &&
+      (imgInfo.pix_fmt != PIX_FMT_NV12) && (imgInfo.pix_fmt != PIX_FMT_NV21) &&
+      (imgInfo.pix_fmt != PIX_FMT_YUV422P) &&
+      (imgInfo.pix_fmt != PIX_FMT_NV16) && (imgInfo.pix_fmt != PIX_FMT_NV61)) {
+    LOG("ERROR: %s not support image type!\n", __func__);
+    return 0;
+  }
+
+  if (((RK_S32)(ptrRect->s32X + ptrRect->u32Width) > imgInfo.width) ||
+      ((RK_S32)(ptrRect->s32Y + ptrRect->u32Height) > imgInfo.height)) {
+    LOG("ERROR: %s rect[%d,%d,%u,%u] out of image wxh[%d, %d]\n", __func__,
+        ptrRect->s32X, ptrRect->s32Y, ptrRect->u32Width, ptrRect->u32Height,
+        imgInfo.width, imgInfo.height);
+    return 0;
+  }
+
+  RK_U32 line_size = imgInfo.vir_width;
+  RK_U8 *rect_start =
+      (RK_U8 *)rkmedia_mb->GetPtr() + ptrRect->s32Y * line_size + ptrRect->s32X;
+  for (RK_U32 i = 0; i < ptrRect->u32Height; i++) {
+    RK_U8 *line_start = rect_start + i * line_size;
+    for (RK_U32 j = 0; j < ptrRect->u32Width; j++) {
+      sum += *(line_start + j);
+    }
+  }
+
+  return sum;
+}
+
+RK_S32 RK_MPI_VI_GetChnRegionLuma(VI_PIPE ViPipe, VI_CHN ViChn,
+                                  const VIDEO_REGION_INFO_S *pstRegionInfo,
+                                  RK_U64 *pu64LumaData, RK_S32 s32MilliSec) {
+  if ((ViPipe < 0) || (ViChn < 0) || (ViChn > VI_MAX_CHN_NUM))
+    return -RK_ERR_VI_INVALID_CHNID;
+
+  if (!pstRegionInfo || !pstRegionInfo->u32RegionNum || !pu64LumaData)
+    return -RK_ERR_VI_ILLEGAL_PARAM;
+
+  std::shared_ptr<easymedia::ImageBuffer> rkmedia_mb;
+  RkmediaChannel *target_chn = &g_vi_chns[ViChn];
+
+  if (target_chn->status < CHN_STATUS_OPEN)
+    return -RK_ERR_VI_NOTREADY;
+
+  {
+    // The {} here is to limit the scope of locking. The lock is only
+    // used to find the buffer, and the accumulation of the buffer is
+    // outside the lock range. This is good for frame rate.
+    std::unique_lock<std::mutex> lck(target_chn->luma_buf_mtx);
+    if (!target_chn->luma_rkmedia_buf) {
+      if (s32MilliSec < 0) {
+        target_chn->luma_buf_cond.wait(lck);
+      } else if (s32MilliSec > 0) {
+        if (target_chn->luma_buf_cond.wait_for(
+                lck, std::chrono::milliseconds(s32MilliSec)) ==
+            std::cv_status::timeout)
+          return -RK_ERR_VI_TIMEOUT;
+      } else {
+        return -RK_ERR_VI_BUF_EMPTY;
+      }
+    }
+    if (target_chn->luma_rkmedia_buf)
+      rkmedia_mb = std::static_pointer_cast<easymedia::ImageBuffer>(
+          target_chn->luma_rkmedia_buf);
+
+    target_chn->luma_rkmedia_buf.reset();
+  }
+
+  if (!rkmedia_mb)
+    return -RK_ERR_VI_BUF_EMPTY;
+
+  for (RK_U32 i = 0; i < pstRegionInfo->u32RegionNum; i++)
+    *(pu64LumaData + i) =
+        rkmediaCalculateRegionLuma(rkmedia_mb, (pstRegionInfo->pstRegion + i));
 
   return RK_ERR_SYS_OK;
 }
