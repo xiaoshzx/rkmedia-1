@@ -7,6 +7,7 @@ extern "C" {
 
 #include <stddef.h>
 
+#include "rkmedia_adec.h"
 #include "rkmedia_aenc.h"
 #include "rkmedia_ai.h"
 #include "rkmedia_ao.h"
@@ -25,6 +26,7 @@ extern "C" {
 #define AI_MAX_CHN_NUM 1
 #define AO_MAX_CHN_NUM 1
 #define AENC_MAX_CHN_NUM 16
+#define ADEC_MAX_CHN_NUM 16
 #define ALGO_MD_MAX_CHN_NUM VI_MAX_CHN_NUM
 #define RGA_MAX_CHN_NUM 16
 
@@ -34,6 +36,7 @@ typedef RK_S32 VENC_CHN;
 typedef RK_S32 AI_CHN;
 typedef RK_S32 AO_CHN;
 typedef RK_S32 AENC_CHN;
+typedef RK_S32 ADEC_CHN;
 typedef RK_S32 ALGO_MD_CHN;
 typedef RK_S32 RGA_CHN;
 
@@ -151,6 +154,12 @@ _CAPI RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn);
 _CAPI RK_S32 RK_MPI_RGA_CreateChn(RGA_CHN RgaChn, RGA_ATTR_S *pstRgaAttr);
 _CAPI RK_S32 RK_MPI_RGA_DestroyChn(RGA_CHN RgaChn);
 
+/********************************************************************
+ * Adec api
+ ********************************************************************/
+_CAPI RK_S32 RK_MPI_ADEC_CreateChn(ADEC_CHN AdecChn,
+                                   const ADEC_CHN_ATTR_S *pstAttr);
+_CAPI RK_S32 RK_MPI_ADEC_DestroyChn(ADEC_CHN AdecChn);
 #ifdef __cplusplus
 }
 #endif

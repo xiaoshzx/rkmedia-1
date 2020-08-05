@@ -16,6 +16,7 @@
 #include "utils.h"
 
 #include "osd/color_table.h"
+#include "rkmedia_adec.h"
 #include "rkmedia_api.h"
 #include "rkmedia_buffer.h"
 #include "rkmedia_buffer_impl.h"
@@ -44,6 +45,8 @@ typedef struct _RkmediaAOAttr { AO_CHN_ATTR_S attr; } RkmediaAOAttr;
 
 typedef struct _RkmediaAENCAttr { AENC_CHN_ATTR_S attr; } RkmediaAENCAttr;
 
+typedef struct _RkmediaADECAttr { ADEC_CHN_ATTR_S attr; } RkmediaADECAttr;
+
 typedef ALGO_MD_ATTR_S RkmediaMDAttr;
 
 #define RKMEDIA_CHNNAL_BUFFER_LIMIT 3
@@ -70,6 +73,7 @@ typedef struct _RkmediaChannel {
     RkmediaAOAttr ao_attr;
     RkmediaAENCAttr aenc_attr;
     RkmediaMDAttr md_attr;
+    RkmediaADECAttr adec_attr;
   };
   RK_U16 bind_ref;
   std::mutex buffer_mtx;
@@ -102,6 +106,9 @@ std::mutex g_algo_md_mtx;
 
 RkmediaChannel g_rga_chns[RGA_MAX_CHN_NUM];
 std::mutex g_rga_mtx;
+
+RkmediaChannel g_adec_chns[ADEC_MAX_CHN_NUM];
+std::mutex g_adec_mtx;
 
 static int RkmediaChnPushBuffer(RkmediaChannel *ptrChn, MEDIA_BUFFER buffer) {
   if (!ptrChn || !buffer)
@@ -203,6 +210,7 @@ RK_S32 RK_MPI_SYS_Init() {
   Reset_Channel_Table(g_ao_chns, AO_MAX_CHN_NUM, RK_ID_AO);
   Reset_Channel_Table(g_algo_md_chns, ALGO_MD_MAX_CHN_NUM, RK_ID_ALGO_MD);
   Reset_Channel_Table(g_rga_chns, RGA_MAX_CHN_NUM, RK_ID_RGA);
+  Reset_Channel_Table(g_adec_chns, ADEC_MAX_CHN_NUM, RK_ID_ADEC);
 
   return RK_ERR_SYS_OK;
 }
@@ -235,6 +243,10 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
     src = g_rga_chns[pstDestChn->s32ChnId].rkmedia_flow;
     src_chn = &g_rga_chns[pstDestChn->s32ChnId];
     break;
+  case RK_ID_ADEC:
+    src = g_adec_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_adec_chns[pstDestChn->s32ChnId];
+    break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
@@ -265,6 +277,10 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
   case RK_ID_RGA:
     sink = g_rga_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_rga_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_ADEC:
+    sink = g_adec_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_adec_chns[pstDestChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -326,6 +342,10 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
     src = g_rga_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_rga_chns[pstSrcChn->s32ChnId];
     break;
+  case RK_ID_ADEC:
+    src = g_adec_chns[pstSrcChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_adec_chns[pstSrcChn->s32ChnId];
+    break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
@@ -364,6 +384,10 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
   case RK_ID_RGA:
     sink = g_rga_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_rga_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_ADEC:
+    sink = g_adec_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_adec_chns[pstDestChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -483,6 +507,9 @@ RK_S32 RK_MPI_SYS_RegisterOutCb(const MPP_CHN_S *pstChn, OutCbFunc cb) {
     break;
   case RK_ID_RGA:
     target_chn = &g_rga_chns[pstChn->s32ChnId];
+    break;
+  case RK_ID_ADEC:
+    target_chn = &g_adec_chns[pstChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -618,6 +645,13 @@ MEDIA_BUFFER RK_MPI_SYS_GetMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
     }
     target_chn = &g_rga_chns[s32ChnID];
     break;
+  case RK_ID_ADEC:
+    if (s32ChnID < 0 || s32ChnID > ADEC_MAX_CHN_NUM) {
+      LOG("ERROR: %s invalid RGA ChnID[%d]\n", __func__, s32ChnID);
+      return NULL;
+    }
+    target_chn = &g_adec_chns[s32ChnID];
+    break;
   default:
     LOG("ERROR: %s invalid modeID[%d]\n", __func__, enModID);
     return NULL;
@@ -652,6 +686,11 @@ RK_S32 RK_MPI_SYS_SendMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
     if (s32ChnID < 0 || s32ChnID > ALGO_MD_MAX_CHN_NUM)
       return -RK_ERR_SYS_ILLEGAL_PARAM;
     target_chn = &g_algo_md_chns[s32ChnID];
+    break;
+  case RK_ID_ADEC:
+    if (s32ChnID < 0 || s32ChnID > ADEC_MAX_CHN_NUM)
+      return -RK_ERR_SYS_ILLEGAL_PARAM;
+    target_chn = &g_adec_chns[s32ChnID];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -1813,11 +1852,9 @@ create_alsa_flow(std::string aud_in_path, SampleInfo &info, bool capture) {
     flow_name = "output_stream";
     stream_name = "alsa_playback_stream";
     PARAM_STRING_APPEND(flow_param, KEK_THREAD_SYNC_MODEL, KEY_ASYNCCOMMON);
-    PARAM_STRING_APPEND(flow_param, KEK_INPUT_MODEL, KEY_DROPFRONT);
-    PARAM_STRING_APPEND_TO(flow_param, KEY_INPUT_CACHE_NUM, 5);
+    PARAM_STRING_APPEND(flow_param, KEK_INPUT_MODEL, KEY_BLOCKING);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_INPUT_CACHE_NUM, 10);
   }
-  flow_param = "";
-  sub_param = "";
 
   PARAM_STRING_APPEND(flow_param, KEY_NAME, stream_name);
   PARAM_STRING_APPEND(sub_param, KEY_DEVICE, aud_in_path);
@@ -2020,9 +2057,9 @@ RK_S32 RK_MPI_AENC_CreateChn(AENC_CHN AencChn, const AENC_CHN_ATTR_S *pstAttr) {
   if ((AencChn < 0) || (AencChn >= AENC_MAX_CHN_NUM))
     return -RK_ERR_AENC_INVALID_DEVID;
 
-  g_aenc_mtx.lock();
   if (!pstAttr)
     return -RK_ERR_SYS_NOT_PERM;
+  g_aenc_mtx.lock();
 
   if (g_aenc_chns[AencChn].status != CHN_STATUS_CLOSED) {
     g_aenc_mtx.unlock();
@@ -2300,6 +2337,90 @@ RK_S32 RK_MPI_RGA_DestroyChn(RGA_CHN RgaChn) {
   g_rga_chns[RgaChn].rkmedia_flow.reset();
   g_rga_chns[RgaChn].status = CHN_STATUS_CLOSED;
   g_rga_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+/********************************************************************
+ * ADEC api
+ ********************************************************************/
+RK_S32 RK_MPI_ADEC_CreateChn(ADEC_CHN AdecChn, const ADEC_CHN_ATTR_S *pstAttr) {
+  if ((AdecChn < 0) || (AdecChn >= ADEC_MAX_CHN_NUM))
+    return -RK_ERR_ADEC_INVALID_DEVID;
+
+  if (!pstAttr)
+    return -RK_ERR_SYS_NOT_PERM;
+  g_adec_mtx.lock();
+
+  if (g_adec_chns[AdecChn].status != CHN_STATUS_CLOSED) {
+    g_adec_mtx.unlock();
+    return -RK_ERR_AI_BUSY;
+  }
+
+  memcpy(&g_adec_chns[AdecChn].adec_attr.attr, pstAttr,
+         sizeof(ADEC_CHN_ATTR_S));
+  g_adec_chns[AdecChn].status = CHN_STATUS_READY;
+
+  RK_U32 channels = 0;
+  RK_U32 sample_rate = 0;
+  CODEC_TYPE_E codec_type = g_adec_chns[AdecChn].adec_attr.attr.enType;
+  switch (codec_type) {
+  case CODEC_TYPE_AAC:
+    break;
+  case CODEC_TYPE_MP2:
+    break;
+  case CODEC_TYPE_G711A:
+    channels = g_adec_chns[AdecChn].adec_attr.attr.g711a_attr.u32Channels;
+    sample_rate = g_adec_chns[AdecChn].adec_attr.attr.g711a_attr.u32SampleRate;
+    break;
+  case CODEC_TYPE_G711U:
+    channels = g_adec_chns[AdecChn].adec_attr.attr.g711u_attr.u32Channels;
+    sample_rate = g_adec_chns[AdecChn].adec_attr.attr.g711u_attr.u32SampleRate;
+    break;
+  case CODEC_TYPE_G726:
+    break;
+  default:
+    g_adec_mtx.unlock();
+    return -RK_ERR_ADEC_CODEC_NOT_SUPPORT;
+  }
+
+  std::string flow_name;
+  std::string flow_param;
+  std::string dec_param;
+
+  flow_name = "audio_dec";
+  flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "ffmpeg_aud");
+
+  dec_param = "";
+  PARAM_STRING_APPEND(dec_param, KEY_INPUTDATATYPE, CodecToString(codec_type));
+  PARAM_STRING_APPEND_TO(dec_param, KEY_CHANNELS, channels);
+  PARAM_STRING_APPEND_TO(dec_param, KEY_SAMPLE_RATE, sample_rate);
+
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, dec_param);
+  g_adec_chns[AdecChn].rkmedia_flow = easymedia::REFLECTOR(
+      Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
+
+  g_adec_chns[AdecChn].status = CHN_STATUS_OPEN;
+  g_adec_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_ADEC_DestroyChn(ADEC_CHN AdecChn) {
+  if ((AdecChn < 0) || (AdecChn > ADEC_MAX_CHN_NUM))
+    return RK_ERR_ADEC_INVALID_DEVID;
+
+  g_adec_mtx.lock();
+  if (g_adec_chns[AdecChn].status == CHN_STATUS_BIND) {
+    g_adec_mtx.unlock();
+    return -RK_ERR_ADEC_BUSY;
+  }
+
+  RkmediaChnClearBuffer(&g_adec_chns[AdecChn]);
+
+  g_adec_chns[AdecChn].rkmedia_flow.reset();
+  g_adec_chns[AdecChn].status = CHN_STATUS_CLOSED;
+  g_adec_mtx.unlock();
 
   return RK_ERR_SYS_OK;
 }

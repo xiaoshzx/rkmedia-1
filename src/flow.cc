@@ -139,7 +139,7 @@ void FlowCoroutine::RunOnce() {
 #ifndef NDEBUG
       if (expect_process_time > 0)
         check_consume_time(name.c_str(), expect_process_time,
-                          (int)(ad.Get() / 1000));
+                           (int)(ad.Get() / 1000));
     }
 #endif // DEBUG
   }
@@ -309,12 +309,12 @@ DEFINE_PART_FINAL_EXPOSE_PRODUCT(Flow, Flow)
 const FunctionProcess Flow::void_transaction00 = void_transaction<0, 0>;
 
 Flow::Flow()
-    : out_slot_num(0), input_slot_num(0), down_flow_num(0), waite_down_flow(true),
-      event_handler2_(nullptr), event_callback_(nullptr), enable(true),
-      quit(false), event_handler_(nullptr), play_video_handler_(nullptr),
-      play_audio_handler_(nullptr), user_handler_(nullptr),
-      user_callback_(nullptr), out_handler_(nullptr), out_callback_(nullptr),
-      run_times(-1) {}
+    : out_slot_num(0), input_slot_num(0), down_flow_num(0),
+      waite_down_flow(true), event_handler2_(nullptr), event_callback_(nullptr),
+      enable(true), quit(false), event_handler_(nullptr),
+      play_video_handler_(nullptr), play_audio_handler_(nullptr),
+      user_handler_(nullptr), user_callback_(nullptr), out_handler_(nullptr),
+      out_callback_(nullptr), run_times(-1) {}
 
 Flow::~Flow() { StopAllThread(); }
 
@@ -834,7 +834,9 @@ void Flow::Input::ASyncSendInputAtomicBehavior(
 }
 
 bool Flow::Input::ASyncFullBlockingBehavior(volatile bool &pred) {
+#ifndef NDEBUG
   AutoDuration ad;
+#endif
   do {
     mtx.unlock();
     msleep(5);
@@ -844,11 +846,11 @@ bool Flow::Input::ASyncFullBlockingBehavior(volatile bool &pred) {
     }
     mtx.lock();
   } while (pred);
-
-  if (ad.Get() > 5000 /*ms*/)
+#ifndef NDEBUG
+  if (ad.Get() > 100000 /*ms*/)
     LOG("WARN: Flow[%s]: Input[block mode]: block too long(%.2fms) > 5ms\n",
         flow ? flow->GetFlowTag() : "Name is null", ad.Get() / 1000.0);
-
+#endif
   return pred;
 }
 

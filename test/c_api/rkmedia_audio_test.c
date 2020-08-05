@@ -125,12 +125,105 @@ static RK_VOID AI_AENC_FILE(char *file_path) {
   fclose(fp);
 }
 
+static RK_VOID FILE_ADEC_AO(char *file_path) {
+  CODEC_TYPE_E codec_type = RK_CODEC_TYPE_AAC;
+  RK_U32 channels = 2;
+  RK_U32 sample_rate = 44100;
+  ADEC_CHN_ATTR_S stAdecAttr;
+  AO_CHN_ATTR_S stAoAttr;
+
+  stAdecAttr.enType = codec_type;
+  MPP_CHN_S mpp_chn_ao, mpp_chn_adec;
+  mpp_chn_ao.enModId = RK_ID_AO;
+  mpp_chn_ao.s32ChnId = 0;
+  mpp_chn_adec.enModId = RK_ID_ADEC;
+  mpp_chn_adec.s32ChnId = 0;
+
+  stAoAttr.channels = channels;
+  stAoAttr.sample_rate = sample_rate;
+  stAoAttr.nb_samples = 1024;
+  stAoAttr.path = ALSA_PATH;
+
+  switch (codec_type) {
+  case RK_CODEC_TYPE_AAC:
+    stAoAttr.fmt = RK_SAMPLE_FMT_FLTP;
+    stAoAttr.nb_samples = 1024;
+    break;
+  case RK_CODEC_TYPE_MP2:
+    stAoAttr.fmt = RK_SAMPLE_FMT_S16;
+    stAoAttr.nb_samples = 1152;
+    break;
+  case RK_CODEC_TYPE_G711A:
+    stAdecAttr.g711a_attr.u32Channels = channels;
+    stAdecAttr.g711a_attr.u32SampleRate = sample_rate;
+    stAoAttr.fmt = RK_SAMPLE_FMT_S16;
+    break;
+  case RK_CODEC_TYPE_G711U:
+    stAdecAttr.g711u_attr.u32Channels = channels;
+    stAdecAttr.g711u_attr.u32SampleRate = sample_rate;
+    stAoAttr.fmt = RK_SAMPLE_FMT_S16;
+    break;
+  case RK_CODEC_TYPE_G726:
+    stAoAttr.fmt = RK_SAMPLE_FMT_S16;
+    break;
+  default:
+    printf("audio codec type error.\n");
+    return;
+  }
+  // init MPI
+  RK_MPI_SYS_Init();
+  // create ADEC
+  RK_MPI_ADEC_CreateChn(mpp_chn_adec.s32ChnId, &stAdecAttr);
+  // create AO
+  RK_MPI_AO_SetChnAttr(mpp_chn_ao.s32ChnId, &stAoAttr);
+  RK_MPI_AO_EnableChn(mpp_chn_ao.s32ChnId);
+
+  RK_MPI_SYS_Bind(&mpp_chn_adec, &mpp_chn_ao);
+
+  RK_S32 buffer_size = 20480;
+  FILE *read_file = fopen(file_path, "r");
+  if (!read_file) {
+    printf("ERROR: open %s failed!\n", file_path);
+    exit(0);
+  }
+  RK_S32 s32ReadSize;
+  quit = true;
+  while (quit) {
+    MEDIA_BUFFER mb = RK_MPI_MB_CreateAudioBuffer(buffer_size, RK_FALSE);
+    if (!mb) {
+      printf("ERROR: no space left!\n");
+      break;
+    }
+
+    s32ReadSize = fread(RK_MPI_MB_GetPtr(mb), 1, buffer_size, read_file);
+
+    RK_MPI_MB_SetSzie(mb, s32ReadSize);
+    RK_MPI_SYS_SendMediaBuffer(RK_ID_ADEC, mpp_chn_adec.s32ChnId, mb);
+    RK_MPI_MB_ReleaseBuffer(mb);
+    if (s32ReadSize != buffer_size) {
+      printf("Get end of file!\n");
+      break;
+    }
+  }
+  sleep(2);
+  {
+    // flush decoder
+    printf("start flush decoder.\n");
+    MEDIA_BUFFER mb = RK_MPI_MB_CreateAudioBuffer(0, RK_FALSE);
+    RK_MPI_MB_SetSzie(mb, 0);
+    RK_MPI_SYS_SendMediaBuffer(RK_ID_ADEC, mpp_chn_adec.s32ChnId, mb);
+    RK_MPI_MB_ReleaseBuffer(mb);
+    printf("end flush decoder.\n");
+  }
+
+  sleep(10);
+}
 static RK_VOID RKMEDIA_AUDIO_Usage() {
   printf("\n\n/Usage:./rkmdia_audio <index> <sampleRate> [filePath]/\n");
   printf("\tindex and its function list below\n");
   printf("\t0:  start AI to AO loop\n");
   printf("\t1:  send audio frame to AENC channel from AI, save them\n");
-  // printf("\t2:  read audio stream from file, decode and send AO\n");
+  printf("\t2:  read audio stream from file, decode and send AO\n");
   // printf("\t3:  start AI(VQE process), then send to AO\n");
   // printf("\t4:  start AI to Extern Resampler\n");
   printf("\n");
@@ -174,6 +267,8 @@ int main(int argc, char *argv[]) {
   case 1:
     AI_AENC_FILE(pFilePath);
     break;
+  case 2:
+    FILE_ADEC_AO(pFilePath);
   default:
     break;
   }

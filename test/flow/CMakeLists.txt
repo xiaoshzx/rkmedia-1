@@ -216,3 +216,15 @@ if(RKGUARD)
 endif()#RKGUARD
 endif()#RKMPP_ENCODER
 endif()#FILTER
+
+#--------------------------
+# audio_decoder_test
+#--------------------------
+#if(AUDIO_DECODER)
+  set(SMART_ENCODER_TEST_SRC_FILES audio_decoder_flow_test.cc)
+  add_executable(audio_decoder_test ${SMART_ENCODER_TEST_SRC_FILES})
+  target_link_libraries(audio_decoder_test easymedia)
+  target_include_directories(audio_decoder_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  target_compile_features(audio_decoder_test PRIVATE cxx_std_11)
+  install(TARGETS audio_decoder_test RUNTIME DESTINATION "bin")
+#endif()

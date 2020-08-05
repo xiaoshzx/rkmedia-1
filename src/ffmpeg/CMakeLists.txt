@@ -19,6 +19,8 @@ if(ENCODER)
                                      ffmpeg/ffmpeg_aud_encoder.cc)
   set(EASY_MEDIA_FFMPEG_SOURCE_FILES ${EASY_MEDIA_FFMPEG_SOURCE_FILES}
                                      ffmpeg/ffmpeg_vid_encoder.cc)
+  set(EASY_MEDIA_FFMPEG_SOURCE_FILES ${EASY_MEDIA_FFMPEG_SOURCE_FILES}
+                                     ffmpeg/ffmpeg_aud_decoder.cc)
 endif()
 
 if(FILTER)

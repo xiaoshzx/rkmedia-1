@@ -15,6 +15,7 @@ set(EASY_MEDIA_FLOW_SOURCE_FILES
     flow/link_flow.cc
     flow/source_stream_flow.cc
     flow/muxer_flow.cc
+    flow/audio_decoder_flow.cc
     flow/output_stream_flow.cc)
 
 if(MOVE_DETECTION)

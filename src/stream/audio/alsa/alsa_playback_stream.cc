@@ -158,11 +158,18 @@ out:
 }
 
 bool AlsaPlayBackStream::Write(std::shared_ptr<MediaBuffer> mb) {
+
+  if (mb->IsValid()) {
+    Write(mb->GetPtr(), 1, mb->GetValidSize());
+    return 0;
+  }
+  return -1;
+  /*
   if (mb->IsValid()) {
     auto in = std::static_pointer_cast<SampleBuffer>(mb);
     Write(in->GetPtr(), in->GetSampleSize(), in->GetSamples());
     return 0;
-  }
+  }*/
   return -1;
 }
 

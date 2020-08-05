@@ -242,6 +242,16 @@ enum {
   /* at lease one parameter is illagal ,eg, an illegal enumeration value  */
   RK_ERR_RGA_ILLEGAL_PARAM,
 
+  /***********************************
+   * ADEC::Audio decoder error types
+   **********************************/
+  /* invlalid device ID */
+  RK_ERR_ADEC_INVALID_DEVID,
+  /* system is busy*/
+  RK_ERR_ADEC_BUSY,
+  /* codec not support*/
+  RK_ERR_ADEC_CODEC_NOT_SUPPORT,
+
   RK_ERR_BUIT,
 };
 

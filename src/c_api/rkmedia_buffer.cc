@@ -67,6 +67,40 @@ RK_S32 RK_MPI_MB_ReleaseBuffer(MEDIA_BUFFER mb) {
   return RK_ERR_SYS_OK;
 }
 
+MEDIA_BUFFER RK_MPI_MB_CreateAudioBuffer(RK_U32 u32BufferSize,
+                                         RK_BOOL boolHardWare) {
+  std::shared_ptr<easymedia::MediaBuffer> rkmedia_mb;
+  if (u32BufferSize == 0) {
+    rkmedia_mb = std::make_shared<easymedia::MediaBuffer>();
+  } else {
+    rkmedia_mb = easymedia::MediaBuffer::Alloc(
+        u32BufferSize, boolHardWare
+                           ? easymedia::MediaBuffer::MemType::MEM_HARD_WARE
+                           : easymedia::MediaBuffer::MemType::MEM_COMMON);
+  }
+  MEDIA_BUFFER_IMPLE *mb = new MEDIA_BUFFER_IMPLE;
+  if (!mb) {
+    LOG("ERROR: %s: no space left!\n", __func__);
+    return NULL;
+  }
+
+  if (!rkmedia_mb) {
+    delete mb;
+    LOG("ERROR: %s: no space left!\n", __func__);
+    return NULL;
+  }
+  mb->rkmedia_mb = rkmedia_mb;
+  mb->ptr = rkmedia_mb->GetPtr();
+  mb->fd = rkmedia_mb->GetFD();
+  mb->size = 0;
+  mb->type = MB_TYPE_AUDIO;
+  mb->timestamp = 0;
+  mb->mode_id = RK_ID_UNKNOW;
+  mb->chn_id = 0;
+
+  return mb;
+}
+
 MEDIA_BUFFER RK_MPI_MB_CreateImageBuffer(MB_IMAGE_INFO_S *pstImageInfo,
                                          RK_BOOL boolHardWare) {
   if (!pstImageInfo || !pstImageInfo->u32Height || !pstImageInfo->u32Width ||
