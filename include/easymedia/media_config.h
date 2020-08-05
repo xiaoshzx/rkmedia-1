@@ -124,6 +124,22 @@ typedef struct {
   int qp_max_i;
 } VideoEncoderQp;
 
+typedef enum {
+  GOP_MODE_NORMALP = 0, //normal p mode
+  GOP_MODE_TSVC2, // tsvc: 2 layer
+  GOP_MODE_TSVC3, // tsvc: 3 layer
+  GOP_MODE_TSVC4, // tsvc: 4 layer
+  GOP_MODE_SMARTP, // smart p mode
+} EncGopMode;
+
+typedef struct {
+  EncGopMode mode;
+  int gop_size;
+  int ip_qp_delta; // qp delta between I frame and P frame.
+  int interval;    // interval for smartp
+  int vi_qp_delta; // virtual I frame qp delta for smartp.
+} EncGopModeParam;
+
 #include <map>
 
 namespace easymedia {
@@ -186,8 +202,8 @@ _API int video_encoder_set_avc_profile(
 // for each slice.
 _API int video_encoder_set_split(std::shared_ptr<Flow> &enc_flow,
   unsigned int mode, unsigned int size);
-_API int video_encoder_set_ref_frm_cfg(std::shared_ptr<Flow> &enc_flow,
-  int reference_mode);
+_API int video_encoder_set_gop_mode(std::shared_ptr<Flow> &enc_flow,
+  EncGopModeParam *params);
 _API int video_encoder_set_userdata(std::shared_ptr<Flow> &enc_flow,
   void *data, int len, int all_frames = 0);
 _API int video_encoder_enable_statistics(std::shared_ptr<Flow> &enc_flow,

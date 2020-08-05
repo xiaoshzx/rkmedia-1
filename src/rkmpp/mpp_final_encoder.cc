@@ -964,30 +964,135 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       LOG("ERROR: MPP Encoder: set split mode failed!\n");
       return false;
     }
-  } else if (change & VideoEncoder::kRefFrmCfgChange) {
-    int enable_ref = val->GetValue();
+  } else if (change & VideoEncoder::kGopModeChange) {
+    if (val->GetSize() < sizeof(EncGopModeParam)) {
+      LOG("ERROR: MPP Encoder: Incomplete gop mode params\n");
+      return false;
+    }
+    EncGopModeParam *gop_param = (EncGopModeParam *)val->GetPtr();
+    EncGopMode gop_mode = gop_param->mode;
     MppEncRefCfg ref = NULL;
 
-    if (enable_ref) {
-      LOG("MPP Encoder: enable tsvc mode...\n");
+    switch (gop_mode) {
+    case GOP_MODE_TSVC2:
+    case GOP_MODE_TSVC3:
+    case GOP_MODE_TSVC4: {
+      LOG("MPP Encoder: Set GopMode to \"TSVC\" mode...\n");
       if (mpp_enc_ref_cfg_init(&ref)) {
         LOG("ERROR: MPP Encoder: ref cfg init failed!\n");
         return false;
       }
-      if (mpi_enc_gen_ref_cfg(ref)) {
+      if (mpi_enc_gen_ref_cfg(ref, gop_mode)) {
         LOG("ERROR: MPP Encoder: ref cfg gen failed!\n");
         mpp_enc_ref_cfg_deinit(&ref);
         return false;
       }
       ret = mpp_enc.EncodeControl(MPP_ENC_SET_REF_CFG, ref);
       mpp_enc_ref_cfg_deinit(&ref);
-    } else {
-      LOG("MPP Encoder: disenable tsvc mode...\n");
+    } break;
+    case GOP_MODE_SMARTP: {
+      /*********************************************************
+       * Set Gop Mode
+       * *******************************************************/
+      // virtual intra frame gap.
+      int smartp_vi_len = gop_param->gop_size;
+      int smartp_gop_len = gop_param->interval;
+      int smartp_qp_delta = gop_param->ip_qp_delta;
+
+      LOG("MPP Encoder: Set GopMode to \"SMARTP\" mode. "
+          "gop_size:%d, interval:%d, ip_qp_delta:%d...\n",
+          gop_param->gop_size, gop_param->interval, gop_param->ip_qp_delta);
+
+      if (mpp_enc_ref_cfg_init(&ref)) {
+        LOG("ERROR: MPP Encoder: ref cfg init failed!\n");
+        return false;
+      }
+      if (mpi_enc_gen_ref_cfg(ref, gop_mode, smartp_gop_len, smartp_vi_len)) {
+        LOG("ERROR: MPP Encoder: ref cfg gen failed!\n");
+        mpp_enc_ref_cfg_deinit(&ref);
+        return false;
+      }
+      ret = mpp_enc.EncodeControl(MPP_ENC_SET_REF_CFG, ref);
+      mpp_enc_ref_cfg_deinit(&ref);
+
+      /*********************************************************
+       * Set Gop size
+       * *******************************************************/
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:gop", smartp_gop_len);
+      if (ret) {
+        LOG("ERROR: MPP Encoder: gop mode: cfg set s32 failed ret %d\n", ret);
+        return false;
+      }
+
+      /*********************************************************
+       * Set qp delta
+       * *******************************************************/
+      if (vconfig.image_cfg.codec_type == CODEC_TYPE_H265) {
+        ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_delta_ip", smartp_qp_delta);
+        if (ret) {
+          LOG("ERROR: MPP Encoder: gop mode: cfg set s32 failed ret %d\n", ret);
+          return false;
+        }
+      } else if (vconfig.image_cfg.codec_type == CODEC_TYPE_H264) {
+        ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_delta_ip", smartp_qp_delta);
+        if (ret) {
+          LOG("ERROR: MPP Encoder: gop mode: cfg set s32 failed ret %d\n", ret);
+          return false;
+        }
+      }
+
+      /*********************************************************
+       * Set vi gop size
+       * *******************************************************/
+      //ToDo...
+
+      if (mpp_enc.EncodeControl(MPP_ENC_SET_CFG, enc_cfg) != 0) {
+        LOG("ERROR: MPP Encoder: change gop cfg failed!\n");
+        return false;
+      }
+    } break;
+    case GOP_MODE_NORMALP: {
+      LOG("MPP Encoder: Set GopMode to \"NORMALP\" mode...\n");
       ret = mpp_enc.EncodeControl(MPP_ENC_SET_REF_CFG, NULL);
+
+      /*********************************************************
+       * Reset Gop size
+       * *******************************************************/
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "rc:gop", vconfig.gop_size);
+      if (ret) {
+        LOG("ERROR: MPP Encoder: gop mode: cfg set s32 failed ret %d\n", ret);
+        return false;
+      }
+      /*********************************************************
+       * Set qp delta
+       * *******************************************************/
+      int normal_qp_delta = gop_param->ip_qp_delta;
+      if (vconfig.image_cfg.codec_type == CODEC_TYPE_H265) {
+        ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_delta_ip", normal_qp_delta);
+        if (ret) {
+          LOG("ERROR: MPP Encoder: gop mode: cfg set s32 failed ret %d\n", ret);
+          return false;
+        }
+      } else if (vconfig.image_cfg.codec_type == CODEC_TYPE_H264) {
+        ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_delta_ip", normal_qp_delta);
+        if (ret) {
+          LOG("ERROR: MPP Encoder: gop mode: cfg set s32 failed ret %d\n", ret);
+          return false;
+        }
+      }
+
+      if (mpp_enc.EncodeControl(MPP_ENC_SET_CFG, enc_cfg) != 0) {
+        LOG("ERROR: MPP Encoder: change gop cfg failed!\n");
+        return false;
+      }
+    } break;
+    default:
+      LOG("ERROR: MPP Encoder: gop mode: unsupport mode value(%d)!\n", gop_mode);
+      return false;
     }
 
     if (ret) {
-      LOG("ERROR: MPP Encoder: set ref cfg failed!\n");
+      LOG("ERROR: MPP Encoder: set gop mode failed!\n");
       return false;
     }
   }

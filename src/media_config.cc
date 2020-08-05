@@ -704,14 +704,19 @@ int video_encoder_set_split(
   return 0;
 }
 
-int video_encoder_set_ref_frm_cfg(std::shared_ptr<Flow> &enc_flow,
-  int reference_mode) {
-  if (!enc_flow)
+int video_encoder_set_gop_mode(std::shared_ptr<Flow> &enc_flow,
+  EncGopModeParam *mode_params) {
+  if (!enc_flow || !mode_params)
     return -EINVAL;
 
+  uint8_t *param = (uint8_t *)malloc(sizeof(EncGopModeParam));
+  if (!param)
+    return -ENOSPC;
+
+  memcpy(param, mode_params, sizeof(EncGopModeParam));
   auto pbuff = std::make_shared<ParameterBuffer>(0);
-  pbuff->SetValue(reference_mode);
-  enc_flow->Control(VideoEncoder::kRefFrmCfgChange, pbuff);
+  pbuff->SetPtr(param, sizeof(EncGopModeParam));
+  enc_flow->Control(VideoEncoder::kGopModeChange, pbuff);
 
   return 0;
 }

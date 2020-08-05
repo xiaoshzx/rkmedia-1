@@ -94,7 +94,7 @@ _CAPI RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
                                     const VENC_ROI_ATTR_S *pstRoiAttr,
                                     RK_S32 region_cnt);
 
-_CAPI RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn, VENC_GOP_MODE_E GopMode);
+_CAPI RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn, VENC_GOP_ATTR_S *pstGopModeAttr);
 
 _CAPI RK_S32 RK_MPI_VENC_RGN_Init(VENC_CHN VeChn);
 

@@ -1128,8 +1128,8 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   }
 
   PARAM_STRING_APPEND_TO(enc_param, KEY_FULL_RANGE, 0);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_REF_FRM_CFG,
-                         stVencChnAttr->stGopAttr.enGopMode);
+  // PARAM_STRING_APPEND_TO(enc_param, KEY_REF_FRM_CFG,
+  //                       stVencChnAttr->stGopAttr.enGopMode);
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   g_venc_chns[VeChn].rkmedia_flow = easymedia::REFLECTOR(
@@ -1393,13 +1393,39 @@ RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn) {
   return RK_ERR_SYS_OK;
 }
 
-RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn, VENC_GOP_MODE_E GopMode) {
+RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn, VENC_GOP_ATTR_S *pstGopModeAttr) {
+  if (!pstGopModeAttr)
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
+
   if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN)
     return -RK_ERR_VENC_NOTREADY;
+
+  EncGopModeParam rkmedia_param;
+  memset(&rkmedia_param, 0, sizeof(rkmedia_param));
+  switch (pstGopModeAttr->enGopMode) {
+  case VENC_GOPMODE_NORMALP:
+    rkmedia_param.mode = GOP_MODE_NORMALP;
+    rkmedia_param.ip_qp_delta = pstGopModeAttr->s32IPQpDelta;
+    break;
+  case VENC_GOPMODE_TSVC:
+    rkmedia_param.mode = GOP_MODE_TSVC3;
+    break;
+  case VENC_GOPMODE_SMARTP:
+    rkmedia_param.mode = GOP_MODE_SMARTP;
+    rkmedia_param.ip_qp_delta = pstGopModeAttr->s32IPQpDelta;
+    rkmedia_param.interval = pstGopModeAttr->u32BgInterval;
+    rkmedia_param.gop_size = pstGopModeAttr->u32GopSize;
+    break;
+  default:
+    LOG("ERROR: %s invalid gop mode(%d)!\n", pstGopModeAttr->enGopMode);
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
   g_venc_mtx.lock();
-  video_encoder_set_ref_frm_cfg(g_venc_chns[VeChn].rkmedia_flow, GopMode);
+  easymedia::video_encoder_set_gop_mode(g_venc_chns[VeChn].rkmedia_flow, &rkmedia_param);
   g_venc_mtx.unlock();
   return RK_ERR_SYS_OK;
 }

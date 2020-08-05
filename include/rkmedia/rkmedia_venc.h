@@ -84,8 +84,9 @@ typedef struct rkVENC_RC_ATTR_S {
 
 /* the gop mode */
 typedef enum rkVENC_GOP_MODE_E {
-  VENC_GOPMODE_SVG = 0,
-  VENC_GOPMODE_TSVG = 1,
+  VENC_GOPMODE_NORMALP = 0,
+  VENC_GOPMODE_TSVC,
+  VENC_GOPMODE_SMARTP,
   VENC_GOPMODE_BUTT,
 } VENC_GOP_MODE_E;
 
@@ -147,7 +148,11 @@ typedef struct rkVENC_ATTR_S {
 
 /* the attribute of the gop*/
 typedef struct rkVENC_GOP_ATTR_S {
-  VENC_GOP_MODE_E enGopMode; // RW; Encoding GOP type
+  VENC_GOP_MODE_E enGopMode;
+  RK_U32 u32GopSize;
+  RK_S32 s32IPQpDelta;
+  RK_U32 u32BgInterval;
+  RK_S32 s32ViQpDelta;
 } VENC_GOP_ATTR_S;
 
 /* the attribute of the venc chnl*/
