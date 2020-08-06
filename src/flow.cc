@@ -827,8 +827,8 @@ void Flow::Input::ASyncSendInputAtomicBehavior(
 bool Flow::Input::ASyncFullBlockingBehavior(volatile bool &pred) {
   AutoDuration ad;
   do {
-    msleep(5);
     mtx.unlock();
+    msleep(5);
     if (max_cache_num > (int)cached_buffers.size()) {
       mtx.lock();
       break;
