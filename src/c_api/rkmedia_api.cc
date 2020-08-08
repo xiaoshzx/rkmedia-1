@@ -100,6 +100,9 @@ std::mutex g_aenc_mtx;
 RkmediaChannel g_algo_md_chns[ALGO_MD_MAX_CHN_NUM];
 std::mutex g_algo_md_mtx;
 
+RkmediaChannel g_rga_chns[RGA_MAX_CHN_NUM];
+std::mutex g_rga_mtx;
+
 static int RkmediaChnPushBuffer(RkmediaChannel *ptrChn, MEDIA_BUFFER buffer) {
   if (!ptrChn || !buffer)
     return -1;
@@ -199,6 +202,7 @@ RK_S32 RK_MPI_SYS_Init() {
   Reset_Channel_Table(g_aenc_chns, AENC_MAX_CHN_NUM, RK_ID_AENC);
   Reset_Channel_Table(g_ao_chns, AO_MAX_CHN_NUM, RK_ID_AO);
   Reset_Channel_Table(g_algo_md_chns, ALGO_MD_MAX_CHN_NUM, RK_ID_ALGO_MD);
+  Reset_Channel_Table(g_rga_chns, RGA_MAX_CHN_NUM, RK_ID_RGA);
 
   return RK_ERR_SYS_OK;
 }
@@ -253,6 +257,10 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
   case RK_ID_ALGO_MD:
     sink = g_algo_md_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_algo_md_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_RGA:
+    sink = g_rga_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_rga_chns[pstDestChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -405,7 +413,7 @@ FlowOutputCallback(void *handle,
     // calculate the brightness, the VI still retains the FlowOutputCallback
     // after binding the lower-level Chn. It is judged here that if Chn is VI,
     // and the VI status is BIND, return immediately.
-    if(target_chn->status == CHN_STATUS_BIND)
+    if (target_chn->status == CHN_STATUS_BIND)
       return;
   }
 
@@ -588,6 +596,13 @@ MEDIA_BUFFER RK_MPI_SYS_GetMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
     }
     target_chn = &g_aenc_chns[s32ChnID];
     break;
+  case RK_ID_RGA:
+    if (s32ChnID < 0 || s32ChnID > RGA_MAX_CHN_NUM) {
+      LOG("ERROR: %s invalid RGA ChnID[%d]\n", __func__, s32ChnID);
+      return NULL;
+    }
+    target_chn = &g_rga_chns[s32ChnID];
+    break;
   default:
     LOG("ERROR: %s invalid modeID[%d]\n", __func__, enModID);
     return NULL;
@@ -595,8 +610,8 @@ MEDIA_BUFFER RK_MPI_SYS_GetMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
 
   if (target_chn->status < CHN_STATUS_OPEN) {
     LOG("ERROR: %s Mode[%d]:Chn[%d] in status[%d], "
-        "this operation is not allowed!\n", __func__,
-        enModID, s32ChnID, target_chn->status);
+        "this operation is not allowed!\n",
+        __func__, enModID, s32ChnID, target_chn->status);
     return NULL;
   }
 
@@ -1453,7 +1468,8 @@ RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn, VENC_GOP_ATTR_S *pstGopModeAttr) {
   }
 
   g_venc_mtx.lock();
-  easymedia::video_encoder_set_gop_mode(g_venc_chns[VeChn].rkmedia_flow, &rkmedia_param);
+  easymedia::video_encoder_set_gop_mode(g_venc_chns[VeChn].rkmedia_flow,
+                                        &rkmedia_param);
   g_venc_mtx.unlock();
   return RK_ERR_SYS_OK;
 }
@@ -2166,12 +2182,109 @@ RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn) {
   g_algo_md_mtx.lock();
   if (g_algo_md_chns[MdChn].status == CHN_STATUS_BIND) {
     g_algo_md_mtx.unlock();
-    return -1;
+    return -RK_ERR_ALGO_MD_BUSY;
   }
 
   g_algo_md_chns[MdChn].rkmedia_flow.reset();
   g_algo_md_chns[MdChn].status = CHN_STATUS_CLOSED;
   g_algo_md_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+/********************************************************************
+ * Rga api
+ ********************************************************************/
+RK_S32 RK_MPI_RGA_CreateChn(RGA_CHN RgaChn, RGA_ATTR_S *pstRgaAttr) {
+  if ((RgaChn < 0) || (RgaChn > RGA_MAX_CHN_NUM))
+    return -RK_ERR_RGA_INVALID_CHNID;
+
+  if (!pstRgaAttr)
+    return -RK_ERR_RGA_ILLEGAL_PARAM;
+
+  RK_U32 u32InX = pstRgaAttr->stImgIn.u32X;
+  RK_U32 u32InY = pstRgaAttr->stImgIn.u32Y;
+  RK_U32 u32InWidth = pstRgaAttr->stImgIn.u32Width;
+  RK_U32 u32InHeight = pstRgaAttr->stImgIn.u32Height;
+  //  RK_U32 u32InVirWidth = pstRgaAttr->stImgIn.u32HorStride;
+  //  RK_U32 u32InVirHeight = pstRgaAttr->stImgIn.u32VirStride;
+  std::string InPixelFmt = ImageTypeToString(pstRgaAttr->stImgIn.imgType);
+
+  RK_U32 u32OutX = pstRgaAttr->stImgOut.u32X;
+  RK_U32 u32OutY = pstRgaAttr->stImgOut.u32Y;
+  RK_U32 u32OutWidth = pstRgaAttr->stImgOut.u32Width;
+  RK_U32 u32OutHeight = pstRgaAttr->stImgOut.u32Height;
+  RK_U32 u32OutVirWidth = pstRgaAttr->stImgOut.u32HorStride;
+  RK_U32 u32OutVirHeight = pstRgaAttr->stImgOut.u32VirStride;
+  std::string OutPixelFmt = ImageTypeToString(pstRgaAttr->stImgOut.imgType);
+  RK_BOOL bEnableBp = pstRgaAttr->bEnBufPool;
+  RK_U16 u16BufPoolCnt = pstRgaAttr->u16BufPoolCnt;
+  RK_U16 u16Rotaion = pstRgaAttr->u16Rotaion;
+  if ((u16Rotaion != 0) && (u16Rotaion != 90) && (u16Rotaion != 180) &&
+      (u16Rotaion != 270)) {
+    LOG("ERROR: %s rotation only support: 0/90/180/270!\n", __func__);
+    return -RK_ERR_RGA_ILLEGAL_PARAM;
+  }
+
+  g_rga_mtx.lock();
+  if (g_rga_chns[RgaChn].status != CHN_STATUS_CLOSED) {
+    g_rga_mtx.unlock();
+    return -RK_ERR_RGA_EXIST;
+  }
+
+  std::string flow_name = "filter";
+  std::string flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkrga");
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, InPixelFmt);
+  // Set output buffer type.
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, OutPixelFmt);
+  // Set output buffer size.
+  PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_WIDTH, u32OutWidth);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_HEIGHT, u32OutHeight);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_WIDTH, u32OutVirWidth);
+  PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_HEIGHT, u32OutVirHeight);
+  // enable buffer pool?
+  if (bEnableBp) {
+    PARAM_STRING_APPEND(flow_param, KEY_MEM_TYPE, KEY_MEM_HARDWARE);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_MEM_CNT, u16BufPoolCnt);
+  }
+
+  std::string filter_param = "";
+  ImageRect src_rect = {(RK_S32)u32InX, (RK_S32)u32InY, (RK_S32)u32InWidth,
+                        (RK_S32)u32InHeight};
+  ImageRect dst_rect = {(RK_S32)u32OutX, (RK_S32)u32OutY, (RK_S32)u32OutWidth,
+                        (RK_S32)u32OutHeight};
+  std::vector<ImageRect> rect_vect;
+  rect_vect.push_back(src_rect);
+  rect_vect.push_back(dst_rect);
+  PARAM_STRING_APPEND(filter_param, KEY_BUFFER_RECT,
+                      easymedia::TwoImageRectToString(rect_vect).c_str());
+  PARAM_STRING_APPEND_TO(filter_param, KEY_BUFFER_ROTATE, 0);
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, filter_param);
+  LOG("\n#Rkrga Filter flow param:\n%s\n", flow_param.c_str());
+  g_rga_chns[RgaChn].rkmedia_flow = easymedia::REFLECTOR(
+      Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
+  g_rga_chns[RgaChn].rkmedia_flow->SetOutputCallBack(&g_rga_chns[RgaChn],
+                                                     FlowOutputCallback);
+  g_rga_chns[RgaChn].status = CHN_STATUS_OPEN;
+
+  g_rga_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_RGA_DestroyChn(RGA_CHN RgaChn) {
+  if ((RgaChn < 0) || (RgaChn > RGA_MAX_CHN_NUM))
+    return -RK_ERR_RGA_INVALID_CHNID;
+
+  g_rga_mtx.lock();
+  if (g_rga_chns[RgaChn].status == CHN_STATUS_BIND) {
+    g_rga_mtx.unlock();
+    return -RK_ERR_RGA_BUSY;
+  }
+
+  g_rga_chns[RgaChn].rkmedia_flow.reset();
+  g_rga_chns[RgaChn].status = CHN_STATUS_CLOSED;
+  g_rga_mtx.unlock();
 
   return RK_ERR_SYS_OK;
 }

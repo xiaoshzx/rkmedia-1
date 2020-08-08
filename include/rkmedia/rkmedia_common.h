@@ -113,6 +113,7 @@ typedef enum rkMOD_ID_E {
   RK_ID_AENC,
   RK_ID_ADEC,
   RK_ID_ALGO_MD,
+  RK_ID_RGA,
 
   RK_ID_BUTT,
 } MOD_ID_E;
@@ -178,6 +179,9 @@ enum {
   /* system is busy*/
   RK_ERR_VENC_BUSY,
 
+  /***********************************
+   * AI::Audio input error types
+   **********************************/
   /* invlalid device ID */
   RK_ERR_AI_INVALID_DEVID,
   /* system is busy*/
@@ -187,6 +191,9 @@ enum {
   RK_ERR_AI_NOTOPEN,
   RK_ERR_AI_NOT_CONFIG,
 
+  /***********************************
+   * AO::Audio output error types
+   **********************************/
   /* invlalid device ID */
   RK_ERR_AO_INVALID_DEVID,
   /* system is busy*/
@@ -199,6 +206,9 @@ enum {
   RK_ERR_VO_EXIST,
   RK_ERR_VO_NOT_CONFIG,
 
+  /***********************************
+   * AENC::Audio encoder error types
+   **********************************/
   /* invlalid device ID */
   RK_ERR_AENC_INVALID_DEVID,
   /* system is busy*/
@@ -218,6 +228,19 @@ enum {
   RK_ERR_ALGO_MD_NOT_CONFIG,
   /* at lease one parameter is illagal ,eg, an illegal enumeration value  */
   RK_ERR_ALGO_MD_ILLEGAL_PARAM,
+
+  /***********************************
+   * RGA::rga error types
+   **********************************/
+  /* invlalid channel ID */
+  RK_ERR_RGA_INVALID_CHNID,
+  /* system is busy*/
+  RK_ERR_RGA_BUSY,
+  /* channel exists */
+  RK_ERR_RGA_EXIST,
+  RK_ERR_RGA_NOT_CONFIG,
+  /* at lease one parameter is illagal ,eg, an illegal enumeration value  */
+  RK_ERR_RGA_ILLEGAL_PARAM,
 
   RK_ERR_BUIT,
 };

@@ -14,6 +14,7 @@ extern "C" {
 #include "rkmedia_common.h"
 #include "rkmedia_event.h"
 #include "rkmedia_move_detection.h"
+#include "rkmedia_rga.h"
 #include "rkmedia_venc.h"
 #include "rkmedia_vi.h"
 
@@ -25,6 +26,7 @@ extern "C" {
 #define AO_MAX_CHN_NUM 1
 #define AENC_MAX_CHN_NUM 16
 #define ALGO_MD_MAX_CHN_NUM VI_MAX_CHN_NUM
+#define RGA_MAX_CHN_NUM 16
 
 typedef RK_S32 VI_PIPE;
 typedef RK_S32 VI_CHN;
@@ -33,6 +35,7 @@ typedef RK_S32 AI_CHN;
 typedef RK_S32 AO_CHN;
 typedef RK_S32 AENC_CHN;
 typedef RK_S32 ALGO_MD_CHN;
+typedef RK_S32 RGA_CHN;
 
 typedef struct rkMPP_CHN_S {
   MOD_ID_E enModId;
@@ -65,10 +68,9 @@ _CAPI RK_S32 RK_MPI_VI_SetChnAttr(VI_PIPE ViPipe, VI_CHN ViChn,
                                   const VI_CHN_ATTR_S *pstChnAttr);
 _CAPI RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn);
 _CAPI RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn);
-_CAPI RK_S32 RK_MPI_VI_GetChnRegionLuma(VI_PIPE ViPipe, VI_CHN ViChn,
-                                        const VIDEO_REGION_INFO_S *pstRegionInfo,
-                                        RK_U64 *pu64LumaData,
-                                        RK_S32 s32MilliSec);
+_CAPI RK_S32 RK_MPI_VI_GetChnRegionLuma(
+    VI_PIPE ViPipe, VI_CHN ViChn, const VIDEO_REGION_INFO_S *pstRegionInfo,
+    RK_U64 *pu64LumaData, RK_S32 s32MilliSec);
 _CAPI RK_S32 RK_MPI_VI_StartStream(VI_PIPE ViPipe, VI_CHN ViChn);
 /********************************************************************
  * Venc api
@@ -95,7 +97,8 @@ _CAPI RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
                                     const VENC_ROI_ATTR_S *pstRoiAttr,
                                     RK_S32 region_cnt);
 
-_CAPI RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn, VENC_GOP_ATTR_S *pstGopModeAttr);
+_CAPI RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn,
+                                    VENC_GOP_ATTR_S *pstGopModeAttr);
 
 _CAPI RK_S32 RK_MPI_VENC_RGN_Init(VENC_CHN VeChn);
 
@@ -141,6 +144,12 @@ _CAPI RK_S32 RK_MPI_ALGO_MD_SetChnAttr(ALGO_MD_CHN MdChn,
                                        const ALGO_MD_ATTR_S *pstChnAttr);
 _CAPI RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn);
 _CAPI RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn);
+
+/********************************************************************
+ * Rga api
+ ********************************************************************/
+_CAPI RK_S32 RK_MPI_RGA_CreateChn(RGA_CHN RgaChn, RGA_ATTR_S *pstRgaAttr);
+_CAPI RK_S32 RK_MPI_RGA_DestroyChn(RGA_CHN RgaChn);
 
 #ifdef __cplusplus
 }

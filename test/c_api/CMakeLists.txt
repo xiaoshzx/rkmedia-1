@@ -111,3 +111,12 @@ add_dependencies(rkmedia_vi_get_frame_test easymedia)
 target_link_libraries(rkmedia_vi_get_frame_test easymedia)
 target_include_directories(rkmedia_vi_get_frame_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_vi_get_frame_test RUNTIME DESTINATION "bin")
+
+#--------------------------
+#  rkmedia_vi_rga_test
+#--------------------------
+add_executable(rkmedia_vi_rga_test rkmedia_vi_rga_test.c)
+add_dependencies(rkmedia_vi_rga_test easymedia)
+target_link_libraries(rkmedia_vi_rga_test easymedia)
+target_include_directories(rkmedia_vi_rga_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_vi_rga_test RUNTIME DESTINATION "bin")
