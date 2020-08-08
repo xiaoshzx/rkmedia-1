@@ -171,6 +171,8 @@ public:
   void DumpBase(std::string &dump_info);
   virtual void Dump(std::string &dump_info) { DumpBase(dump_info); }
 
+  void StartStream();
+
 protected:
   class FlowInputMap {
   public:
@@ -243,6 +245,7 @@ protected:
   std::shared_ptr<ConditionLockMutex> source_start_cond_mtx;
 
   int down_flow_num;
+  bool waite_down_flow;
 
   // source flow
   bool SetAsSource(const std::vector<int> &output_slots, FunctionProcess f,

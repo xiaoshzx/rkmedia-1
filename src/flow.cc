@@ -309,7 +309,7 @@ DEFINE_PART_FINAL_EXPOSE_PRODUCT(Flow, Flow)
 const FunctionProcess Flow::void_transaction00 = void_transaction<0, 0>;
 
 Flow::Flow()
-    : out_slot_num(0), input_slot_num(0), down_flow_num(0),
+    : out_slot_num(0), input_slot_num(0), down_flow_num(0), waite_down_flow(true),
       event_handler2_(nullptr), event_callback_(nullptr), enable(true),
       quit(false), event_handler_(nullptr), play_video_handler_(nullptr),
       play_audio_handler_(nullptr), user_handler_(nullptr),
@@ -370,6 +370,15 @@ bool Flow::IsAllBuffEmpty() {
   }
 
   return true;
+}
+
+void Flow::StartStream() {
+  waite_down_flow = false;
+  if (source_start_cond_mtx) {
+    source_start_cond_mtx->lock();
+    source_start_cond_mtx->notify();
+    source_start_cond_mtx->unlock();
+  }
 }
 
 int Flow::SetRunTimes(int _run_times) {

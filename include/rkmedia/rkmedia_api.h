@@ -69,6 +69,7 @@ _CAPI RK_S32 RK_MPI_VI_GetChnRegionLuma(VI_PIPE ViPipe, VI_CHN ViChn,
                                         const VIDEO_REGION_INFO_S *pstRegionInfo,
                                         RK_U64 *pu64LumaData,
                                         RK_S32 s32MilliSec);
+_CAPI RK_S32 RK_MPI_VI_StartStream(VI_PIPE ViPipe, VI_CHN ViChn);
 /********************************************************************
  * Venc api
  ********************************************************************/

@@ -593,6 +593,13 @@ MEDIA_BUFFER RK_MPI_SYS_GetMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
     return NULL;
   }
 
+  if (target_chn->status < CHN_STATUS_OPEN) {
+    LOG("ERROR: %s Mode[%d]:Chn[%d] in status[%d], "
+        "this operation is not allowed!\n", __func__,
+        enModID, s32ChnID, target_chn->status);
+    return NULL;
+  }
+
   return RkmediaChnPopBuffer(target_chn, s32MilliSec);
 }
 
@@ -629,8 +636,8 @@ RK_S32 RK_MPI_SYS_SendMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
 /********************************************************************
  * Vi api
  ********************************************************************/
-_CAPI RK_S32 RK_MPI_VI_SetChnAttr(VI_PIPE ViPipe, VI_CHN ViChn,
-                                  const VI_CHN_ATTR_S *pstChnAttr) {
+RK_S32 RK_MPI_VI_SetChnAttr(VI_PIPE ViPipe, VI_CHN ViChn,
+                            const VI_CHN_ATTR_S *pstChnAttr) {
   if ((ViPipe < 0) || (ViChn < 0) || (ViChn > VI_MAX_CHN_NUM))
     return -RK_ERR_VI_INVALID_CHNID;
 
@@ -794,6 +801,27 @@ RK_S32 RK_MPI_VI_GetChnRegionLuma(VI_PIPE ViPipe, VI_CHN ViChn,
   for (RK_U32 i = 0; i < pstRegionInfo->u32RegionNum; i++)
     *(pu64LumaData + i) =
         rkmediaCalculateRegionLuma(rkmedia_mb, (pstRegionInfo->pstRegion + i));
+
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_VI_StartStream(VI_PIPE ViPipe, VI_CHN ViChn) {
+  if ((ViPipe < 0) || (ViChn < 0) || (ViChn > VI_MAX_CHN_NUM))
+    return -RK_ERR_VI_INVALID_CHNID;
+
+  g_vi_mtx.lock();
+  if (g_vi_chns[ViChn].status < CHN_STATUS_OPEN) {
+    g_vi_mtx.unlock();
+    return -RK_ERR_VI_BUSY;
+  }
+
+  if (!g_vi_chns[ViChn].rkmedia_flow) {
+    g_vi_mtx.unlock();
+    return -RK_ERR_VI_NOTREADY;
+  }
+
+  g_vi_chns[ViChn].rkmedia_flow->StartStream();
+  g_vi_mtx.unlock();
 
   return RK_ERR_SYS_OK;
 }
