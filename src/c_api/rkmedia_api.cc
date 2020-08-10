@@ -322,6 +322,10 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
     src = g_aenc_chns[pstSrcChn->s32ChnId].rkmedia_flow;
     src_chn = &g_aenc_chns[pstSrcChn->s32ChnId];
     break;
+  case RK_ID_RGA:
+    src = g_rga_chns[pstSrcChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_rga_chns[pstSrcChn->s32ChnId];
+    break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
@@ -356,6 +360,10 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
   case RK_ID_AENC:
     sink = g_aenc_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_aenc_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_RGA:
+    sink = g_rga_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_rga_chns[pstDestChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -472,6 +480,9 @@ RK_S32 RK_MPI_SYS_RegisterOutCb(const MPP_CHN_S *pstChn, OutCbFunc cb) {
     break;
   case RK_ID_AENC:
     target_chn = &g_aenc_chns[pstChn->s32ChnId];
+    break;
+  case RK_ID_RGA:
+    target_chn = &g_rga_chns[pstChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
