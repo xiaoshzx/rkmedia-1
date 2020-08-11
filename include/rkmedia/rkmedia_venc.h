@@ -263,6 +263,14 @@ typedef struct rkVENC_RECV_PIC_PARAM_S {
   RK_S32 s32RecvPicNum;
 } VENC_RECV_PIC_PARAM_S;
 
+typedef struct rkVENC_JPEG_PARAM_S {
+  RK_U32 u32Qfactor; // 1-10
+  RK_U8 u8YQt[64];
+  RK_U8 u8CbQt[64];
+  RK_U8 u8CrQt[64];
+  RK_U32 u32MCUPerECS;
+} VENC_JPEG_PARAM_S;
+
 #ifdef __cplusplus
 }
 #endif

@@ -926,22 +926,34 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, bps);
   PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, bps);
   PARAM_STRING_APPEND(enc_param, KEY_VIDEO_GOP, "1");
-  // set output fps
+  // set input fps
   std::string str_fps;
-  RK_U32 u32FpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateNum;
-  RK_U32 u32FpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateDen;
-  if (!u32FpsNum)
-    u32FpsNum = u32FpsDen = 1;
+  RK_U32 u32FpsNum = 1;
+  RK_U32 u32FpsDen = 1;
+  if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG) {
+    u32FpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateNum;
+    u32FpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateDen;
+    if (!u32FpsNum) {
+      LOG("ERROR: [%s]: Invalid src frame rate [%d/%d]\n", __func__, u32FpsNum,
+          u32FpsDen);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
+  }
   str_fps.append(std::to_string(u32FpsNum))
       .append("/")
       .append(std::to_string(u32FpsDen));
   PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps);
-  // set input fps
+  // set output fps
   str_fps = "";
-  u32FpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateNum;
-  u32FpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateDen;
-  if (!u32FpsNum)
-    u32FpsNum = u32FpsDen = 1;
+  if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG) {
+    u32FpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateNum;
+    u32FpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateDen;
+    if (!u32FpsNum) {
+      LOG("ERROR: [%s]: Invalid dst frame rate [%d/%d]\n", __func__, u32FpsNum,
+          u32FpsDen);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
+  }
   str_fps.append(std::to_string(u32FpsNum))
       .append("/")
       .append(std::to_string(u32FpsDen));
@@ -960,16 +972,11 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
     return -RK_ERR_VENC_ILLEGAL_PARAM;
   }
 
-  if (pixel_format == IMAGE_FBC0)
-    pixel_format = IMAGE_NV12;
-  else if (pixel_format == IMAGE_FBC2)
-    pixel_format = IMAGE_NV16;
-
   flow_name = "video_dec";
   flow_param = "";
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, VIDEO_H265);
-  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, pixel_format);
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, IMAGE_NV12);
   std::string dec_param = "";
   PARAM_STRING_APPEND(dec_param, KEY_INPUTDATATYPE, VIDEO_H265);
   PARAM_STRING_APPEND_TO(dec_param, KEY_MPP_SPLIT_MODE, 0);
@@ -987,7 +994,7 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   flow_name = "video_enc";
   flow_param = "";
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
-  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, IMAGE_NV12);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, IMAGE_JPEG);
 
   RK_S32 jpeg_width = video_width;
@@ -1075,7 +1082,8 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   // save venc_attr to venc chn.
   memcpy(&g_venc_chns[VeChn].venc_attr, stVencChnAttr, sizeof(RkmediaVencAttr));
 
-  if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_JPEG) {
+  if ((stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_JPEG) ||
+      (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG)) {
     RK_S32 ret = RkmediaCreateJpegSnapPipeline(&g_venc_chns[VeChn]);
     g_venc_mtx.unlock();
     return ret;
@@ -1242,7 +1250,7 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
 RK_S32 RK_MPI_VENC_SetRcParam(VENC_CHN VeChn,
                               const VENC_RC_PARAM_S *pstRcParam) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
-    return -RK_ERR_VENC_INVALID_CHNID; //对应HI_ERR_VENC_INVALID_CHNID
+    return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN)
     return -RK_ERR_VENC_NOTREADY;
 
@@ -1273,6 +1281,34 @@ RK_S32 RK_MPI_VENC_SetRcParam(VENC_CHN VeChn,
   }
   video_encoder_set_qp(g_venc_chns[VeChn].rkmedia_flow, qp);
   g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_VENC_SetJpegParam(VENC_CHN VeChn,
+                                const VENC_JPEG_PARAM_S *pstJpegParam) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return -RK_ERR_VENC_INVALID_CHNID;
+
+  if (!pstJpegParam)
+    return -RK_ERR_VENC_NULL_PTR;
+
+  if (pstJpegParam->u32Qfactor > 10) {
+    LOG("ERROR:[%s] u32Qfactor(%d) is invalid, should be [1, 10]\n", __func__,
+        pstJpegParam->u32Qfactor);
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+  if ((g_venc_chns[VeChn].status < CHN_STATUS_OPEN) ||
+      g_venc_chns[VeChn].rkmedia_flow_list.empty())
+    return -RK_ERR_VENC_NOTREADY;
+
+  if (g_venc_chns[VeChn].venc_attr.attr.stVencAttr.enType != RK_CODEC_TYPE_JPEG)
+    return -RK_ERR_VENC_NOT_PERM;
+
+  std::shared_ptr<easymedia::Flow> rkmedia_flow =
+      g_venc_chns[VeChn].rkmedia_flow_list.back();
+  easymedia::jpeg_encoder_set_quant(rkmedia_flow, pstJpegParam->u32Qfactor);
+
   return RK_ERR_SYS_OK;
 }
 

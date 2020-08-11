@@ -82,6 +82,8 @@ _CAPI RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn,
                                    VENC_CHN_ATTR_S *stVencChnAttr);
 _CAPI RK_S32 RK_MPI_VENC_SetRcParam(VENC_CHN VeChn,
                                     const VENC_RC_PARAM_S *pstRcParam);
+_CAPI RK_S32 RK_MPI_VENC_SetJpegParam(VENC_CHN VeChn,
+                                      const VENC_JPEG_PARAM_S *pstJpegParam);
 
 _CAPI RK_S32 RK_MPI_VENC_SetRcMode(VENC_CHN VeChn, VENC_RC_MODE_E RcMode);
 _CAPI RK_S32 RK_MPI_VENC_SetRcQuality(VENC_CHN VeChn,

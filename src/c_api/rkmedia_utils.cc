@@ -78,11 +78,13 @@ std::string CodecToString(CODEC_TYPE_E type) {
   case RK_CODEC_TYPE_H265:
     return VIDEO_H265;
   case RK_CODEC_TYPE_JPEG:
+  case RK_CODEC_TYPE_MJPEG:
     return IMAGE_JPEG;
   default:
     return "";
   }
 }
+
 std::string SampleFormatToString(Sample_Format_E type) {
   switch (type) {
   case RK_SAMPLE_FMT_U8:

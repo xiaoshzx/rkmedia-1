@@ -64,7 +64,7 @@ int main() {
   vi_chn_attr.buffer_cnt = 4;
   vi_chn_attr.width = 1920;
   vi_chn_attr.height = 1080;
-  vi_chn_attr.pix_fmt = IMAGE_TYPE_NV12;
+  vi_chn_attr.pix_fmt = IMAGE_TYPE_NV16;
   ret = RK_MPI_VI_SetChnAttr(0, 1, &vi_chn_attr);
   ret |= RK_MPI_VI_EnableChn(0, 1);
   if (ret) {
@@ -75,7 +75,7 @@ int main() {
   VENC_CHN_ATTR_S venc_chn_attr;
   memset(&venc_chn_attr, 0, sizeof(venc_chn_attr));
   venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_JPEG;
-  venc_chn_attr.stVencAttr.imageType = IMAGE_TYPE_NV12;
+  venc_chn_attr.stVencAttr.imageType = IMAGE_TYPE_NV16;
   venc_chn_attr.stVencAttr.u32PicWidth = 1920;
   venc_chn_attr.stVencAttr.u32PicHeight = 1080;
   venc_chn_attr.stVencAttr.u32VirWidth = 1920;
@@ -148,6 +148,8 @@ int main() {
   signal(SIGINT, sigterm_handler);
 
   char cmd[64];
+  int quant = 1;
+  VENC_JPEG_PARAM_S stJpegParam;
   printf("#Usage: input 'quit' to exit programe!\n"
          "peress any other key to capture one picture to file\n");
   while (!quit) {
@@ -158,6 +160,9 @@ int main() {
       break;
     }
     stRecvParam.s32RecvPicNum = 1;
+    stJpegParam.u32Qfactor = quant;
+    quant = (quant == 10) ? 1 : (quant + 1);
+    RK_MPI_VENC_SetJpegParam(0, &stJpegParam);
     ret = RK_MPI_VENC_StartRecvFrame(0, &stRecvParam);
     if (ret) {
       printf("RK_MPI_VENC_StartRecvFrame failed!\n");

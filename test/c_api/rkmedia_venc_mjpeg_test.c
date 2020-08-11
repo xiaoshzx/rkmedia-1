@@ -70,7 +70,7 @@ int main() {
 
   VENC_CHN_ATTR_S venc_chn_attr;
   memset(&venc_chn_attr, 0, sizeof(venc_chn_attr));
-  venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_JPEG;
+  venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_MJPEG;
   venc_chn_attr.stVencAttr.imageType = IMAGE_TYPE_NV12;
   venc_chn_attr.stVencAttr.u32PicWidth = 1920;
   venc_chn_attr.stVencAttr.u32PicHeight = 1080;
