@@ -238,7 +238,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
   RK_U32 out_eof = 0;
   RK_S64 pts = 0;
   std::shared_ptr<MediaBuffer> mdinfo;
-
+  RK_S32 temporal_id = -1;
   Type out_type;
 
   if (!input)
@@ -296,6 +296,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
     RK_S32 is_intra = 0;
     mpp_meta_get_s32(packet_meta, KEY_OUTPUT_INTRA, &is_intra);
     packet_flag = (is_intra) ? MediaBuffer::kIntra : MediaBuffer::kPredicted;
+    mpp_meta_get_s32(packet_meta, KEY_TEMPORAL_ID, &temporal_id);
   }
   out_eof = mpp_packet_get_eos(packet);
   pts = mpp_packet_get_pts(packet);
@@ -378,6 +379,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
   }
   output->SetValidSize(packet_len);
   output->SetUserFlag(packet_flag | output_mb_flags);
+  output->SetTsvcLevel(temporal_id);
   output->SetUSTimeStamp(pts);
   output->SetEOF(out_eof ? true : false);
   out_type = output->GetType();

@@ -37,12 +37,12 @@ public:
 
   MediaBuffer()
       : ptr(nullptr), size(0), fd(-1), valid_size(0), type(Type::None),
-        user_flag(0), ustimestamp(0), eof(false) {}
+        user_flag(0), ustimestamp(0), eof(false), tsvc_level(-1) {}
   // Set userdata and delete function if you want free resource when destrut.
   MediaBuffer(void *buffer_ptr, size_t buffer_size, int buffer_fd = -1,
               void *user_data = nullptr, DeleteFun df = nullptr)
       : ptr(buffer_ptr), size(buffer_size), fd(buffer_fd), valid_size(0),
-        type(Type::None), user_flag(0), ustimestamp(0), eof(false) {
+        type(Type::None), user_flag(0), ustimestamp(0), eof(false), tsvc_level(-1) {
     SetUserData(user_data, df);
   }
   virtual ~MediaBuffer() = default;
@@ -78,6 +78,8 @@ public:
   }
   bool IsEOF() const { return eof; }
   void SetEOF(bool val) { eof = val; }
+  int GetTsvcLevel() { return tsvc_level; }
+  void SetTsvcLevel(int _level) { tsvc_level = _level; }
 
   void SetUserData(void *user_data, DeleteFun df) {
     if (user_data) {
@@ -143,7 +145,7 @@ private:
   int64_t ustimestamp;
   int64_t atomic_clock;
   bool eof;
-
+  int tsvc_level; // for avc/hevc encoder
   std::shared_ptr<void> userdata;
   std::vector<std::shared_ptr<void>> related_sptrs;
 };
