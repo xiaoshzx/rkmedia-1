@@ -421,6 +421,39 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
   return RK_ERR_SYS_OK;
 }
 
+static MB_TYPE_E GetBufferType(RkmediaChannel *target_chn) {
+  MB_TYPE_E type = (MB_TYPE_E)0;
+
+  if (!target_chn)
+    return type;
+
+  switch (target_chn->mode_id) {
+  case RK_ID_VI:
+  case RK_ID_RGA:
+    type = MB_TYPE_IMAGE;
+    break;
+  case RK_ID_VENC:
+    if (target_chn->venc_attr.attr.stVencAttr.enType == RK_CODEC_TYPE_H264)
+      type = MB_TYPE_H264;
+    else if (target_chn->venc_attr.attr.stVencAttr.enType == RK_CODEC_TYPE_H265)
+      type = MB_TYPE_H265;
+    else if (target_chn->venc_attr.attr.stVencAttr.enType ==
+             RK_CODEC_TYPE_MJPEG)
+      type = MB_TYPE_MJPEG;
+    else if (target_chn->venc_attr.attr.stVencAttr.enType == RK_CODEC_TYPE_JPEG)
+      type = MB_TYPE_JPEG;
+    break;
+  case RK_ID_AI:
+  case RK_ID_AENC:
+    type = MB_TYPE_AUDIO;
+    break;
+  default:
+    break;
+  }
+
+  return type;
+}
+
 static void
 FlowOutputCallback(void *handle,
                    std::shared_ptr<easymedia::MediaBuffer> rkmedia_mb) {
@@ -440,6 +473,8 @@ FlowOutputCallback(void *handle,
     return;
   }
 
+  MB_TYPE_E mb_type = GetBufferType(target_chn);
+
   if (target_chn->mode_id == RK_ID_VI) {
     std::unique_lock<std::mutex> lck(target_chn->luma_buf_mtx);
     target_chn->luma_rkmedia_buf = rkmedia_mb;
@@ -453,39 +488,32 @@ FlowOutputCallback(void *handle,
       return;
   }
 
+  MEDIA_BUFFER_IMPLE *mb = new MEDIA_BUFFER_IMPLE;
+  if (!mb) {
+    LOG("ERROR: %s mode[%d]:chn[%d] no space left for new mb!\n", __func__,
+        target_chn->mode_id, target_chn->chn_id);
+    return;
+  }
+  mb->ptr = rkmedia_mb->GetPtr();
+  mb->fd = rkmedia_mb->GetFD();
+  mb->size = rkmedia_mb->GetValidSize();
+  mb->rkmedia_mb = rkmedia_mb;
+  mb->mode_id = target_chn->mode_id;
+  mb->chn_id = target_chn->chn_id;
+  mb->timestamp = (RK_U64)rkmedia_mb->GetUSTimeStamp();
+  mb->type = mb_type;
+  if ((mb_type == MB_TYPE_H264) || (mb_type == MB_TYPE_H265))
+    mb->flag = (rkmedia_mb->GetUserFlag() & MediaBuffer::kIntra)
+                   ? VENC_NALU_IDRSLICE
+                   : VENC_NALU_PSLICE;
+  else
+    mb->flag = 0;
   // RK_MPI_SYS_GetMediaBuffer and output callback function,
   // can only choose one.
-  if (target_chn->cb) {
-    MEDIA_BUFFER_IMPLE *mb0 = new MEDIA_BUFFER_IMPLE;
-    if (!mb0) {
-      LOG("ERROR: %s mode[%d]:chn[%d] no space left for new mb!\n", __func__,
-          target_chn->mode_id, target_chn->chn_id);
-      return;
-    }
-    mb0->ptr = rkmedia_mb->GetPtr();
-    mb0->fd = rkmedia_mb->GetFD();
-    mb0->size = rkmedia_mb->GetValidSize();
-    mb0->rkmedia_mb = rkmedia_mb;
-    mb0->mode_id = target_chn->mode_id;
-    mb0->chn_id = target_chn->chn_id;
-    mb0->timestamp = (RK_U64)rkmedia_mb->GetUSTimeStamp();
-    target_chn->cb(mb0);
-  } else {
-    MEDIA_BUFFER_IMPLE *mb = new MEDIA_BUFFER_IMPLE;
-    if (!mb) {
-      LOG("ERROR: %s mode[%d]:chn[%d] no space left for new mb!\n", __func__,
-          target_chn->mode_id, target_chn->chn_id);
-      return;
-    }
-    mb->ptr = rkmedia_mb->GetPtr();
-    mb->fd = rkmedia_mb->GetFD();
-    mb->size = rkmedia_mb->GetValidSize();
-    mb->rkmedia_mb = rkmedia_mb;
-    mb->mode_id = target_chn->mode_id;
-    mb->chn_id = target_chn->chn_id;
-    mb->timestamp = (RK_U64)rkmedia_mb->GetUSTimeStamp();
+  if (target_chn->cb)
+    target_chn->cb(mb);
+  else
     RkmediaChnPushBuffer(target_chn, mb);
-  }
 }
 
 RK_S32 RK_MPI_SYS_RegisterOutCb(const MPP_CHN_S *pstChn, OutCbFunc cb) {

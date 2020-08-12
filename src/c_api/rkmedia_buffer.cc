@@ -97,6 +97,7 @@ MEDIA_BUFFER RK_MPI_MB_CreateAudioBuffer(RK_U32 u32BufferSize,
   mb->timestamp = 0;
   mb->mode_id = RK_ID_UNKNOW;
   mb->chn_id = 0;
+  mb->flag = 0;
 
   return mb;
 }
@@ -147,6 +148,7 @@ MEDIA_BUFFER RK_MPI_MB_CreateImageBuffer(MB_IMAGE_INFO_S *pstImageInfo,
   mb->timestamp = 0;
   mb->mode_id = RK_ID_UNKNOW;
   mb->chn_id = 0;
+  mb->flag = 0;
 
   return mb;
 }
@@ -173,4 +175,13 @@ RK_S32 RK_MPI_MB_SetTimestamp(MEDIA_BUFFER mb, RK_U64 timestamp) {
     mb_impl->rkmedia_mb->SetUSTimeStamp(timestamp);
 
   return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_MB_GetFlag(MEDIA_BUFFER mb) {
+  if (!mb)
+    return -RK_ERR_SYS_ILLEGAL_PARAM;
+
+  MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)mb;
+
+  return mb_impl->flag;
 }

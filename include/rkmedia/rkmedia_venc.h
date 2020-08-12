@@ -34,6 +34,18 @@ typedef enum rkVENC_RC_MODE_E {
   VENC_RC_MODE_BUTT,
 } VENC_RC_MODE_E;
 
+typedef enum rkVENC_NALU_TYPE_E {
+  VENC_NALU_BSLICE = 1,
+  VENC_NALU_PSLICE,
+  VENC_NALU_ISLICE,
+  VENC_NALU_IDRSLICE,
+  VENC_NALU_SEI,
+  VENC_NALU_VPS,
+  VENC_NALU_SPS,
+  VENC_NALU_PPS,
+  VENC_NALU_BUTT
+} VENC_NALU_TYPE_E;
+
 /* the attribute of h264e cbr*/
 typedef struct rkVENC_H264_CBR_S {
 

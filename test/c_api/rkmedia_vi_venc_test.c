@@ -11,9 +11,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "common/sample_common.h"
 #include "rkmedia_api.h"
 #include "rkmedia_venc.h"
-#include "common/sample_common.h"
 
 static bool quit = false;
 static void sigterm_handler(int sig) {
@@ -22,9 +22,20 @@ static void sigterm_handler(int sig) {
 }
 
 void video_packet_cb(MEDIA_BUFFER mb) {
-  printf("Get Video Encoded packet:ptr:%p, fd:%d, size:%zu, mode:%d\n",
-         RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb), RK_MPI_MB_GetSize(mb),
-         RK_MPI_MB_GetModeID(mb));
+  const char *nalu_type = "Unknow";
+  switch (RK_MPI_MB_GetFlag(mb)) {
+  case VENC_NALU_IDRSLICE:
+    nalu_type = "IDR Slice";
+    break;
+  case VENC_NALU_PSLICE:
+    nalu_type = "P Slice";
+    break;
+  default:
+    break;
+  }
+  printf("Get Video Encoded packet(%s):ptr:%p, fd:%d, size:%zu, mode:%d\n",
+         nalu_type, RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb),
+         RK_MPI_MB_GetSize(mb), RK_MPI_MB_GetModeID(mb));
   RK_MPI_MB_ReleaseBuffer(mb);
 }
 
@@ -104,7 +115,7 @@ int main() {
   }
 
 #ifdef RKAIQ
-  SAMPLE_COMM_ISP_Stop(); //isp aiq stop before vi streamoff
+  SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
 #endif
 
   printf("%s exit!\n", __func__);
