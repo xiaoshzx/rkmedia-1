@@ -502,12 +502,15 @@ FlowOutputCallback(void *handle,
   mb->chn_id = target_chn->chn_id;
   mb->timestamp = (RK_U64)rkmedia_mb->GetUSTimeStamp();
   mb->type = mb_type;
-  if ((mb_type == MB_TYPE_H264) || (mb_type == MB_TYPE_H265))
+  if ((mb_type == MB_TYPE_H264) || (mb_type == MB_TYPE_H265)) {
     mb->flag = (rkmedia_mb->GetUserFlag() & MediaBuffer::kIntra)
                    ? VENC_NALU_IDRSLICE
                    : VENC_NALU_PSLICE;
-  else
+    mb->tsvc_level = rkmedia_mb->GetTsvcLevel();
+  } else {
     mb->flag = 0;
+    mb->tsvc_level = 0;
+  }
   // RK_MPI_SYS_GetMediaBuffer and output callback function,
   // can only choose one.
   if (target_chn->cb)

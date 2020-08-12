@@ -52,6 +52,8 @@ _CAPI MEDIA_BUFFER RK_MPI_MB_CreateAudioBuffer(RK_U32 u32BufferSize,
 _CAPI RK_S32 RK_MPI_MB_SetSzie(MEDIA_BUFFER mb, RK_U32 size);
 _CAPI RK_S32 RK_MPI_MB_SetTimestamp(MEDIA_BUFFER mb, RK_U64 timestamp);
 _CAPI RK_S32 RK_MPI_MB_GetFlag(MEDIA_BUFFER mb);
+_CAPI RK_S32 RK_MPI_MB_GetTsvcLevel(MEDIA_BUFFER mb);
+_CAPI RK_BOOL RK_MPI_MB_IsViFrame(MEDIA_BUFFER mb);
 
 #ifdef __cplusplus
 }

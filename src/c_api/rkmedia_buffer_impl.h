@@ -19,6 +19,7 @@ typedef struct _rkMEDIA_BUFFER_S {
   RK_U16 chn_id;    // The channel to which the buffer belongs
   RK_U64 timestamp; // buffer timesatmp
   RK_U32 flag;      // buffer flag
+  RK_U32 tsvc_level;// buffer level
   std::shared_ptr<easymedia::MediaBuffer> rkmedia_mb;
   union {
     MB_IMAGE_INFO_S stImageInfo;

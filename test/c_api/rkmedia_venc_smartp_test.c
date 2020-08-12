@@ -26,9 +26,24 @@ static FILE *g_save_file;
 #define TEST_ARGB32_RED 0xFFFF0033
 
 void video_packet_cb(MEDIA_BUFFER mb) {
-  printf("Get Video Encoded packet:ptr:%p, fd:%d, size:%zu, mode:%d\n",
-         RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb), RK_MPI_MB_GetSize(mb),
-         RK_MPI_MB_GetModeID(mb));
+  const char *nalu_type = "Unknow";
+  switch (RK_MPI_MB_GetFlag(mb)) {
+  case VENC_NALU_IDRSLICE:
+    nalu_type = "IDR Slice";
+    break;
+  case VENC_NALU_PSLICE:
+    nalu_type = "P Slice";
+    break;
+  default:
+    break;
+  }
+
+  if (RK_MPI_MB_IsViFrame(mb))
+    nalu_type = "VI Slice";
+
+  printf("Get Video Encoded packet[%s]:ptr:%p, fd:%d, size:%zu, mode:%d, level:%d\n",
+         nalu_type, RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb), RK_MPI_MB_GetSize(mb),
+         RK_MPI_MB_GetModeID(mb), RK_MPI_MB_GetTsvcLevel(mb));
   if (g_save_file)
     fwrite(RK_MPI_MB_GetPtr(mb), 1, RK_MPI_MB_GetSize(mb), g_save_file);
   RK_MPI_MB_ReleaseBuffer(mb);

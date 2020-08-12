@@ -6,6 +6,7 @@
 #include "image.h"
 #include "rkmedia_buffer_impl.h"
 #include "rkmedia_utils.h"
+#include "rkmedia_venc.h"
 
 void *RK_MPI_MB_GetPtr(MEDIA_BUFFER mb) {
   if (!mb)
@@ -98,6 +99,7 @@ MEDIA_BUFFER RK_MPI_MB_CreateAudioBuffer(RK_U32 u32BufferSize,
   mb->mode_id = RK_ID_UNKNOW;
   mb->chn_id = 0;
   mb->flag = 0;
+  mb->tsvc_level = 0;
 
   return mb;
 }
@@ -149,6 +151,7 @@ MEDIA_BUFFER RK_MPI_MB_CreateImageBuffer(MB_IMAGE_INFO_S *pstImageInfo,
   mb->mode_id = RK_ID_UNKNOW;
   mb->chn_id = 0;
   mb->flag = 0;
+  mb->tsvc_level = 0;
 
   return mb;
 }
@@ -185,3 +188,29 @@ RK_S32 RK_MPI_MB_GetFlag(MEDIA_BUFFER mb) {
 
   return mb_impl->flag;
 }
+
+RK_S32 RK_MPI_MB_GetTsvcLevel(MEDIA_BUFFER mb) {
+  if (!mb)
+    return -RK_ERR_SYS_ILLEGAL_PARAM;
+
+  MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)mb;
+
+  return mb_impl->tsvc_level;
+}
+
+RK_BOOL RK_MPI_MB_IsViFrame(MEDIA_BUFFER mb) {
+  if (!mb)
+    return RK_FALSE;
+
+  MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)mb;
+  if ((mb_impl->type != MB_TYPE_H264) &&
+      (mb_impl->type != MB_TYPE_H265))
+    return RK_FALSE;
+
+  if ((mb_impl->flag == VENC_NALU_PSLICE) &&
+      (mb_impl->tsvc_level == 0))
+    return RK_TRUE;
+
+  return RK_FALSE;
+}
+
