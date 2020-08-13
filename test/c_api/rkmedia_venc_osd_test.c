@@ -59,10 +59,12 @@ int main() {
   venc_chn_attr.stRcAttr.stH264Cbr.u32SrcFrameRateNum = 30;
 
   VI_CHN_ATTR_S vi_chn_attr;
-  vi_chn_attr.buffer_cnt = 4;
-  vi_chn_attr.width = 1920;
-  vi_chn_attr.height = 1080;
-  vi_chn_attr.pix_fmt = IMAGE_TYPE_NV12;
+  vi_chn_attr.pcVideoNode = "rkispp_scale0";
+  vi_chn_attr.u32BufCnt = 4;
+  vi_chn_attr.u32Width = 1920;
+  vi_chn_attr.u32Height = 1080;
+  vi_chn_attr.enPixFmt = IMAGE_TYPE_NV12;
+  vi_chn_attr.enWorkMode = VI_WORK_MODE_NORMAL;
 
   g_save_file = fopen("/userdata/output.h264", "w");
   if (!g_save_file)

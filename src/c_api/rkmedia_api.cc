@@ -34,10 +34,7 @@ typedef enum rkCHN_STATUS {
 
 typedef struct _RkmediaVencAttr { VENC_CHN_ATTR_S attr; } RkmediaVencAttr;
 
-typedef struct _RkmediaVIAttr {
-  const char *path;
-  VI_CHN_ATTR_S attr;
-} RkmediaVIAttr;
+typedef struct _RkmediaVIAttr { VI_CHN_ATTR_S attr; } RkmediaVIAttr;
 
 typedef struct _RkmediaAIAttr { AI_CHN_ATTR_S attr; } RkmediaAIAttr;
 
@@ -196,12 +193,6 @@ static void Reset_Channel_Table(RkmediaChannel *tbl, int cnt, MOD_ID_E mid) {
 
 RK_S32 RK_MPI_SYS_Init() {
   LOG_INIT();
-
-  // memset(g_vi_dev, 0, VI_MAX_DEV_NUM * sizeof(RkmediaVideoDev));
-  g_vi_chns[0].vi_attr.path = "rkispp_m_bypass"; // rkispp_bypass
-  g_vi_chns[1].vi_attr.path = "rkispp_scale0";   // rkispp_scal0
-  g_vi_chns[2].vi_attr.path = "rkispp_scale1";   // rkispp_scal1
-  g_vi_chns[3].vi_attr.path = "rkispp_scale2";   // rkispp_scal2
 
   Reset_Channel_Table(g_vi_chns, VI_MAX_CHN_NUM, RK_ID_VI);
   Reset_Channel_Table(g_venc_chns, VENC_MAX_CHN_NUM, RK_ID_VENC);
@@ -484,7 +475,8 @@ FlowOutputCallback(void *handle,
     // calculate the brightness, the VI still retains the FlowOutputCallback
     // after binding the lower-level Chn. It is judged here that if Chn is VI,
     // and the VI status is BIND, return immediately.
-    if (target_chn->status == CHN_STATUS_BIND)
+    if ((target_chn->status == CHN_STATUS_BIND) ||
+        (target_chn->vi_attr.attr.enWorkMode == VI_WORK_MODE_LUMA_ONLY))
       return;
   }
 
@@ -741,8 +733,8 @@ RK_S32 RK_MPI_VI_SetChnAttr(VI_PIPE ViPipe, VI_CHN ViChn,
   if ((ViPipe < 0) || (ViChn < 0) || (ViChn > VI_MAX_CHN_NUM))
     return -RK_ERR_VI_INVALID_CHNID;
 
-  if (!pstChnAttr)
-    return -RK_ERR_SYS_NOT_PERM;
+  if (!pstChnAttr || !pstChnAttr->pcVideoNode)
+    return -RK_ERR_VI_ILLEGAL_PARAM;
 
   g_vi_mtx.lock();
   if (g_vi_chns[ViChn].status != CHN_STATUS_CLOSED) {
@@ -774,19 +766,19 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "v4l2_capture_stream");
   std::string stream_param;
   PARAM_STRING_APPEND_TO(stream_param, KEY_USE_LIBV4L2, 1);
-  PARAM_STRING_APPEND(stream_param, KEY_DEVICE, g_vi_chns[ViChn].vi_attr.path);
+  PARAM_STRING_APPEND(stream_param, KEY_DEVICE, g_vi_chns[ViChn].vi_attr.attr.pcVideoNode);
   PARAM_STRING_APPEND(stream_param, KEY_V4L2_CAP_TYPE,
                       KEY_V4L2_C_TYPE(VIDEO_CAPTURE));
   PARAM_STRING_APPEND(stream_param, KEY_V4L2_MEM_TYPE,
                       KEY_V4L2_M_TYPE(MEMORY_DMABUF));
   PARAM_STRING_APPEND_TO(stream_param, KEY_FRAMES,
-                         g_vi_chns[ViChn].vi_attr.attr.buffer_cnt);
+                         g_vi_chns[ViChn].vi_attr.attr.u32BufCnt);
   PARAM_STRING_APPEND(stream_param, KEY_OUTPUTDATATYPE,
-                      ImageTypeToString(g_vi_chns[ViChn].vi_attr.attr.pix_fmt));
+                      ImageTypeToString(g_vi_chns[ViChn].vi_attr.attr.enPixFmt));
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_WIDTH,
-                         g_vi_chns[ViChn].vi_attr.attr.width);
+                         g_vi_chns[ViChn].vi_attr.attr.u32Width);
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_HEIGHT,
-                         g_vi_chns[ViChn].vi_attr.attr.height);
+                         g_vi_chns[ViChn].vi_attr.attr.u32Height);
   flow_param = easymedia::JoinFlowParam(flow_param, 1, stream_param);
 
   g_vi_chns[ViChn].rkmedia_flow = easymedia::REFLECTOR(

@@ -37,10 +37,12 @@ int main() {
   }
 
   VI_CHN_ATTR_S vi_chn_attr;
-  vi_chn_attr.buffer_cnt = 4;
-  vi_chn_attr.width = 1920;
-  vi_chn_attr.height = 1080;
-  vi_chn_attr.pix_fmt = IMAGE_TYPE_NV12;
+  vi_chn_attr.pcVideoNode = "rkispp_scale0";
+  vi_chn_attr.u32BufCnt = 4;
+  vi_chn_attr.u32Width = 1920;
+  vi_chn_attr.u32Height = 1080;
+  vi_chn_attr.enPixFmt = IMAGE_TYPE_NV12;
+  vi_chn_attr.enWorkMode = VI_WORK_MODE_NORMAL;
   ret = RK_MPI_VI_SetChnAttr(0, 1, &vi_chn_attr);
   ret |= RK_MPI_VI_EnableChn(0, 1);
   if (ret) {
