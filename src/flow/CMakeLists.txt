@@ -23,5 +23,10 @@ set(EASY_MEDIA_FLOW_SOURCE_FILES ${EASY_MEDIA_FLOW_SOURCE_FILES}
                                  flow/move_detection_flow.cc)
 endif()
 
+if(OCCLUSION_DETECTION)
+set(EASY_MEDIA_FLOW_SOURCE_FILES ${EASY_MEDIA_FLOW_SOURCE_FILES}
+                                 flow/occlusion_detection_flow.cc)
+endif()
+
 set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
                             ${EASY_MEDIA_FLOW_SOURCE_FILES} PARENT_SCOPE)

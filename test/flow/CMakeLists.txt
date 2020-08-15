@@ -199,7 +199,19 @@ if(RKMPP_ENCODER)
   install(TARGETS video_smart_encoder_test RUNTIME DESTINATION "bin")
 endif()
 
-endif()#RKMPP_ENCODER_OSD
+endif()#MOVE_DETECTION
+
+if(OCCLUSION_DETECTION)
+#--------------------------
+# occlusion_detection_flow_test
+#--------------------------
+add_executable(occlusion_detection_flow_test occlusion_detection_flow_test.cc)
+target_link_libraries(occlusion_detection_flow_test easymedia)
+target_include_directories(occlusion_detection_flow_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_features(occlusion_detection_flow_test PRIVATE cxx_std_11)
+install(TARGETS occlusion_detection_flow_test RUNTIME DESTINATION "bin")
+
+endif()#OCCLUSION_DETECTION
 
 #--------------------------
 # through_guard_mjpeg_test

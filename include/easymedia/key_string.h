@@ -89,6 +89,12 @@
 #define KEY_MD_ROI_CNT "md_roi_cnt"
 #define KEY_MD_ROI_RECT "md_roi_rect"
 
+// occlusion detection
+#define KEY_OD_WIDTH "od_width"
+#define KEY_OD_HEIGHT "od_height"
+#define KEY_OD_ROI_CNT "od_roi_cnt"
+#define KEY_OD_ROI_RECT "od_roi_rect"
+
 // audio info
 #define KEY_SAMPLE_FMT "sample_format"
 #define KEY_CHANNELS "channel_num"
