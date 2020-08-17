@@ -1404,7 +1404,7 @@ RK_S32 RK_MPI_VENC_SetBitrate(VENC_CHN VeChn, RK_U32 u32BitRate,
                               RK_U32 u32MinBitRate, RK_U32 u32MaxBitRate) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
-  if (g_venc_chns[VeChn].status != CHN_STATUS_OPEN)
+  if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN)
     return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
