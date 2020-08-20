@@ -792,15 +792,17 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "v4l2_capture_stream");
   std::string stream_param;
   PARAM_STRING_APPEND_TO(stream_param, KEY_USE_LIBV4L2, 1);
-  PARAM_STRING_APPEND(stream_param, KEY_DEVICE, g_vi_chns[ViChn].vi_attr.attr.pcVideoNode);
+  PARAM_STRING_APPEND(stream_param, KEY_DEVICE,
+                      g_vi_chns[ViChn].vi_attr.attr.pcVideoNode);
   PARAM_STRING_APPEND(stream_param, KEY_V4L2_CAP_TYPE,
                       KEY_V4L2_C_TYPE(VIDEO_CAPTURE));
   PARAM_STRING_APPEND(stream_param, KEY_V4L2_MEM_TYPE,
                       KEY_V4L2_M_TYPE(MEMORY_DMABUF));
   PARAM_STRING_APPEND_TO(stream_param, KEY_FRAMES,
                          g_vi_chns[ViChn].vi_attr.attr.u32BufCnt);
-  PARAM_STRING_APPEND(stream_param, KEY_OUTPUTDATATYPE,
-                      ImageTypeToString(g_vi_chns[ViChn].vi_attr.attr.enPixFmt));
+  PARAM_STRING_APPEND(
+      stream_param, KEY_OUTPUTDATATYPE,
+      ImageTypeToString(g_vi_chns[ViChn].vi_attr.attr.enPixFmt));
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_WIDTH,
                          g_vi_chns[ViChn].vi_attr.attr.u32Width);
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_HEIGHT,
@@ -1969,7 +1971,7 @@ RK_S32 RK_MPI_AI_SetChnAttr(AI_CHN AiChn, const AI_CHN_ATTR_S *pstAttr) {
     return -RK_ERR_AI_INVALID_DEVID;
 
   g_ai_mtx.lock();
-  if (!pstAttr || !pstAttr->path)
+  if (!pstAttr || !pstAttr->pcAudioNode)
     return -RK_ERR_SYS_NOT_PERM;
 
   if (g_ai_chns[AiChn].status != CHN_STATUS_CLOSED) {
@@ -1994,12 +1996,12 @@ RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn) {
                                                         : -RK_ERR_AI_NOT_CONFIG;
   }
   SampleInfo info;
-  info.channels = g_ai_chns[AiChn].ai_attr.attr.channels;
-  info.fmt = (SampleFormat)g_ai_chns[AiChn].ai_attr.attr.fmt;
-  info.nb_samples = g_ai_chns[AiChn].ai_attr.attr.nb_samples;
-  info.sample_rate = g_ai_chns[AiChn].ai_attr.attr.sample_rate;
-  g_ai_chns[AiChn].rkmedia_flow =
-      create_alsa_flow(g_ai_chns[AiChn].ai_attr.attr.path, info, RK_TRUE);
+  info.channels = g_ai_chns[AiChn].ai_attr.attr.u32Channels;
+  info.fmt = (SampleFormat)g_ai_chns[AiChn].ai_attr.attr.enSampleFormat;
+  info.nb_samples = g_ai_chns[AiChn].ai_attr.attr.u32NbSamples;
+  info.sample_rate = g_ai_chns[AiChn].ai_attr.attr.u32SampleRate;
+  g_ai_chns[AiChn].rkmedia_flow = create_alsa_flow(
+      g_ai_chns[AiChn].ai_attr.attr.pcAudioNode, info, RK_TRUE);
   g_ai_chns[AiChn].rkmedia_flow->SetOutputCallBack(&g_ai_chns[AiChn],
                                                    FlowOutputCallback);
   g_ai_chns[AiChn].status = CHN_STATUS_OPEN;
@@ -2060,7 +2062,7 @@ RK_S32 RK_MPI_AO_SetChnAttr(AO_CHN AoChn, const AO_CHN_ATTR_S *pstAttr) {
     return -RK_ERR_AO_INVALID_DEVID;
 
   g_ao_mtx.lock();
-  if (!pstAttr || !pstAttr->path)
+  if (!pstAttr || !pstAttr->pcAudioNode)
     return -RK_ERR_SYS_NOT_PERM;
 
   if (g_ao_chns[AoChn].status != CHN_STATUS_CLOSED) {
@@ -2085,12 +2087,12 @@ RK_S32 RK_MPI_AO_EnableChn(AO_CHN AoChn) {
                                                         : -RK_ERR_VO_NOT_CONFIG;
   }
   SampleInfo info;
-  info.channels = g_ao_chns[AoChn].ao_attr.attr.channels;
-  info.fmt = (SampleFormat)g_ao_chns[AoChn].ao_attr.attr.fmt;
-  info.nb_samples = g_ao_chns[AoChn].ao_attr.attr.nb_samples;
-  info.sample_rate = g_ao_chns[AoChn].ao_attr.attr.sample_rate;
-  g_ao_chns[AoChn].rkmedia_flow =
-      create_alsa_flow(g_ao_chns[AoChn].ao_attr.attr.path, info, RK_FALSE);
+  info.channels = g_ao_chns[AoChn].ao_attr.attr.u32SampleRate;
+  info.fmt = (SampleFormat)g_ao_chns[AoChn].ao_attr.attr.enSampleFormat;
+  info.nb_samples = g_ao_chns[AoChn].ao_attr.attr.u32NbSamples;
+  info.sample_rate = g_ao_chns[AoChn].ao_attr.attr.u32SampleRate;
+  g_ao_chns[AoChn].rkmedia_flow = create_alsa_flow(
+      g_ao_chns[AoChn].ao_attr.attr.pcAudioNode, info, RK_FALSE);
   g_ao_chns[AoChn].rkmedia_flow->SetOutputCallBack(&g_ao_chns[AoChn],
                                                    FlowOutputCallback);
   g_ao_chns[AoChn].status = CHN_STATUS_OPEN;
@@ -2165,7 +2167,7 @@ RK_S32 RK_MPI_AENC_CreateChn(AENC_CHN AencChn, const AENC_CHN_ATTR_S *pstAttr) {
   std::string param;
   flow_name = "audio_enc";
   param = "";
-  CODEC_TYPE_E codec_type = g_aenc_chns[AencChn].aenc_attr.attr.enType;
+  CODEC_TYPE_E codec_type = g_aenc_chns[AencChn].aenc_attr.attr.enCodecType;
   PARAM_STRING_APPEND(param, KEY_NAME, "ffmpeg_aud");
   PARAM_STRING_APPEND(param, KEY_OUTPUTDATATYPE, CodecToString(codec_type));
   RK_S32 nb_sample = 0;
@@ -2175,30 +2177,30 @@ RK_S32 RK_MPI_AENC_CreateChn(AENC_CHN AencChn, const AENC_CHN_ATTR_S *pstAttr) {
   switch (codec_type) {
   case RK_CODEC_TYPE_G711A:
     sample_format = RK_SAMPLE_FMT_S16;
-    nb_sample = g_aenc_chns[AencChn].aenc_attr.attr.g711a_attr.u32NbSample;
-    channels = g_aenc_chns[AencChn].aenc_attr.attr.g711a_attr.u32Channels;
-    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.g711a_attr.u32SampleRate;
+    nb_sample = g_aenc_chns[AencChn].aenc_attr.attr.stAencG711A.u32NbSample;
+    channels = g_aenc_chns[AencChn].aenc_attr.attr.stAencG711A.u32Channels;
+    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.stAencG711A.u32SampleRate;
     break;
   case RK_CODEC_TYPE_G711U:
     sample_format = RK_SAMPLE_FMT_S16;
-    nb_sample = g_aenc_chns[AencChn].aenc_attr.attr.g711u_attr.u32NbSample;
-    channels = g_aenc_chns[AencChn].aenc_attr.attr.g711u_attr.u32Channels;
-    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.g711u_attr.u32SampleRate;
+    nb_sample = g_aenc_chns[AencChn].aenc_attr.attr.stAencG711U.u32NbSample;
+    channels = g_aenc_chns[AencChn].aenc_attr.attr.stAencG711U.u32Channels;
+    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.stAencG711U.u32SampleRate;
     break;
   case RK_CODEC_TYPE_MP2:
     sample_format = RK_SAMPLE_FMT_S16;
-    channels = g_aenc_chns[AencChn].aenc_attr.attr.mp2_attr.u32Channels;
-    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.mp2_attr.u32SampleRate;
+    channels = g_aenc_chns[AencChn].aenc_attr.attr.stAencMP2.u32Channels;
+    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.stAencMP2.u32SampleRate;
     break;
   case RK_CODEC_TYPE_AAC:
     sample_format = RK_SAMPLE_FMT_FLTP;
-    channels = g_aenc_chns[AencChn].aenc_attr.attr.aac_attr.u32Channels;
-    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.aac_attr.u32SampleRate;
+    channels = g_aenc_chns[AencChn].aenc_attr.attr.stAencAAC.u32Channels;
+    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.stAencAAC.u32SampleRate;
     break;
   case RK_CODEC_TYPE_G726:
     sample_format = RK_SAMPLE_FMT_S16;
-    channels = g_aenc_chns[AencChn].aenc_attr.attr.g726_attr.u32Channels;
-    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.g726_attr.u32SampleRate;
+    channels = g_aenc_chns[AencChn].aenc_attr.attr.stAencG726.u32Channels;
+    sample_rate = g_aenc_chns[AencChn].aenc_attr.attr.stAencG726.u32SampleRate;
     break;
   default:
     g_aenc_mtx.unlock();
@@ -2454,19 +2456,19 @@ RK_S32 RK_MPI_ADEC_CreateChn(ADEC_CHN AdecChn, const ADEC_CHN_ATTR_S *pstAttr) {
 
   RK_U32 channels = 0;
   RK_U32 sample_rate = 0;
-  CODEC_TYPE_E codec_type = g_adec_chns[AdecChn].adec_attr.attr.enType;
+  CODEC_TYPE_E codec_type = g_adec_chns[AdecChn].adec_attr.attr.enCodecType;
   switch (codec_type) {
   case CODEC_TYPE_AAC:
     break;
   case CODEC_TYPE_MP2:
     break;
   case CODEC_TYPE_G711A:
-    channels = g_adec_chns[AdecChn].adec_attr.attr.g711a_attr.u32Channels;
-    sample_rate = g_adec_chns[AdecChn].adec_attr.attr.g711a_attr.u32SampleRate;
+    channels = g_adec_chns[AdecChn].adec_attr.attr.stAdecG711A.u32Channels;
+    sample_rate = g_adec_chns[AdecChn].adec_attr.attr.stAdecG711A.u32SampleRate;
     break;
   case CODEC_TYPE_G711U:
-    channels = g_adec_chns[AdecChn].adec_attr.attr.g711u_attr.u32Channels;
-    sample_rate = g_adec_chns[AdecChn].adec_attr.attr.g711u_attr.u32SampleRate;
+    channels = g_adec_chns[AdecChn].adec_attr.attr.stAdecG711U.u32Channels;
+    sample_rate = g_adec_chns[AdecChn].adec_attr.attr.stAdecG711U.u32SampleRate;
     break;
   case CODEC_TYPE_G726:
     break;
