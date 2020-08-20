@@ -50,6 +50,7 @@ typedef struct rkMPP_CHN_S {
  * SYS Ctrl api
  ********************************************************************/
 _CAPI RK_S32 RK_MPI_SYS_Init();
+_CAPI RK_VOID RK_MPI_SYS_DumpChn(MOD_ID_E enModId);
 _CAPI RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
                              const MPP_CHN_S *pstDestChn);
 _CAPI RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,

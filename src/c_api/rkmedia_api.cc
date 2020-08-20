@@ -206,6 +206,32 @@ RK_S32 RK_MPI_SYS_Init() {
   return RK_ERR_SYS_OK;
 }
 
+RK_VOID RK_MPI_SYS_DumpChn(MOD_ID_E enModId) {
+  RK_U16 u16ChnMaxCnt = 0;
+  RkmediaChannel *pChns = NULL;
+  switch (enModId) {
+  case RK_ID_VI:
+    u16ChnMaxCnt = VI_MAX_CHN_NUM;
+    pChns = g_vi_chns;
+    break;
+  case RK_ID_VENC:
+    u16ChnMaxCnt = VENC_MAX_CHN_NUM;
+    pChns = g_venc_chns;
+    break;
+  default:
+    LOG("ERROR: To do...\n");
+    return;
+  }
+
+  LOG("Dump Mode:%d:\n", enModId);
+  for (RK_U16 i = 0; i < u16ChnMaxCnt; i++) {
+      LOG("  Chn[%d]->status:%d\n", i, pChns[i].status);
+      LOG("  Chn[%d]->bind_ref:%d\n", i, pChns[i].bind_ref);
+      LOG("  Chn[%d]->output_cb:%p\n", i, pChns[i].cb);
+      LOG("  Chn[%d]->event_cb:%p\n\n", i, pChns[i].event_cb);
+  }
+}
+
 RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
                        const MPP_CHN_S *pstDestChn) {
   std::shared_ptr<easymedia::Flow> src;
