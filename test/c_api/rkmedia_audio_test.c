@@ -42,18 +42,18 @@ static RK_VOID AI_AO() {
   mpp_chn_ao.s32ChnId = 0;
 
   AI_CHN_ATTR_S ai_attr;
-  ai_attr.path = ALSA_PATH;
-  ai_attr.fmt = RK_SAMPLE_FMT_S16;
-  ai_attr.nb_samples = 1152;
-  ai_attr.sample_rate = g_enWorkSampleRate;
-  ai_attr.channels = 1;
+  ai_attr.pcAudioNode = ALSA_PATH;
+  ai_attr.enSampleFormat = RK_SAMPLE_FMT_S16;
+  ai_attr.u32NbSamples = 1152;
+  ai_attr.u32SampleRate = g_enWorkSampleRate;
+  ai_attr.u32Channels = 1;
 
   AO_CHN_ATTR_S ao_attr;
-  ao_attr.path = ALSA_PATH;
-  ao_attr.fmt = RK_SAMPLE_FMT_S16;
-  ao_attr.nb_samples = 1152;
-  ao_attr.sample_rate = g_enWorkSampleRate;
-  ao_attr.channels = 1;
+  ao_attr.pcAudioNode = ALSA_PATH;
+  ao_attr.enSampleFormat = RK_SAMPLE_FMT_S16;
+  ao_attr.u32NbSamples = 1152;
+  ao_attr.u32SampleRate = g_enWorkSampleRate;
+  ao_attr.u32Channels = 1;
 
   // 1. create AI
   RK_MPI_AI_SetChnAttr(mpp_chn_ai.s32ChnId, &ai_attr);
@@ -88,18 +88,18 @@ static RK_VOID AI_AENC_FILE(char *file_path) {
   mpp_chn_aenc.s32ChnId = 0;
 
   AI_CHN_ATTR_S ai_attr;
-  ai_attr.path = ALSA_PATH;
-  ai_attr.fmt = RK_SAMPLE_FMT_S16;
-  ai_attr.nb_samples = AAC_NB_SAMPLES;
-  ai_attr.sample_rate = g_enWorkSampleRate;
-  ai_attr.channels = 2;
+  ai_attr.pcAudioNode = ALSA_PATH;
+  ai_attr.enSampleFormat = RK_SAMPLE_FMT_S16;
+  ai_attr.u32NbSamples = AAC_NB_SAMPLES;
+  ai_attr.u32SampleRate = g_enWorkSampleRate;
+  ai_attr.u32Channels = 2;
 
   AENC_CHN_ATTR_S aenc_attr;
-  aenc_attr.enType = RK_CODEC_TYPE_AAC;
+  aenc_attr.enCodecType = RK_CODEC_TYPE_AAC;
   aenc_attr.u32Bitrate = 64000;
   aenc_attr.u32Quality = 1;
-  aenc_attr.aac_attr.u32Channels = 2;
-  aenc_attr.aac_attr.u32SampleRate = g_enWorkSampleRate;
+  aenc_attr.stAencAAC.u32Channels = 2;
+  aenc_attr.stAencAAC.u32SampleRate = g_enWorkSampleRate;
 
   // 1. create AI
   RK_MPI_AI_SetChnAttr(mpp_chn_ai.s32ChnId, &ai_attr);
@@ -132,39 +132,39 @@ static RK_VOID FILE_ADEC_AO(char *file_path) {
   ADEC_CHN_ATTR_S stAdecAttr;
   AO_CHN_ATTR_S stAoAttr;
 
-  stAdecAttr.enType = codec_type;
+  stAdecAttr.enCodecType = codec_type;
   MPP_CHN_S mpp_chn_ao, mpp_chn_adec;
   mpp_chn_ao.enModId = RK_ID_AO;
   mpp_chn_ao.s32ChnId = 0;
   mpp_chn_adec.enModId = RK_ID_ADEC;
   mpp_chn_adec.s32ChnId = 0;
 
-  stAoAttr.channels = channels;
-  stAoAttr.sample_rate = sample_rate;
-  stAoAttr.nb_samples = 1024;
-  stAoAttr.path = ALSA_PATH;
+  stAoAttr.u32Channels = channels;
+  stAoAttr.u32SampleRate = sample_rate;
+  stAoAttr.u32NbSamples = 1024;
+  stAoAttr.pcAudioNode = ALSA_PATH;
 
   switch (codec_type) {
   case RK_CODEC_TYPE_AAC:
-    stAoAttr.fmt = RK_SAMPLE_FMT_S16;
-    stAoAttr.nb_samples = 1024;
+    stAoAttr.enSampleFormat = RK_SAMPLE_FMT_S16;
+    stAoAttr.u32NbSamples = 1024;
     break;
   case RK_CODEC_TYPE_MP2:
-    stAoAttr.fmt = RK_SAMPLE_FMT_S16;
-    stAoAttr.nb_samples = 1152;
+    stAoAttr.enSampleFormat = RK_SAMPLE_FMT_S16;
+    stAoAttr.u32NbSamples = 1152;
     break;
   case RK_CODEC_TYPE_G711A:
-    stAdecAttr.g711a_attr.u32Channels = channels;
-    stAdecAttr.g711a_attr.u32SampleRate = sample_rate;
-    stAoAttr.fmt = RK_SAMPLE_FMT_S16;
+    stAdecAttr.stAdecG711A.u32Channels = channels;
+    stAdecAttr.stAdecG711A.u32SampleRate = sample_rate;
+    stAoAttr.enSampleFormat = RK_SAMPLE_FMT_S16;
     break;
   case RK_CODEC_TYPE_G711U:
-    stAdecAttr.g711u_attr.u32Channels = channels;
-    stAdecAttr.g711u_attr.u32SampleRate = sample_rate;
-    stAoAttr.fmt = RK_SAMPLE_FMT_S16;
+    stAdecAttr.stAdecG711U.u32Channels = channels;
+    stAdecAttr.stAdecG711U.u32SampleRate = sample_rate;
+    stAoAttr.enSampleFormat = RK_SAMPLE_FMT_S16;
     break;
   case RK_CODEC_TYPE_G726:
-    stAoAttr.fmt = RK_SAMPLE_FMT_S16;
+    stAoAttr.enSampleFormat = RK_SAMPLE_FMT_S16;
     break;
   default:
     printf("audio codec type error.\n");

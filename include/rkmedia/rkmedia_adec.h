@@ -31,13 +31,13 @@ typedef struct rkADEC_ATTR_G726_S {
 } ADEC_ATTR_G726_S;
 
 typedef struct rkADEC_CHN_ATTR_S {
-  CODEC_TYPE_E enType;
+  CODEC_TYPE_E enCodecType;
   union {
-    ADEC_ATTR_AAC_S aac_attr;
-    ADEC_ATTR_MP2_S mp2_attr;
-    ADEC_ATTR_G711A_S g711a_attr;
-    ADEC_ATTR_G711U_S g711u_attr;
-    ADEC_ATTR_G726_S g726_attr;
+    ADEC_ATTR_AAC_S stAdecAAC;
+    ADEC_ATTR_MP2_S stAdecMP2;
+    ADEC_ATTR_G711A_S stAdecG711A;
+    ADEC_ATTR_G711U_S stAdecG711U;
+    ADEC_ATTR_G726_S stAdecG726;
   };
 } ADEC_CHN_ATTR_S;
 

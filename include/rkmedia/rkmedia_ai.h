@@ -8,11 +8,11 @@ extern "C" {
 #endif
 #include "rkmedia_common.h"
 typedef struct rkAI_CHN_ATTR_S {
-  RK_CHAR *path;
-  Sample_Format_E fmt;
-  RK_U32 channels;
-  RK_U32 sample_rate;
-  RK_U32 nb_samples;
+  RK_CHAR *pcAudioNode;
+  Sample_Format_E enSampleFormat;
+  RK_U32 u32Channels;
+  RK_U32 u32SampleRate;
+  RK_U32 u32NbSamples;
 } AI_CHN_ATTR_S;
 #ifdef __cplusplus
 }
