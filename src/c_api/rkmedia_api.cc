@@ -107,6 +107,9 @@ std::mutex g_rga_mtx;
 RkmediaChannel g_adec_chns[ADEC_MAX_CHN_NUM];
 std::mutex g_adec_mtx;
 
+RkmediaChannel g_vo_chns[RGA_MAX_CHN_NUM];
+std::mutex g_vo_mtx;
+
 static int RkmediaChnPushBuffer(RkmediaChannel *ptrChn, MEDIA_BUFFER buffer) {
   if (!ptrChn || !buffer)
     return -1;
@@ -202,6 +205,7 @@ RK_S32 RK_MPI_SYS_Init() {
   Reset_Channel_Table(g_algo_md_chns, ALGO_MD_MAX_CHN_NUM, RK_ID_ALGO_MD);
   Reset_Channel_Table(g_rga_chns, RGA_MAX_CHN_NUM, RK_ID_RGA);
   Reset_Channel_Table(g_adec_chns, ADEC_MAX_CHN_NUM, RK_ID_ADEC);
+  Reset_Channel_Table(g_vo_chns, VO_MAX_CHN_NUM, RK_ID_VO);
 
   return RK_ERR_SYS_OK;
 }
@@ -298,6 +302,10 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
   case RK_ID_ADEC:
     sink = g_adec_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_adec_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_VO:
+    sink = g_vo_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_vo_chns[pstDestChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -405,6 +413,10 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
   case RK_ID_ADEC:
     sink = g_adec_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_adec_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_VO:
+    sink = g_vo_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_vo_chns[pstDestChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -559,6 +571,9 @@ RK_S32 RK_MPI_SYS_RegisterOutCb(const MPP_CHN_S *pstChn, OutCbFunc cb) {
     break;
   case RK_ID_ADEC:
     target_chn = &g_adec_chns[pstChn->s32ChnId];
+    break;
+  case RK_ID_VO:
+    target_chn = &g_vo_chns[pstChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -2404,7 +2419,7 @@ RK_S32 RK_MPI_RGA_CreateChn(RGA_CHN RgaChn, RGA_ATTR_S *pstRgaAttr) {
   rect_vect.push_back(dst_rect);
   PARAM_STRING_APPEND(filter_param, KEY_BUFFER_RECT,
                       easymedia::TwoImageRectToString(rect_vect).c_str());
-  PARAM_STRING_APPEND_TO(filter_param, KEY_BUFFER_ROTATE, 0);
+  PARAM_STRING_APPEND_TO(filter_param, KEY_BUFFER_ROTATE, u16Rotaion);
   flow_param = easymedia::JoinFlowParam(flow_param, 1, filter_param);
   LOG("\n#Rkrga Filter flow param:\n%s\n", flow_param.c_str());
   g_rga_chns[RgaChn].rkmedia_flow = easymedia::REFLECTOR(
@@ -2514,6 +2529,70 @@ RK_S32 RK_MPI_ADEC_DestroyChn(ADEC_CHN AdecChn) {
   g_adec_chns[AdecChn].rkmedia_flow.reset();
   g_adec_chns[AdecChn].status = CHN_STATUS_CLOSED;
   g_adec_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+/********************************************************************
+ * VO api
+ ********************************************************************/
+RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
+  int ret = RK_ERR_SYS_OK;
+
+  if ((VoChn < 0) || (VoChn >= VO_MAX_CHN_NUM))
+    return -RK_ERR_VO_INVALID_DEVID;
+
+  if (!pstAttr || !pstAttr->u32Width || !pstAttr->u32Height ||
+      !pstAttr->u32HorStride || !pstAttr->u32VerStride)
+    return -RK_ERR_VO_ILLEGAL_PARAM;
+
+  g_vo_mtx.lock();
+  if (g_vo_chns[VoChn].status != CHN_STATUS_CLOSED) {
+    g_vo_mtx.unlock();
+    return -RK_ERR_VO_EXIST;
+  }
+
+  std::string flow_name = "output_stream";
+  std::string flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "drm_output_stream");
+
+  std::string stream_param = "";
+  PARAM_STRING_APPEND(stream_param, KEY_DEVICE, "/dev/dri/card0");
+  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_WIDTH, pstAttr->u32Width);
+  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_HEIGHT, pstAttr->u32Height);
+  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_VIR_WIDTH, pstAttr->u32HorStride);
+  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_VIR_HEIGHT, pstAttr->u32VerStride);
+  PARAM_STRING_APPEND_TO(stream_param, "framerate", pstAttr->u16Fps);
+  PARAM_STRING_APPEND(stream_param, "plane_type", "Primary");
+  PARAM_STRING_APPEND_TO(stream_param, "ZPOS", pstAttr->u16Zpos);
+  PARAM_STRING_APPEND(stream_param, KEY_OUTPUTDATATYPE, ImageTypeToString(pstAttr->enImgType));
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, stream_param);
+  printf("\n#DrmDisplay:\n%s\n", flow_param.c_str());
+  g_vo_chns[VoChn].rkmedia_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!g_vo_chns[VoChn].rkmedia_flow) {
+    LOG("ERROR: VO: Create flow %s failed\n", flow_name.c_str());
+    ret = -RK_ERR_VO_ILLEGAL_PARAM;
+  }
+  g_vo_chns[VoChn].status = CHN_STATUS_OPEN;
+  g_vo_mtx.unlock();
+
+  return ret;
+}
+
+RK_S32 RK_MPI_VO_DestroyChn(VO_CHN VoChn) {
+  if ((VoChn < 0) || (VoChn >= VO_MAX_CHN_NUM))
+    return -RK_ERR_VO_INVALID_DEVID;
+
+  g_vo_mtx.lock();
+  if (g_vo_chns[VoChn].status == CHN_STATUS_BIND) {
+    g_vo_mtx.unlock();
+    return -RK_ERR_ADEC_BUSY;
+  }
+
+  g_vo_chns[VoChn].rkmedia_flow.reset();
+  g_vo_chns[VoChn].status = CHN_STATUS_CLOSED;
+  g_vo_mtx.unlock();
 
   return RK_ERR_SYS_OK;
 }

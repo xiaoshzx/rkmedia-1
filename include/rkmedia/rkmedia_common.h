@@ -203,9 +203,6 @@ enum {
   RK_ERR_AO_NOTREADY,
   /* system is not open, had not initaled or enabled*/
   RK_ERR_AO_NOTOPEN,
-  /* channel exists */
-  RK_ERR_VO_EXIST,
-  RK_ERR_VO_NOT_CONFIG,
 
   /***********************************
    * AENC::Audio encoder error types
@@ -252,6 +249,17 @@ enum {
   RK_ERR_ADEC_BUSY,
   /* codec not support*/
   RK_ERR_ADEC_CODEC_NOT_SUPPORT,
+
+  /***********************************
+   * VO::Video Output error types
+   **********************************/
+  RK_ERR_VO_INVALID_DEVID,
+  RK_ERR_VO_EXIST,
+  RK_ERR_VO_NOT_CONFIG,
+  RK_ERR_VO_TIMEOUT,
+  RK_ERR_VO_BUF_EMPTY,
+  RK_ERR_VO_ILLEGAL_PARAM,
+  RK_ERR_VO_NOTREADY,
 
   RK_ERR_BUIT,
 };
