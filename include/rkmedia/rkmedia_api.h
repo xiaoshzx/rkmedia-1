@@ -18,6 +18,7 @@ extern "C" {
 #include "rkmedia_rga.h"
 #include "rkmedia_venc.h"
 #include "rkmedia_vi.h"
+#include "rkmedia_vo.h"
 
 // Platform resource number configuration
 #define VI_MAX_DEV_NUM 4
@@ -29,6 +30,7 @@ extern "C" {
 #define ADEC_MAX_CHN_NUM 16
 #define ALGO_MD_MAX_CHN_NUM VI_MAX_CHN_NUM
 #define RGA_MAX_CHN_NUM 16
+#define VO_MAX_CHN_NUM 2
 
 typedef RK_S32 VI_PIPE;
 typedef RK_S32 VI_CHN;
@@ -39,6 +41,7 @@ typedef RK_S32 AENC_CHN;
 typedef RK_S32 ADEC_CHN;
 typedef RK_S32 ALGO_MD_CHN;
 typedef RK_S32 RGA_CHN;
+typedef RK_S32 VO_CHN;
 
 typedef struct rkMPP_CHN_S {
   MOD_ID_E enModId;
@@ -163,6 +166,13 @@ _CAPI RK_S32 RK_MPI_RGA_DestroyChn(RGA_CHN RgaChn);
 _CAPI RK_S32 RK_MPI_ADEC_CreateChn(ADEC_CHN AdecChn,
                                    const ADEC_CHN_ATTR_S *pstAttr);
 _CAPI RK_S32 RK_MPI_ADEC_DestroyChn(ADEC_CHN AdecChn);
+
+/********************************************************************
+ * VO api
+ ********************************************************************/
+_CAPI RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr);
+_CAPI RK_S32 RK_MPI_VO_DestroyChn(VO_CHN VoChn);
+
 #ifdef __cplusplus
 }
 #endif
