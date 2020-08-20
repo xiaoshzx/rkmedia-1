@@ -138,3 +138,12 @@ add_dependencies(rkmedia_vi_venc_change_resolution_test easymedia)
 target_link_libraries(rkmedia_vi_venc_change_resolution_test easymedia)
 target_include_directories(rkmedia_vi_venc_change_resolution_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_vi_venc_change_resolution_test RUNTIME DESTINATION "bin")
+
+#--------------------------
+#  rkmedia_venc_roi_osd_test
+#--------------------------
+add_executable(rkmedia_venc_roi_osd_test rkmedia_venc_roi_osd_test.c)
+add_dependencies(rkmedia_venc_roi_osd_test easymedia)
+target_link_libraries(rkmedia_venc_roi_osd_test easymedia)
+target_include_directories(rkmedia_venc_roi_osd_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_venc_roi_osd_test RUNTIME DESTINATION "bin")
