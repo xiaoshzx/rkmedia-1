@@ -166,18 +166,50 @@ bool FFMPEGAudioEncoder::InitConfig(const MediaConfig &cfg) {
   return AudioEncoder::InitConfig(mc);
 }
 
-int FFMPEGAudioEncoder::GetNbSamples() {
-  return avctx ? avctx->frame_size : 0;
-}
+int FFMPEGAudioEncoder::GetNbSamples() { return avctx ? avctx->frame_size : 0; }
 
 int FFMPEGAudioEncoder::SendInput(const std::shared_ptr<MediaBuffer> &input) {
   int ret = 0;
   if (input->IsValid()) {
     assert(input && input->GetType() == Type::Audio);
     auto in = std::static_pointer_cast<SampleBuffer>(input);
+    if ((av_codec->id == AV_CODEC_ID_AAC) &&
+        (input->GetSampleFormat() != SAMPLE_FMT_FLTP)) {
+      SampleInfo sampleinfo;
+      sampleinfo.fmt = SAMPLE_FMT_FLTP;
+      sampleinfo.channels = avctx->channels;
+      sampleinfo.nb_samples = avctx->frame_size;
+      // from S16 to FLT
+      int buffer_size = avctx->channels *
+                        av_get_bytes_per_sample(avctx->sample_fmt) *
+                        avctx->frame_size;
+      auto buffer = std::make_shared<easymedia::SampleBuffer>(
+          MediaBuffer::Alloc2(buffer_size), sampleinfo);
+      uint8_t *po = (uint8_t *)buffer->GetPtr();
+      uint8_t *pi = (uint8_t *)in->GetPtr();
+      int is = av_get_bytes_per_sample(AV_SAMPLE_FMT_S16);
+      int os = av_get_bytes_per_sample(avctx->sample_fmt);
+
+      conv_AV_SAMPLE_FMT_S16_to_AV_SAMPLE_FMT_FLT(po, pi, is, os,
+                                                  po + buffer_size);
+
+      if (avctx->channels > 1) {
+        // from FLT to FLTP
+        auto fltp_buf = std::make_shared<easymedia::SampleBuffer>(
+            MediaBuffer::Alloc2(buffer_size), sampleinfo);
+        conv_package_to_planar((uint8_t *)fltp_buf->GetPtr(),
+                               (uint8_t *)buffer->GetPtr(), sampleinfo);
+        buffer = fltp_buf;
+      }
+      buffer->SetSamples(avctx->frame_size);
+      buffer->SetUSTimeStamp(in->GetUSTimeStamp());
+      buffer->SetValidSize(buffer_size);
+      in = buffer;
+    }
     if (in->GetSamples() > 0) {
-      frame->nb_samples = in->GetValidSize() /
-        (avctx->channels * av_get_bytes_per_sample(avctx->sample_fmt));
+      frame->nb_samples =
+          in->GetValidSize() /
+          (avctx->channels * av_get_bytes_per_sample(avctx->sample_fmt));
       ret = avcodec_fill_audio_frame(frame, avctx->channels, avctx->sample_fmt,
                                      (const uint8_t *)in->GetPtr(),
                                      in->GetValidSize(), 0);
@@ -210,8 +242,8 @@ std::shared_ptr<MediaBuffer> FFMPEGAudioEncoder::FetchOutput() {
   auto pkt = av_packet_alloc();
   if (!pkt)
     return nullptr;
-  std::shared_ptr<MediaBuffer> buffer =
-    std::make_shared<MediaBuffer>(pkt->data, 0, -1, pkt, __ffmpeg_packet_free);
+  std::shared_ptr<MediaBuffer> buffer = std::make_shared<MediaBuffer>(
+      pkt->data, 0, -1, pkt, __ffmpeg_packet_free);
 
   int ret = avcodec_receive_packet(avctx, pkt);
   if (ret < 0) {

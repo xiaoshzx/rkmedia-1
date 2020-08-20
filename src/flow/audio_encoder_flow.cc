@@ -4,11 +4,11 @@
 
 #include <assert.h>
 
+#include "buffer.h"
 #include "encoder.h"
 #include "flow.h"
-#include "sound.h"
-#include "buffer.h"
 #include "media_type.h"
+#include "sound.h"
 
 namespace easymedia {
 
@@ -23,6 +23,7 @@ public:
   }
   static const char *GetFlowName() { return "audio_enc"; }
   int GetInputSize() override;
+
 private:
   std::shared_ptr<AudioEncoder> enc;
   int input_size;
@@ -44,18 +45,21 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
 
   if (limit_size && (src->GetValidSize() > limit_size))
     LOG("WARNING: AudioEncFlow: buffer(%d) is bigger than expected(%d)\n",
-      (int)src->GetValidSize(), (int)limit_size);
+        (int)src->GetValidSize(), (int)limit_size);
   else if (src->GetValidSize() < limit_size) {
     // last frame?
     if (src->GetValidSize() <= 0)
-      src->SetValidSize(0); //as null frame.
+      src->SetValidSize(0); // as null frame.
     else if (src->GetSize() >= limit_size) {
       char *null_ptr = (char *)src->GetPtr() + src->GetValidSize();
       memset(null_ptr, 0, limit_size - src->GetValidSize());
       src->SetValidSize(limit_size);
       feed_null = true;
-    } else
-      src->SetValidSize(0); //as null frame.
+    } else if (src->GetSize() == src->GetValidSize()) {
+      // case AAC it is ok
+    } else {
+      src->SetValidSize(0); // as null frame.
+    }
   }
 
   // last frame.
@@ -65,7 +69,7 @@ bool encode(Flow *f, MediaBufferVector &input_vector) {
   int ret = enc->SendInput(src);
   if (ret < 0) {
     fprintf(stderr, "[Audio]: frame encode failed, ret=%d\n", ret);
-    //return -1;
+    // return -1;
   }
 
   if (feed_null) {
@@ -171,9 +175,7 @@ AudioEncoderFlow::AudioEncoderFlow(const char *param) {
   SetFlowTag("AudioEncoderFlow");
 }
 
-int AudioEncoderFlow::GetInputSize() {
-  return input_size;
-}
+int AudioEncoderFlow::GetInputSize() { return input_size; }
 
 DEFINE_FLOW_FACTORY(AudioEncoderFlow, Flow)
 // type depends on encoder
