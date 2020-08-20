@@ -214,6 +214,36 @@ std::shared_ptr<MediaBuffer> FFMPEGAudioDecoder::FetchOutput() {
   buffer->SetUSTimeStamp(frame->pts);
   buffer->SetType(Type::Audio);
 
+  if (av_codec->id == AV_CODEC_ID_AAC) {
+    // from FLTP to S16P
+    int buffer_size = avctx->channels *
+                      av_get_bytes_per_sample(AV_SAMPLE_FMT_S16) *
+                      avctx->frame_size;
+    std::shared_ptr<MediaBuffer> buffer_s16p =
+        std::make_shared<MediaBuffer>(MediaBuffer::Alloc2(buffer_size));
+    uint8_t *pi = (uint8_t *)buffer->GetPtr();
+    uint8_t *po = (uint8_t *)buffer_s16p->GetPtr();
+    int os = av_get_bytes_per_sample(AV_SAMPLE_FMT_S16);
+    int is = av_get_bytes_per_sample(avctx->sample_fmt);
+    conv_AV_SAMPLE_FMT_FLT_to_AV_SAMPLE_FMT_S16(po, pi, is, os,
+                                                po + buffer_size);
+    // from S16P to S16
+    if (avctx->channels > 1) {
+      SampleInfo sampleinfo;
+      sampleinfo.fmt = SAMPLE_FMT_S16;
+      sampleinfo.channels = avctx->channels;
+      sampleinfo.nb_samples = avctx->frame_size;
+      std::shared_ptr<MediaBuffer> buffer_s16 =
+          std::make_shared<MediaBuffer>(MediaBuffer::Alloc2(buffer_size));
+      conv_planar_to_package((uint8_t *)buffer_s16->GetPtr(),
+                             (uint8_t *)buffer_s16p->GetPtr(), sampleinfo);
+      buffer_s16p = buffer_s16;
+    }
+    buffer_s16p->SetValidSize(buffer_size);
+    buffer_s16p->SetUSTimeStamp(buffer->GetUSTimeStamp());
+    buffer_s16p->SetType(Type::Audio);
+    buffer = buffer_s16p;
+  }
   return buffer;
 }
 

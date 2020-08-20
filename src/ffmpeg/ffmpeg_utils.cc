@@ -89,4 +89,61 @@ void PrintAVError(int err, const char *log, const char *mark) {
     LOG("%s: %s\n", log, str);
 }
 
+#define CONV_FUNC_NAME(dst_fmt, src_fmt) conv_##src_fmt##_to_##dst_fmt
+
+// FIXME rounding ?
+#define CONV_FUNC(ofmt, otype, ifmt, expr)                                     \
+  void CONV_FUNC_NAME(ofmt, ifmt)(uint8_t * po, const uint8_t *pi, int is,     \
+                                  int os, uint8_t *end) {                      \
+    uint8_t *end2 = end - 3 * os;                                              \
+    while (po < end2) {                                                        \
+      *(otype *)po = expr;                                                     \
+      pi += is;                                                                \
+      po += os;                                                                \
+      *(otype *)po = expr;                                                     \
+      pi += is;                                                                \
+      po += os;                                                                \
+      *(otype *)po = expr;                                                     \
+      pi += is;                                                                \
+      po += os;                                                                \
+      *(otype *)po = expr;                                                     \
+      pi += is;                                                                \
+      po += os;                                                                \
+    }                                                                          \
+    while (po < end) {                                                         \
+      *(otype *)po = expr;                                                     \
+      pi += is;                                                                \
+      po += os;                                                                \
+    }                                                                          \
+  }
+
+CONV_FUNC(AV_SAMPLE_FMT_S16, int16_t, AV_SAMPLE_FMT_FLT,
+          av_clip_int16(lrintf(*(const float *)pi *(1 << 15))))
+CONV_FUNC(AV_SAMPLE_FMT_FLT, float, AV_SAMPLE_FMT_S16,
+          *(const int16_t *)pi *(1.0f / (1 << 15)))
+
+void conv_planar_to_package(uint8_t *po, uint8_t *pi, SampleInfo sampleInfo) {
+  int sample_size =
+      av_get_bytes_per_sample(SampleFmtToAVSamFmt(sampleInfo.fmt));
+  for (int i = 0; i < sampleInfo.nb_samples; i++) {
+    for (int j = 0; j < sampleInfo.channels; j++) {
+      memcpy(po, pi + (i + sampleInfo.nb_samples * j) * sample_size,
+             sample_size);
+      po += sample_size;
+    }
+  }
+}
+
+void conv_package_to_planar(uint8_t *po, uint8_t *pi, SampleInfo sampleInfo) {
+  int sample_size =
+      av_get_bytes_per_sample(SampleFmtToAVSamFmt(sampleInfo.fmt));
+  for (int i = 0; i < sampleInfo.nb_samples; i++) {
+    for (int j = 0; j < sampleInfo.channels; j++) {
+      memcpy(po + (i + sampleInfo.nb_samples * j) * sample_size, pi,
+             sample_size);
+      pi += sample_size;
+    }
+  }
+}
+
 } // namespace easymedia

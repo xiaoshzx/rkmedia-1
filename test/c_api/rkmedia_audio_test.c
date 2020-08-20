@@ -90,16 +90,16 @@ static RK_VOID AI_AENC_FILE(char *file_path) {
   AI_CHN_ATTR_S ai_attr;
   ai_attr.path = ALSA_PATH;
   ai_attr.fmt = RK_SAMPLE_FMT_S16;
-  ai_attr.nb_samples = MP2_NB_SAMPLES;
+  ai_attr.nb_samples = AAC_NB_SAMPLES;
   ai_attr.sample_rate = g_enWorkSampleRate;
   ai_attr.channels = 2;
 
   AENC_CHN_ATTR_S aenc_attr;
-  aenc_attr.enType = RK_CODEC_TYPE_MP2;
+  aenc_attr.enType = RK_CODEC_TYPE_AAC;
   aenc_attr.u32Bitrate = 64000;
   aenc_attr.u32Quality = 1;
-  aenc_attr.mp2_attr.u32Channels = 2;
-  aenc_attr.mp2_attr.u32SampleRate = g_enWorkSampleRate;
+  aenc_attr.aac_attr.u32Channels = 2;
+  aenc_attr.aac_attr.u32SampleRate = g_enWorkSampleRate;
 
   // 1. create AI
   RK_MPI_AI_SetChnAttr(mpp_chn_ai.s32ChnId, &ai_attr);
@@ -146,7 +146,7 @@ static RK_VOID FILE_ADEC_AO(char *file_path) {
 
   switch (codec_type) {
   case RK_CODEC_TYPE_AAC:
-    stAoAttr.fmt = RK_SAMPLE_FMT_FLTP;
+    stAoAttr.fmt = RK_SAMPLE_FMT_S16;
     stAoAttr.nb_samples = 1024;
     break;
   case RK_CODEC_TYPE_MP2:
