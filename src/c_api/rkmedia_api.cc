@@ -2102,7 +2102,7 @@ RK_S32 RK_MPI_AO_EnableChn(AO_CHN AoChn) {
                                                         : -RK_ERR_VO_NOT_CONFIG;
   }
   SampleInfo info;
-  info.channels = g_ao_chns[AoChn].ao_attr.attr.u32SampleRate;
+  info.channels = g_ao_chns[AoChn].ao_attr.attr.u32Channels;
   info.fmt = (SampleFormat)g_ao_chns[AoChn].ao_attr.attr.enSampleFormat;
   info.nb_samples = g_ao_chns[AoChn].ao_attr.attr.u32NbSamples;
   info.sample_rate = g_ao_chns[AoChn].ao_attr.attr.u32SampleRate;
