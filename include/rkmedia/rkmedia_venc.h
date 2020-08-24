@@ -112,12 +112,18 @@ typedef enum rkVENC_ROTATION_E {
 
 /*the attribute of jpege*/
 typedef struct rkVENC_ATTR_JPEG_S {
-  // reserved
+  RK_U32 u32ZoomWidth;  // Zoom to specified width
+  RK_U32 u32ZoomHeight; // Zoom to specified height
+  RK_U32 u32ZoomVirWidth;
+  RK_U32 u32ZoomVirHeight;
 } VENC_ATTR_JPEG_S;
 
 /*the attribute of mjpege*/
 typedef struct rkVENC_ATTR_MJPEG_S {
-  // reserved
+  RK_U32 u32ZoomWidth;  // Zoom to specified width
+  RK_U32 u32ZoomHeight; // Zoom to specified height
+  RK_U32 u32ZoomVirWidth;
+  RK_U32 u32ZoomVirHeight;
 } VENC_ATTR_MJPEG_S;
 
 /*the attribute of h264e*/

@@ -968,7 +968,16 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   std::shared_ptr<easymedia::Flow> video_encoder_flow;
   std::shared_ptr<easymedia::Flow> video_decoder_flow;
   std::shared_ptr<easymedia::Flow> video_jpeg_flow;
-
+  std::shared_ptr<easymedia::Flow> video_rga_flow;
+  RK_BOOL bEnableRga = RK_FALSE;
+  RK_U32 u32InFpsNum = 1;
+  RK_U32 u32InFpsDen = 1;
+  RK_U32 u32OutFpsNum = 1;
+  RK_U32 u32OutFpsDen = 1;
+  RK_S32 s32ZoomWidth = 0;
+  RK_S32 s32ZoomHeight = 0;
+  RK_S32 s32ZoomVirWidth = 0;
+  RK_S32 s32ZoomVirHeight = 0;
   VENC_CHN_ATTR_S *stVencChnAttr = &VenChn->venc_attr.attr;
   VENC_ROTATION_E enRotation = stVencChnAttr->stVencAttr.enRotation;
   RK_S32 bps = 2000000;
@@ -978,6 +987,39 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   RK_S32 vir_height = stVencChnAttr->stVencAttr.u32VirHeight;
   std::string pixel_format =
       ImageTypeToString(stVencChnAttr->stVencAttr.imageType);
+
+  if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG) {
+    // MJPEG:
+    // Frame rate parameter analysis
+    u32InFpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateNum;
+    u32InFpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateDen;
+    if (!u32InFpsNum) {
+      LOG("ERROR: [%s]: Invalid src frame rate [%d/%d]\n", __func__, u32InFpsNum,
+          u32InFpsDen);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
+    u32OutFpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateNum;
+    u32OutFpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateDen;
+    if (!u32OutFpsNum) {
+      LOG("ERROR: [%s]: Invalid dst frame rate [%d/%d]\n", __func__, u32OutFpsNum,
+          u32OutFpsDen);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
+
+    // Scaling parameter analysis
+    s32ZoomWidth = stVencChnAttr->stVencAttr.stAttrMjpege.u32ZoomWidth;
+    s32ZoomHeight = stVencChnAttr->stVencAttr.stAttrMjpege.u32ZoomHeight;
+    s32ZoomVirWidth = stVencChnAttr->stVencAttr.stAttrMjpege.u32ZoomVirWidth;
+    s32ZoomVirHeight = stVencChnAttr->stVencAttr.stAttrMjpege.u32ZoomVirHeight;
+  } else {
+    // JPEG
+    // Scaling parameter analysis
+    s32ZoomWidth = stVencChnAttr->stVencAttr.stAttrJpege.u32ZoomWidth;
+    s32ZoomHeight = stVencChnAttr->stVencAttr.stAttrJpege.u32ZoomHeight;
+    s32ZoomVirWidth = stVencChnAttr->stVencAttr.stAttrJpege.u32ZoomVirWidth;
+    s32ZoomVirHeight = stVencChnAttr->stVencAttr.stAttrJpege.u32ZoomVirHeight;
+  }
+
   std::string flow_name = "video_enc";
   std::string flow_param = "";
   std::string enc_param = "";
@@ -994,35 +1036,15 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   PARAM_STRING_APPEND(enc_param, KEY_VIDEO_GOP, "1");
   // set input fps
   std::string str_fps;
-  RK_U32 u32FpsNum = 1;
-  RK_U32 u32FpsDen = 1;
-  if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG) {
-    u32FpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateNum;
-    u32FpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateDen;
-    if (!u32FpsNum) {
-      LOG("ERROR: [%s]: Invalid src frame rate [%d/%d]\n", __func__, u32FpsNum,
-          u32FpsDen);
-      return -RK_ERR_VENC_ILLEGAL_PARAM;
-    }
-  }
-  str_fps.append(std::to_string(u32FpsNum))
+  str_fps.append(std::to_string(u32InFpsNum))
       .append("/")
-      .append(std::to_string(u32FpsDen));
+      .append(std::to_string(u32InFpsDen));
   PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps);
   // set output fps
   str_fps = "";
-  if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG) {
-    u32FpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateNum;
-    u32FpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateDen;
-    if (!u32FpsNum) {
-      LOG("ERROR: [%s]: Invalid dst frame rate [%d/%d]\n", __func__, u32FpsNum,
-          u32FpsDen);
-      return -RK_ERR_VENC_ILLEGAL_PARAM;
-    }
-  }
-  str_fps.append(std::to_string(u32FpsNum))
+  str_fps.append(std::to_string(u32OutFpsNum))
       .append("/")
-      .append(std::to_string(u32FpsDen));
+      .append(std::to_string(u32OutFpsDen));
   PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
   // jpeg pre encoder work in fixqp mode
   PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_FIXQP);
@@ -1030,7 +1052,7 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   PARAM_STRING_APPEND_TO(enc_param, KEY_ROTATION, enRotation);
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
-  printf("\n#VideoEncoder flow param:\n%s\n", flow_param.c_str());
+  LOGD("\n#JPEG: Pre encoder flow param:\n%s\n", flow_param.c_str());
   video_encoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
       flow_name.c_str(), flow_param.c_str());
   if (!video_encoder_flow) {
@@ -1049,7 +1071,7 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   PARAM_STRING_APPEND_TO(dec_param, KEY_OUTPUT_TIMEOUT, -1);
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, dec_param);
-  printf("\n#VideoDecoder flow param:\n%s\n", flow_param.c_str());
+  LOGD("\n#JPEG: Pre decoder flow param:\n%s\n", flow_param.c_str());
   video_decoder_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
       flow_name.c_str(), flow_param.c_str());
   if (!video_decoder_flow) {
@@ -1057,32 +1079,79 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
     return -RK_ERR_VENC_ILLEGAL_PARAM;
   }
 
+  RK_S32 jpeg_width = video_width;
+  RK_S32 jpeg_height = video_height;
+  if ((enRotation == VENC_ROTATION_90) || (enRotation == VENC_ROTATION_270)) {
+    jpeg_width = video_height;
+    jpeg_height = video_width;
+  }
+
+  RK_S32 jpeg_vir_height = UPALIGNTO(jpeg_height, 8);
+  // The virtual width of the image output by the hevc decoder
+  // is an odd multiple of 256.
+  RK_S32 jpeg_vir_width = UPALIGNTO(jpeg_width, 256);
+  if (((jpeg_vir_width / 256) % 2) == 0)
+    jpeg_vir_width += 256;
+
+  // When the zoom parameter is valid and is not equal to
+  // the original resolution, the zoom function will be turned on.
+  if ((s32ZoomWidth > 0) && (s32ZoomHeight > 0) &&
+      (s32ZoomVirWidth > 0) && (s32ZoomVirHeight > 0) &&
+      ((s32ZoomWidth != video_width) || (s32ZoomHeight != video_height) ||
+      (s32ZoomVirWidth != vir_width) || (s32ZoomVirHeight != vir_height))) {
+    flow_name = "filter";
+    flow_param = "";
+    PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkrga");
+    PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, IMAGE_NV12);
+    // Set output buffer type.
+    PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, IMAGE_NV12);
+    // Set output buffer size.
+    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_WIDTH, s32ZoomWidth);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_HEIGHT, s32ZoomHeight);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_WIDTH, s32ZoomVirWidth);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_HEIGHT, s32ZoomVirHeight);
+    // enable buffer pool?
+    //PARAM_STRING_APPEND(flow_param, KEY_MEM_TYPE, KEY_MEM_HARDWARE);
+    //PARAM_STRING_APPEND_TO(flow_param, KEY_MEM_CNT, u16BufPoolCnt);
+
+    std::string filter_param = "";
+    ImageRect src_rect = {0, 0, video_width, video_height};
+    ImageRect dst_rect = {0, 0, s32ZoomWidth, s32ZoomHeight};
+    std::vector<ImageRect> rect_vect;
+    rect_vect.push_back(src_rect);
+    rect_vect.push_back(dst_rect);
+    PARAM_STRING_APPEND(filter_param, KEY_BUFFER_RECT,
+                        easymedia::TwoImageRectToString(rect_vect).c_str());
+    PARAM_STRING_APPEND_TO(filter_param, KEY_BUFFER_ROTATE, 0);
+    flow_param = easymedia::JoinFlowParam(flow_param, 1, filter_param);
+    LOGD("\n#JPEG: Pre process flow param:\n%s\n", flow_param.c_str());
+    video_rga_flow = easymedia::REFLECTOR(
+        Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
+    if (!video_rga_flow) {
+      LOG("ERROR: [%s]: Create flow filter:rga failed\n", __func__);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
+    // enable rga process.
+    bEnableRga = RK_TRUE;
+    jpeg_width = s32ZoomWidth;
+    jpeg_height = s32ZoomHeight;
+    jpeg_vir_width = s32ZoomVirWidth;
+    jpeg_vir_height = s32ZoomVirHeight;
+  }
+
   flow_name = "video_enc";
   flow_param = "";
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, IMAGE_NV12);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, IMAGE_JPEG);
-
-  RK_S32 jpeg_width = video_width;
-  RK_S32 jpeg_heigth = video_height;
-  if ((enRotation == VENC_ROTATION_90) || (enRotation == VENC_ROTATION_270)) {
-    jpeg_width = video_height;
-    jpeg_heigth = video_width;
-  }
-
   enc_param = "";
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_WIDTH, jpeg_width);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, jpeg_heigth);
-
-  RK_S32 new_width = UPALIGNTO(jpeg_width, 256);
-  if (((new_width / 256) % 2) == 0)
-    new_width += 256;
-  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, new_width);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT,
-                         UPALIGNTO(jpeg_heigth, 8));
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, jpeg_height);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, jpeg_vir_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT, jpeg_vir_height);
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
-  printf("\n#VideoEncoder:JPEG: flow param:\n%s\n", flow_param.c_str());
+  LOGD("\n#JPEG: Jpeg encoder flow param:\n%s\n", flow_param.c_str());
   video_jpeg_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
       flow_name.c_str(), flow_param.c_str());
   if (!video_jpeg_flow) {
@@ -1109,14 +1178,23 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   video_encoder_flow->SetFlowTag("JpegPreEncoder");
   video_decoder_flow->SetFlowTag("JpegPreDecoder");
   video_jpeg_flow->SetFlowTag("JpegEncoder");
+  if (bEnableRga)
+    video_rga_flow->SetFlowTag("JpegRgaFilter");
 
   // rkmedia flow bind.
-  video_decoder_flow->AddDownFlow(video_jpeg_flow, 0, 0);
+  if (bEnableRga) {
+    video_rga_flow->AddDownFlow(video_jpeg_flow, 0, 0);
+    video_decoder_flow->AddDownFlow(video_rga_flow, 0, 0);
+  } else {
+    video_decoder_flow->AddDownFlow(video_jpeg_flow, 0, 0);
+  }
   video_encoder_flow->AddDownFlow(video_decoder_flow, 0, 0);
   video_jpeg_flow->SetOutputCallBack(VenChn, FlowOutputCallback);
 
   VenChn->rkmedia_flow = video_encoder_flow;
   VenChn->rkmedia_flow_list.push_back(video_decoder_flow);
+  if (bEnableRga)
+    VenChn->rkmedia_flow_list.push_back(video_rga_flow);
   VenChn->rkmedia_flow_list.push_back(video_jpeg_flow);
 
   VenChn->status = CHN_STATUS_OPEN;

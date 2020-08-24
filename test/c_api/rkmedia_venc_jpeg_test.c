@@ -53,6 +53,12 @@ static void set_argb8888_buffer(RK_U32 *buf, RK_U32 size, RK_U32 color) {
 
 int main() {
   RK_S32 ret;
+  RK_U32 u32SrcWidth = 2688;
+  RK_U32 u32SrcHeight = 1520;
+  RK_U32 u32DstWidth = 720;
+  RK_U32 u32DstHeight = 480;
+  IMAGE_TYPE_E enPixFmt = IMAGE_TYPE_FBC0;
+  const RK_CHAR *pcVideoNode = "rkispp_m_bypass";
 
   ret = RK_MPI_SYS_Init();
   if (ret) {
@@ -61,11 +67,11 @@ int main() {
   }
 
   VI_CHN_ATTR_S vi_chn_attr;
-  vi_chn_attr.pcVideoNode = "rkispp_scale0";
+  vi_chn_attr.pcVideoNode = pcVideoNode;
   vi_chn_attr.u32BufCnt = 4;
-  vi_chn_attr.u32Width = 1920;
-  vi_chn_attr.u32Height = 1080;
-  vi_chn_attr.enPixFmt = IMAGE_TYPE_NV16;
+  vi_chn_attr.u32Width = u32SrcWidth;
+  vi_chn_attr.u32Height = u32SrcHeight;
+  vi_chn_attr.enPixFmt = enPixFmt;
   vi_chn_attr.enWorkMode = VI_WORK_MODE_NORMAL;
   ret = RK_MPI_VI_SetChnAttr(0, 1, &vi_chn_attr);
   ret |= RK_MPI_VI_EnableChn(0, 1);
@@ -77,11 +83,15 @@ int main() {
   VENC_CHN_ATTR_S venc_chn_attr;
   memset(&venc_chn_attr, 0, sizeof(venc_chn_attr));
   venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_JPEG;
-  venc_chn_attr.stVencAttr.imageType = IMAGE_TYPE_NV16;
-  venc_chn_attr.stVencAttr.u32PicWidth = 1920;
-  venc_chn_attr.stVencAttr.u32PicHeight = 1080;
-  venc_chn_attr.stVencAttr.u32VirWidth = 1920;
-  venc_chn_attr.stVencAttr.u32VirHeight = 1080;
+  venc_chn_attr.stVencAttr.imageType = enPixFmt;
+  venc_chn_attr.stVencAttr.u32PicWidth = u32SrcWidth;
+  venc_chn_attr.stVencAttr.u32PicHeight = u32SrcHeight;
+  venc_chn_attr.stVencAttr.u32VirWidth = u32SrcWidth;
+  venc_chn_attr.stVencAttr.u32VirHeight = u32SrcHeight;
+  venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomWidth = u32DstWidth;
+  venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomHeight = u32DstHeight;
+  venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomVirWidth = u32DstWidth;
+  venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomVirHeight = u32DstHeight;
   // venc_chn_attr.stVencAttr.enRotation = VENC_ROTATION_90;
   ret = RK_MPI_VENC_CreateChn(0, &venc_chn_attr);
   if (ret) {
