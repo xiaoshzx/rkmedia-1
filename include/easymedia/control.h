@@ -132,6 +132,12 @@ enum {
   S_MUXER_FILE_DURATION,
   S_MUXER_FILE_PATH,
   S_MUXER_FILE_PREFIX,
+
+  // Occlusion Detection
+  S_OD_ROI_ENABLE = 10900,
+  G_OD_ROI_ENABLE,
+  S_OD_ROI_RECTS,
+  G_OD_ROI_RECTS,
 };
 
 } // namespace easymedia

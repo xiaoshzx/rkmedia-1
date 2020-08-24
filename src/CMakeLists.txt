@@ -83,6 +83,10 @@ add_definitions(-DRK_MOVE_DETECTION)
 set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} md_share)
 endif()
 
+if(OCCLUSION_DETECTION)
+set(EASY_MEDIA_DEPENDENT_LIBS ${EASY_MEDIA_DEPENDENT_LIBS} od_share)
+endif()
+
 if(ROCKFACE)
     add_definitions(-DUSE_ROCKFACE)
 endif()
