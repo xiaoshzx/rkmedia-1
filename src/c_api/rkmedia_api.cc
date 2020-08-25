@@ -45,6 +45,7 @@ typedef struct _RkmediaAENCAttr { AENC_CHN_ATTR_S attr; } RkmediaAENCAttr;
 typedef struct _RkmediaADECAttr { ADEC_CHN_ATTR_S attr; } RkmediaADECAttr;
 
 typedef ALGO_MD_ATTR_S RkmediaMDAttr;
+typedef ALGO_OD_ATTR_S RkmediaODAttr;
 
 #define RKMEDIA_CHNNAL_BUFFER_LIMIT 3
 
@@ -70,6 +71,7 @@ typedef struct _RkmediaChannel {
     RkmediaAOAttr ao_attr;
     RkmediaAENCAttr aenc_attr;
     RkmediaMDAttr md_attr;
+    RkmediaODAttr od_attr;
     RkmediaADECAttr adec_attr;
   };
   RK_U16 bind_ref;
@@ -100,6 +102,9 @@ std::mutex g_aenc_mtx;
 
 RkmediaChannel g_algo_md_chns[ALGO_MD_MAX_CHN_NUM];
 std::mutex g_algo_md_mtx;
+
+RkmediaChannel g_algo_od_chns[ALGO_OD_MAX_CHN_NUM];
+std::mutex g_algo_od_mtx;
 
 RkmediaChannel g_rga_chns[RGA_MAX_CHN_NUM];
 std::mutex g_rga_mtx;
@@ -203,6 +208,7 @@ RK_S32 RK_MPI_SYS_Init() {
   Reset_Channel_Table(g_aenc_chns, AENC_MAX_CHN_NUM, RK_ID_AENC);
   Reset_Channel_Table(g_ao_chns, AO_MAX_CHN_NUM, RK_ID_AO);
   Reset_Channel_Table(g_algo_md_chns, ALGO_MD_MAX_CHN_NUM, RK_ID_ALGO_MD);
+  Reset_Channel_Table(g_algo_od_chns, ALGO_OD_MAX_CHN_NUM, RK_ID_ALGO_OD);
   Reset_Channel_Table(g_rga_chns, RGA_MAX_CHN_NUM, RK_ID_RGA);
   Reset_Channel_Table(g_adec_chns, ADEC_MAX_CHN_NUM, RK_ID_ADEC);
   Reset_Channel_Table(g_vo_chns, VO_MAX_CHN_NUM, RK_ID_VO);
@@ -294,6 +300,10 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
   case RK_ID_ALGO_MD:
     sink = g_algo_md_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_algo_md_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_ALGO_OD:
+    sink = g_algo_od_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_algo_od_chns[pstDestChn->s32ChnId];
     break;
   case RK_ID_RGA:
     sink = g_rga_chns[pstDestChn->s32ChnId].rkmedia_flow;
@@ -413,6 +423,14 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
   case RK_ID_ADEC:
     sink = g_adec_chns[pstDestChn->s32ChnId].rkmedia_flow;
     dst_chn = &g_adec_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_ALGO_MD:
+    sink = g_algo_md_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_algo_md_chns[pstDestChn->s32ChnId];
+    break;
+  case RK_ID_ALGO_OD:
+    sink = g_algo_od_chns[pstDestChn->s32ChnId].rkmedia_flow;
+    dst_chn = &g_algo_od_chns[pstDestChn->s32ChnId];
     break;
   case RK_ID_VO:
     sink = g_vo_chns[pstDestChn->s32ChnId].rkmedia_flow;
@@ -636,8 +654,27 @@ static void FlowEventCallback(void *handle, void *data) {
     for (int i = 0; i < rkmedia_md_event->info_cnt; i++) {
       stEvent.md_event.stRects[i].s32X = (RK_S32)rkmedia_md_info[i].x;
       stEvent.md_event.stRects[i].s32Y = (RK_S32)rkmedia_md_info[i].y;
-      stEvent.md_event.stRects[i].u32Width = (RK_S32)rkmedia_md_info[i].w;
-      stEvent.md_event.stRects[i].u32Width = (RK_S32)rkmedia_md_info[i].h;
+      stEvent.md_event.stRects[i].u32Width = (RK_U32)rkmedia_md_info[i].w;
+      stEvent.md_event.stRects[i].u32Width = (RK_U32)rkmedia_md_info[i].h;
+    }
+    target_chn->event_cb(&stEvent);
+  } break;
+  case RK_ID_ALGO_OD: {
+    OcclusionDetectEvent *rkmedia_od_event = (OcclusionDetectEvent *)data;
+    OcclusionDetecInfo *rkmedia_od_info = rkmedia_od_event->data;
+    EVENT_S stEvent;
+
+    stEvent.mode_id = RK_ID_ALGO_OD;
+    stEvent.type = RK_EVENT_OD;
+    stEvent.stOdEvent.u16Cnt = rkmedia_od_event->info_cnt;
+    stEvent.stOdEvent.u32Width = rkmedia_od_event->img_width;
+    stEvent.stOdEvent.u32Height = rkmedia_od_event->img_height;
+    for (int i = 0; i < rkmedia_od_event->info_cnt; i++) {
+      stEvent.stOdEvent.stRects[i].s32X = (RK_S32)rkmedia_od_info[i].x;
+      stEvent.stOdEvent.stRects[i].s32Y = (RK_S32)rkmedia_od_info[i].y;
+      stEvent.stOdEvent.stRects[i].u32Width = (RK_U32)rkmedia_od_info[i].w;
+      stEvent.stOdEvent.stRects[i].u32Height = (RK_U32)rkmedia_od_info[i].h;
+      stEvent.stOdEvent.u16Occlusion[i] = (RK_U16)rkmedia_od_info[i].occlusion;
     }
     target_chn->event_cb(&stEvent);
   } break;
@@ -658,6 +695,12 @@ RK_S32 RK_MPI_SYS_RegisterEventCb(const MPP_CHN_S *pstChn, EventCbFunc cb) {
       return -RK_ERR_SYS_NOTREADY;
     flow = g_algo_md_chns[pstChn->s32ChnId].rkmedia_flow;
     target_chn = &g_algo_md_chns[pstChn->s32ChnId];
+    break;
+  case RK_ID_ALGO_OD:
+    if (g_algo_od_chns[pstChn->s32ChnId].status < CHN_STATUS_OPEN)
+      return -RK_ERR_SYS_NOTREADY;
+    flow = g_algo_od_chns[pstChn->s32ChnId].rkmedia_flow;
+    target_chn = &g_algo_od_chns[pstChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
@@ -751,6 +794,11 @@ RK_S32 RK_MPI_SYS_SendMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
       return -RK_ERR_SYS_ILLEGAL_PARAM;
     target_chn = &g_algo_md_chns[s32ChnID];
     break;
+  case RK_ID_ALGO_OD:
+    if (s32ChnID < 0 || s32ChnID > ALGO_OD_MAX_CHN_NUM)
+      return -RK_ERR_SYS_ILLEGAL_PARAM;
+    target_chn = &g_algo_od_chns[s32ChnID];
+    break;
   case RK_ID_ADEC:
     if (s32ChnID < 0 || s32ChnID > ADEC_MAX_CHN_NUM)
       return -RK_ERR_SYS_ILLEGAL_PARAM;
@@ -823,7 +871,7 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_HEIGHT,
                          g_vi_chns[ViChn].vi_attr.attr.u32Height);
   flow_param = easymedia::JoinFlowParam(flow_param, 1, stream_param);
-
+  LOGD("\n#VI: v4l2 source flow param:\n%s\n", flow_param.c_str());
   g_vi_chns[ViChn].rkmedia_flow = easymedia::REFLECTOR(
       Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
   g_vi_chns[ViChn].rkmedia_flow->SetOutputCallBack(&g_vi_chns[ViChn],
@@ -2608,6 +2656,95 @@ RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn) {
   g_algo_md_chns[MdChn].rkmedia_flow.reset();
   g_algo_md_chns[MdChn].status = CHN_STATUS_CLOSED;
   g_algo_md_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+/********************************************************************
+ * Algorithm::Occlusion Detection api
+ ********************************************************************/
+RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn, const ALGO_OD_ATTR_S *pstChnAttr) {
+  if ((OdChn < 0) || (OdChn > ALGO_MD_MAX_CHN_NUM))
+    return -RK_ERR_ALGO_OD_INVALID_CHNID;
+
+  if (!pstChnAttr || pstChnAttr->u16RoiCnt > ALGO_OD_ROI_RET_MAX)
+    return -RK_ERR_ALGO_OD_ILLEGAL_PARAM;
+
+  switch (pstChnAttr->enImageType) {
+  case IMAGE_TYPE_NV12:
+  case IMAGE_TYPE_NV21:
+  case IMAGE_TYPE_NV16:
+  case IMAGE_TYPE_NV61:
+  case IMAGE_TYPE_YUV420P:
+  case IMAGE_TYPE_YUV422P:
+  case IMAGE_TYPE_YV12:
+  case IMAGE_TYPE_YV16:
+    break;
+  default:
+    LOG("ERROR: OD: ImageType:%d not support!\n");
+    return -RK_ERR_ALGO_OD_ILLEGAL_PARAM;
+  }
+
+  g_algo_od_mtx.lock();
+  if (g_algo_od_chns[OdChn].status != CHN_STATUS_CLOSED) {
+    g_algo_od_mtx.unlock();
+    return -RK_ERR_ALGO_OD_EXIST;
+  }
+
+  memcpy(&g_algo_od_chns[OdChn].od_attr, pstChnAttr, sizeof(ALGO_OD_ATTR_S));
+
+  std::string flow_name = "occlusion_detec";
+  std::string flow_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "occlusion_detec");
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE,
+                      ImageTypeToString(pstChnAttr->enImageType));
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, "NULL");
+  std::string od_param = "";
+  PARAM_STRING_APPEND_TO(od_param, KEY_OD_WIDTH, pstChnAttr->u32Width);
+  PARAM_STRING_APPEND_TO(od_param, KEY_OD_HEIGHT, pstChnAttr->u32Height);
+  PARAM_STRING_APPEND_TO(od_param, KEY_OD_ROI_CNT, pstChnAttr->u16RoiCnt);
+  std::string strRects = "";
+  for (int i = 0; i < pstChnAttr->u16RoiCnt; i++) {
+    strRects.append("(");
+    strRects.append(std::to_string(pstChnAttr->stRoiRects[i].s32X));
+    strRects.append(",");
+    strRects.append(std::to_string(pstChnAttr->stRoiRects[i].s32Y));
+    strRects.append(",");
+    strRects.append(std::to_string(pstChnAttr->stRoiRects[i].u32Width));
+    strRects.append(",");
+    strRects.append(std::to_string(pstChnAttr->stRoiRects[i].u32Height));
+    strRects.append(")");
+  }
+  PARAM_STRING_APPEND(od_param, KEY_OD_ROI_RECT, strRects);
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, od_param);
+
+  LOGD("\n#OcclusionDetection flow param:\n%s\n", flow_param.c_str());
+  g_algo_od_chns[OdChn].rkmedia_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!g_algo_od_chns[OdChn].rkmedia_flow) {
+    LOG("ERROR: OD: Create flow %s failed!\n", flow_name.c_str());
+    return -RK_ERR_ALGO_OD_NOT_CONFIG;
+  }
+
+  g_algo_od_chns[OdChn].status = CHN_STATUS_OPEN;
+  g_algo_od_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_ALGO_OD_DestroyChn(ALGO_OD_CHN OdChn) {
+  if ((OdChn < 0) || (OdChn > ALGO_OD_MAX_CHN_NUM))
+    return -RK_ERR_ALGO_OD_INVALID_CHNID;
+
+  g_algo_od_mtx.lock();
+  if (g_algo_od_chns[OdChn].status == CHN_STATUS_BIND) {
+    g_algo_od_mtx.unlock();
+    return -RK_ERR_ALGO_OD_BUSY;
+  }
+
+  g_algo_od_chns[OdChn].rkmedia_flow.reset();
+  g_algo_od_chns[OdChn].status = CHN_STATUS_CLOSED;
+  g_algo_od_mtx.unlock();
 
   return RK_ERR_SYS_OK;
 }

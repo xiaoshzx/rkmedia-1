@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
 
   flow_name = "occlusion_detec";
   flow_param = "";
-  PARAM_STRING_APPEND(flow_param, KEY_NAME, "move_detec");
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "occlusion_detec");
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, "NULL");
   od_param = "";

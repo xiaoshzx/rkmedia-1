@@ -15,6 +15,7 @@ extern "C" {
 #include "rkmedia_common.h"
 #include "rkmedia_event.h"
 #include "rkmedia_move_detection.h"
+#include "rkmedia_occlusion_detection.h"
 #include "rkmedia_rga.h"
 #include "rkmedia_venc.h"
 #include "rkmedia_vi.h"
@@ -29,6 +30,7 @@ extern "C" {
 #define AENC_MAX_CHN_NUM 16
 #define ADEC_MAX_CHN_NUM 16
 #define ALGO_MD_MAX_CHN_NUM VI_MAX_CHN_NUM
+#define ALGO_OD_MAX_CHN_NUM VI_MAX_CHN_NUM
 #define RGA_MAX_CHN_NUM 16
 #define VO_MAX_CHN_NUM 2
 
@@ -40,6 +42,7 @@ typedef RK_S32 AO_CHN;
 typedef RK_S32 AENC_CHN;
 typedef RK_S32 ADEC_CHN;
 typedef RK_S32 ALGO_MD_CHN;
+typedef RK_S32 ALGO_OD_CHN;
 typedef RK_S32 RGA_CHN;
 typedef RK_S32 VO_CHN;
 
@@ -163,6 +166,12 @@ _CAPI RK_S32 RK_MPI_ALGO_MD_SetChnAttr(ALGO_MD_CHN MdChn,
                                        const ALGO_MD_ATTR_S *pstChnAttr);
 _CAPI RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn);
 _CAPI RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn);
+
+/********************************************************************
+ * Algorithm::Occlusion Detection api
+ ********************************************************************/
+_CAPI RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn, const ALGO_OD_ATTR_S *pstChnAttr);
+_CAPI RK_S32 RK_MPI_ALGO_OD_DestroyChn(ALGO_OD_CHN OdChn);
 
 /********************************************************************
  * Rga api

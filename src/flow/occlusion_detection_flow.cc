@@ -211,6 +211,12 @@ OcclusionDetectionFlow::OcclusionDetectionFlow(const char *param) {
   }
 
   std::string key_name = params[KEY_NAME];
+  if (key_name != "occlusion_detec") {
+    LOG("ERROR: OD: KEY_NAME:%s not match \"occlusion_detec\"!\n");
+    SetError(-EINVAL);
+    return;
+  }
+
   // check input/output type
   std::string &&rule = gen_datatype_rule(params);
   if (rule.empty()) {

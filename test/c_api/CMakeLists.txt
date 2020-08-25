@@ -50,6 +50,15 @@ target_include_directories(rkmedia_vi_md_test PRIVATE ${CMAKE_SOURCE_DIR}/includ
 install(TARGETS rkmedia_vi_md_test RUNTIME DESTINATION "bin")
 
 #--------------------------
+#  rkmedia_vi_od_test
+#--------------------------
+add_executable(rkmedia_vi_od_test rkmedia_vi_od_test.c)
+add_dependencies(rkmedia_vi_od_test easymedia)
+target_link_libraries(rkmedia_vi_od_test easymedia)
+target_include_directories(rkmedia_vi_od_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_vi_od_test RUNTIME DESTINATION "bin")
+
+#--------------------------
 #  rkmedia_venc_jpeg_test
 #--------------------------
 add_executable(rkmedia_venc_jpeg_test rkmedia_venc_jpeg_test.c)

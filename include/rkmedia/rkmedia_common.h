@@ -116,6 +116,7 @@ typedef enum rkMOD_ID_E {
   RK_ID_AENC,
   RK_ID_ADEC,
   RK_ID_ALGO_MD,
+  RK_ID_ALGO_OD,
   RK_ID_RGA,
 
   RK_ID_BUTT,
@@ -138,7 +139,7 @@ enum {
    * VideoInput error types
    **********************************/
   /* invlalid channel ID */
-  RK_ERR_VI_INVALID_CHNID,
+  RK_ERR_VI_INVALID_CHNID = 10,
   /* system is busy*/
   RK_ERR_VI_BUSY,
   /* channel exists */
@@ -153,7 +154,7 @@ enum {
    * VideoEncoder error types
    **********************************/
   /* invlalid channel ID */
-  RK_ERR_VENC_INVALID_CHNID,
+  RK_ERR_VENC_INVALID_CHNID = 20,
   /* at lease one parameter is illagal ,eg, an illegal enumeration value  */
   RK_ERR_VENC_ILLEGAL_PARAM,
   /* channel exists */
@@ -186,7 +187,7 @@ enum {
    * AI::Audio input error types
    **********************************/
   /* invlalid device ID */
-  RK_ERR_AI_INVALID_DEVID,
+  RK_ERR_AI_INVALID_DEVID = 40,
   /* system is busy*/
   RK_ERR_AI_BUSY,
   RK_ERR_AI_EXIST,
@@ -198,7 +199,7 @@ enum {
    * AO::Audio output error types
    **********************************/
   /* invlalid device ID */
-  RK_ERR_AO_INVALID_DEVID,
+  RK_ERR_AO_INVALID_DEVID = 50,
   /* system is busy*/
   RK_ERR_AO_BUSY,
   /* system is not ready,had not initialed or loaded*/
@@ -210,7 +211,7 @@ enum {
    * AENC::Audio encoder error types
    **********************************/
   /* invlalid device ID */
-  RK_ERR_AENC_INVALID_DEVID,
+  RK_ERR_AENC_INVALID_DEVID = 60,
   /* system is busy*/
   RK_ERR_AENC_BUSY,
   /* codec not support*/
@@ -220,7 +221,7 @@ enum {
    * Algorithm::MoveDetection error types
    **********************************/
   /* invlalid channel ID */
-  RK_ERR_ALGO_MD_INVALID_CHNID,
+  RK_ERR_ALGO_MD_INVALID_CHNID = 70,
   /* system is busy*/
   RK_ERR_ALGO_MD_BUSY,
   /* channel exists */
@@ -230,10 +231,23 @@ enum {
   RK_ERR_ALGO_MD_ILLEGAL_PARAM,
 
   /***********************************
+   * Algorithm::OcclusionDetection error types
+   **********************************/
+  /* invlalid channel ID */
+  RK_ERR_ALGO_OD_INVALID_CHNID = 80,
+  /* system is busy*/
+  RK_ERR_ALGO_OD_BUSY,
+  /* channel exists */
+  RK_ERR_ALGO_OD_EXIST,
+  RK_ERR_ALGO_OD_NOT_CONFIG,
+  /* at lease one parameter is illagal ,eg, an illegal enumeration value  */
+  RK_ERR_ALGO_OD_ILLEGAL_PARAM,
+
+  /***********************************
    * RGA::rga error types
    **********************************/
   /* invlalid channel ID */
-  RK_ERR_RGA_INVALID_CHNID,
+  RK_ERR_RGA_INVALID_CHNID = 90,
   /* system is busy*/
   RK_ERR_RGA_BUSY,
   /* channel exists */
@@ -246,7 +260,7 @@ enum {
    * ADEC::Audio decoder error types
    **********************************/
   /* invlalid device ID */
-  RK_ERR_ADEC_INVALID_DEVID,
+  RK_ERR_ADEC_INVALID_DEVID = 100,
   /* system is busy*/
   RK_ERR_ADEC_BUSY,
   /* codec not support*/
@@ -255,7 +269,7 @@ enum {
   /***********************************
    * VO::Video Output error types
    **********************************/
-  RK_ERR_VO_INVALID_DEVID,
+  RK_ERR_VO_INVALID_DEVID = 110,
   RK_ERR_VO_EXIST,
   RK_ERR_VO_NOT_CONFIG,
   RK_ERR_VO_TIMEOUT,
