@@ -346,7 +346,7 @@ void VideoEncoderFlow::Dump(std::string &dump_info) {
       PixFmtToString(mc.img_cfg.image_info.pix_fmt));
     dump_info.append(str_line);
     memset(str_line, 0, sizeof(str_line));
-    sprintf(str_line, "  Quant:%d\n", mc.img_cfg.qp_init);
+    sprintf(str_line, "  Qfactor:%d\n", mc.img_cfg.qfactor);
     dump_info.append(str_line);
   } else if (mc.type == Type::Video) {
     const VideoConfig &vcfg = mc.vid_cfg;
@@ -366,8 +366,8 @@ void VideoEncoderFlow::Dump(std::string &dump_info) {
       PixFmtToString(imgcfg.image_info.pix_fmt));
     dump_info.append(str_line);
     memset(str_line, 0, sizeof(str_line));
-    sprintf(str_line, "  QpArray: min:%d, max:%d, step:%d, min_i:%d, max_i:%d\r\n",
-      vcfg.qp_min, vcfg.qp_max, vcfg.qp_step, vcfg.qp_min_i, vcfg.qp_max_i);
+    sprintf(str_line, "  QpArray: init:%d min:%d, max:%d, step:%d, min_i:%d, max_i:%d\r\n",
+      vcfg.qp_init, vcfg.qp_min, vcfg.qp_max, vcfg.qp_step, vcfg.qp_min_i, vcfg.qp_max_i);
     dump_info.append(str_line);
     memset(str_line, 0, sizeof(str_line));
     sprintf(str_line, "  BitRate: target:%d, min:%d, max:%d\r\n",

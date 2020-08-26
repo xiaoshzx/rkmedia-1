@@ -59,6 +59,8 @@
 #define KEY_FULL_RANGE "full_range"
 #define KEY_H264_TRANS_8x8 "h264_trans_8x8"
 
+#define KEY_JPEG_QFACTOR "jpeg_qfactor"
+
 #define KEY_ROI_REGIONS "roi_regions"
 
 #define KEY_LOWEST "lowest"

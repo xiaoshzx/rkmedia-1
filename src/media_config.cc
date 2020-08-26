@@ -32,7 +32,7 @@ const char *ConvertRcQuality(const std::string &s) {
                            ARRAY_ELEMS(rc_quality_strings));
 }
 
-static const char *ConvertRcMode(const std::string &s) {
+const char *ConvertRcMode(const std::string &s) {
   return convert2constchar(s, rc_mode_strings, ARRAY_ELEMS(rc_mode_strings));
 }
 
@@ -88,7 +88,6 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     return false;
   }
   ImageInfo info;
-  int qp_init;
   CodecType codec_type = StringToCodecType(value.c_str());
   if (codec_type == CODEC_TYPE_NONE) {
     LOG("ERROR: unsupport outtype %s\n", value.c_str());
@@ -98,9 +97,6 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
   if (image_in || video_in) {
     if (!ParseImageInfoFromMap(params, info))
       return false;
-    GET_STRING_TO_INT(qp_init, params, KEY_COMPRESS_QP_INIT, 0)
-    //CHECK_EMPTY(value, params, KEY_CODECTYPE)
-    //codec_type = (CodecType)std::stoi(value);
   } else {
     // audio
     AudioConfig &aud_cfg = mc.aud_cfg;
@@ -118,15 +114,16 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
   if (image_in) {
     ImageConfig &img_cfg = mc.img_cfg;
     img_cfg.image_info = info;
-    img_cfg.qp_init = qp_init;
+    GET_STRING_TO_INT(img_cfg.qfactor, params, KEY_JPEG_QFACTOR, 0)
     img_cfg.codec_type = codec_type;
     mc.type = Type::Image;
   } else if (video_in) {
     VideoConfig &vid_cfg = mc.vid_cfg;
     ImageConfig &img_cfg = vid_cfg.image_cfg;
     img_cfg.image_info = info;
-    img_cfg.qp_init = qp_init;
     img_cfg.codec_type = codec_type;
+    GET_STRING_TO_INT(img_cfg.qfactor, params, KEY_JPEG_QFACTOR, 0)
+    GET_STRING_TO_INT(vid_cfg.qp_init, params, KEY_COMPRESS_QP_INIT, 0)
     GET_STRING_TO_INT(vid_cfg.qp_step, params, KEY_COMPRESS_QP_STEP, 0)
     GET_STRING_TO_INT(vid_cfg.qp_min, params, KEY_COMPRESS_QP_MIN, 0)
     GET_STRING_TO_INT(vid_cfg.qp_max, params, KEY_COMPRESS_QP_MAX, 0)
@@ -225,7 +222,7 @@ std::vector<EncROIRegion> StringToRoiRegions(const std::string &str_regions) {
 
 std::string to_param_string(const ImageConfig &img_cfg) {
   std::string ret = to_param_string(img_cfg.image_info);
-  PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_INIT, img_cfg.qp_init);
+  PARAM_STRING_APPEND_TO(ret, KEY_JPEG_QFACTOR, img_cfg.qfactor);
   PARAM_STRING_APPEND_TO(ret, KEY_CODECTYPE, img_cfg.codec_type);
   return ret;
 }
@@ -233,6 +230,7 @@ std::string to_param_string(const ImageConfig &img_cfg) {
 std::string to_param_string(const VideoConfig &vid_cfg) {
   const ImageConfig &img_cfg = vid_cfg.image_cfg;
   std::string ret = to_param_string(img_cfg);
+  PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_INIT, vid_cfg.qp_init);
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_STEP, vid_cfg.qp_step);
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_MIN, vid_cfg.qp_min);
   PARAM_STRING_APPEND_TO(ret, KEY_COMPRESS_QP_MAX, vid_cfg.qp_max);
@@ -488,22 +486,18 @@ int video_encoder_set_qp(
   return 0;
 }
 
-int jpeg_encoder_set_quant(
-  std::shared_ptr<Flow> &enc_flow, int quant) {
+int jpeg_encoder_set_qfactor(
+  std::shared_ptr<Flow> &enc_flow, int qfactor) {
   if (!enc_flow)
     return -EINVAL;
 
-  if ((quant > 10) || (quant < 1)) {
-    LOG("ERROR: quant should be within [1, 10]\n");
+  if ((qfactor > 99) || (qfactor < 1)) {
+    LOG("ERROR: %s: qfactor should be within [1, 99]\n", __func__);
     return -EINVAL;
   }
 
   auto pbuff = std::make_shared<ParameterBuffer>(0);
-  VideoEncoderQp *qp_struct =
-    (VideoEncoderQp *)malloc(sizeof(VideoEncoderQp));
-  memset(qp_struct, 0, sizeof(VideoEncoderQp));
-  qp_struct->qp_init = quant;
-  pbuff->SetPtr(qp_struct, sizeof(VideoEncoderQp));
+  pbuff->SetValue(qfactor);
   enc_flow->Control(VideoEncoder::kQPChange, pbuff);
 
   return 0;

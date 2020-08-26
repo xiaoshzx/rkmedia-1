@@ -172,7 +172,7 @@ std::shared_ptr<easymedia::VideoEncoder> initVideoEncoder(std::string EncoderNam
     VideoConfig &vid_cfg = vid_enc_config.vid_cfg;
     ImageConfig &img_cfg = vid_cfg.image_cfg;
     img_cfg.image_info = vid_info;
-    img_cfg.qp_init = 24;
+    vid_cfg.qp_init = 24;
     vid_cfg.qp_step = 4;
     vid_cfg.qp_min = 12;
     vid_cfg.qp_max = 48;

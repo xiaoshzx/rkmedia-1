@@ -224,7 +224,7 @@ int FaceCapture::DoEncode(std::shared_ptr<MediaBuffer> src,
   MediaConfig enc_config;
   ImageConfig &img_cfg = enc_config.img_cfg;
   img_cfg.image_info = img_buffer->GetImageInfo();
-  img_cfg.qp_init = 10;
+  img_cfg.qfactor = 50;
   if (!enc_->InitConfig(enc_config)) {
     LOG("FaceCapture Init config of encoder mjpeg failed\n");
     exit(EXIT_FAILURE);

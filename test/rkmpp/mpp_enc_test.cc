@@ -219,7 +219,7 @@ int main(int argc, char **argv) {
     VideoConfig &vid_cfg = enc_config.vid_cfg;
     ImageConfig &img_cfg = vid_cfg.image_cfg;
     img_cfg.image_info = info;
-    img_cfg.qp_init = 24;
+    vid_cfg.qp_init = 24;
     vid_cfg.qp_step = 4;
     vid_cfg.qp_min = 12;
     vid_cfg.qp_max = 48;
@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
   } else if (output_format == IMAGE_JPEG) {
     ImageConfig &img_cfg = enc_config.img_cfg;
     img_cfg.image_info = info;
-    img_cfg.qp_init = 10;
+    img_cfg.qfactor = 50;
   }
 
   if (!mpp_enc->InitConfig(enc_config)) {

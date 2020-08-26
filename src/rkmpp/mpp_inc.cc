@@ -102,8 +102,10 @@ const char *MppAcceptImageFmts() { return priv_types.types.c_str(); }
 MppCodingType GetMPPCodingType(const std::string &data_type) {
   if (data_type == VIDEO_H264)
     return MPP_VIDEO_CodingAVC;
-  if (data_type == VIDEO_H265)
+  else if (data_type == VIDEO_H265)
     return MPP_VIDEO_CodingHEVC;
+  else if (data_type == VIDEO_MJPEG)
+    return MPP_VIDEO_CodingMJPEG;
   else if (data_type == IMAGE_JPEG)
     return MPP_VIDEO_CodingMJPEG;
   LOG("mpp decoder TODO for %s\n", data_type.c_str());
