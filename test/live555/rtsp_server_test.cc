@@ -22,6 +22,11 @@
 #include "media_type.h"
 #include "utils.h"
 
+#include "buffer.h"
+#include "encoder.h"
+#include "stream.h"
+#include "image.h"
+
 static bool quit = false;
 
 static void sigterm_handler(int sig) {
@@ -29,7 +34,7 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
-#define SIMPLE 1
+#define SIMPLE 0
 
 #if SIMPLE
 
@@ -253,27 +258,27 @@ int main(int argc, char **argv) {
 }
 
 #else
-static char optstr[] = "?i:w:h:p:c:u:";
+static char optstr[] = "?i:w:h:p:c:u:f:";
 
 int main(int argc, char **argv) {
   int c;
   std::string input_path;
-  std::string input_format;
   int w = 0, h = 0, port = 554;
   std::string channel_name;
+  std::string pixel_format;
   std::string user_name, user_pwd;
+  std::shared_ptr<easymedia::Flow> video_read_flow;
 
   opterr = 1;
   while ((c = getopt(argc, argv, optstr)) != -1) {
     switch (c) {
     case 'i':
       input_path = optarg;
-      printf("input file path: %s\n", input_path.c_str());
-      if (!easymedia::string_end_withs(input_path, "nv12")) {
-        fprintf(stderr, "input file must be *.nv12");
-        exit(EXIT_FAILURE);
-      }
-      input_format = IMAGE_NV12;
+      printf("input video path: %s\n", input_path.c_str());
+      break;
+    case 'f':
+      pixel_format = optarg;
+      printf("#IN ARGS: pixel_format: %s\n", pixel_format.c_str());
       break;
     case 'w':
       w = atoi(optarg);
@@ -300,7 +305,7 @@ int main(int argc, char **argv) {
     case '?':
     default:
       printf("usage example: \n");
-      printf("rtsp_server_test -i input.nv12 -w 320 -h 240 -p 554 -c "
+      printf("rtsp_server_test -i /dev/video15 -f nv12 -w 1920 -h 1080 -p 554 -c "
              "main_stream -u admin:123456\n");
       break;
     }
@@ -323,6 +328,8 @@ int main(int argc, char **argv) {
   info.vir_height = h_align;
   std::string flow_name;
   std::string param;
+
+#if 0
   PARAM_STRING_APPEND(param, KEY_PATH, input_path);
   PARAM_STRING_APPEND(param, KEY_OPEN_MODE, "re"); // read and close-on-exec
   PARAM_STRING_APPEND(param, KEY_MEM_TYPE,
@@ -332,6 +339,7 @@ int main(int argc, char **argv) {
   PARAM_STRING_APPEND_TO(param, KEY_FPS, fps); // rhythm reading
   PARAM_STRING_APPEND_TO(param, KEY_LOOP_TIME, 99999);
   printf("\nparam 1:\n%s\n", param.c_str());
+
   // 1. source
   flow_name = "file_read_flow";
   auto file_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
@@ -340,11 +348,60 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
     exit(EXIT_FAILURE);
   }
+#endif
+
+  {
+    //Reading yuv from camera
+
+    std::string stream_param;
+
+    flow_name = "source_stream";
+    param = "";
+
+    //add prefix for pixformat
+    if(pixel_format == "yuyv422") {
+      pixel_format = IMAGE_YUYV422;
+      info.pix_fmt = PIX_FMT_YUYV422;
+    }
+    else if (pixel_format == "nv12") {
+      pixel_format = IMAGE_NV12;
+      info.pix_fmt = PIX_FMT_NV12;
+    }
+    else {
+      printf("ERROR: image type:%s not support!\n", pixel_format.c_str());
+      exit(EXIT_FAILURE);
+    }
+
+    PARAM_STRING_APPEND(param, KEY_NAME, "v4l2_capture_stream");
+    PARAM_STRING_APPEND(param, KEK_THREAD_SYNC_MODEL, KEY_SYNC);
+    PARAM_STRING_APPEND(param, KEK_INPUT_MODEL, KEY_DROPFRONT);
+    PARAM_STRING_APPEND_TO(param, KEY_INPUT_CACHE_NUM, 5);
+    stream_param = "";
+    PARAM_STRING_APPEND_TO(stream_param, KEY_USE_LIBV4L2, 1);
+    PARAM_STRING_APPEND(stream_param, KEY_DEVICE, input_path);
+    PARAM_STRING_APPEND(param, KEY_OPEN_MODE, "re"); // read and close-on-exec
+    PARAM_STRING_APPEND(stream_param, KEY_V4L2_CAP_TYPE, KEY_V4L2_C_TYPE(VIDEO_CAPTURE));
+    PARAM_STRING_APPEND(stream_param, KEY_V4L2_MEM_TYPE, KEY_V4L2_M_TYPE(MEMORY_DMABUF));
+    PARAM_STRING_APPEND_TO(stream_param, KEY_FRAMES, 4); // if not set, default is 2
+    PARAM_STRING_APPEND(stream_param, KEY_OUTPUTDATATYPE, pixel_format);
+    PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_WIDTH, w);
+    PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_HEIGHT, h);
+
+    param = easymedia::JoinFlowParam(param, 1, stream_param);
+    printf("\n#VideoCapture flow param:\n%s\n", param.c_str());
+    video_read_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+        flow_name.c_str(), param.c_str());
+    if (!video_read_flow) {
+      fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+      exit(EXIT_FAILURE);
+    }
+  }
+
   // 2. encoder
   flow_name = "video_enc";
   param = "";
   PARAM_STRING_APPEND(param, KEY_NAME, "rkmpp");
-  PARAM_STRING_APPEND(param, KEY_INPUTDATATYPE, IMAGE_NV12);
+  PARAM_STRING_APPEND(param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(param, KEY_OUTPUTDATATYPE, VIDEO_H264);
   MediaConfig enc_config;
   VideoConfig &vid_cfg = enc_config.vid_cfg;
@@ -354,18 +411,27 @@ int main(int argc, char **argv) {
   vid_cfg.qp_step = 4;
   vid_cfg.qp_min = 12;
   vid_cfg.qp_max = 48;
-  vid_cfg.bit_rate = w * h * 7;
+  vid_cfg.qp_min_i = 12;
+  vid_cfg.qp_max_i = 48;
+  vid_cfg.bit_rate = w * h * 2;
   if (vid_cfg.bit_rate > 1000000) {
     vid_cfg.bit_rate /= 1000000;
     vid_cfg.bit_rate *= 1000000;
   }
+  vid_cfg.bit_rate_max = 2 * vid_cfg.bit_rate;
+  vid_cfg.bit_rate_min = vid_cfg.bit_rate / 2;
+
   vid_cfg.frame_rate = fps;
+  vid_cfg.frame_rate_den = 1;
+  vid_cfg.frame_in_rate = fps;
+  vid_cfg.frame_in_rate_den = 1;
   vid_cfg.level = 52;
   vid_cfg.gop_size = fps;
   vid_cfg.profile = 100;
   // vid_cfg.rc_quality = "aq_only"; vid_cfg.rc_mode = "vbr";
-  vid_cfg.rc_quality = KEY_BEST;
+  vid_cfg.rc_quality = KEY_MEDIUM;
   vid_cfg.rc_mode = KEY_CBR;
+  vid_cfg.rotation = 0; //MPP_ENC_ROT_0;
   std::string enc_param;
   enc_param.append(easymedia::to_param_string(enc_config, VIDEO_H264));
   param = easymedia::JoinFlowParam(param, 1, enc_param);
@@ -373,7 +439,7 @@ int main(int argc, char **argv) {
   auto enc_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
       flow_name.c_str(), param.c_str());
   if (!enc_flow) {
-    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+    fprintf(stderr, "Create flow %s failed. param: %s\n", flow_name.c_str(), param.c_str());
     exit(EXIT_FAILURE);
   }
   // 3. rtsp server
@@ -396,7 +462,7 @@ int main(int argc, char **argv) {
   }
   // 4. link above flows
   enc_flow->AddDownFlow(rtsp_flow, 0, 0);
-  file_flow->AddDownFlow(
+  video_read_flow->AddDownFlow(
       enc_flow, 0, 0); // the source flow better place the end to add down flow
   LOG("rtsp server test initial finish\n");
   signal(SIGINT, sigterm_handler);
@@ -404,8 +470,8 @@ int main(int argc, char **argv) {
     easymedia::msleep(10);
   }
   LOG("rtsp server test reclaiming\n");
-  file_flow->RemoveDownFlow(enc_flow);
-  file_flow.reset();
+  video_read_flow->RemoveDownFlow(enc_flow);
+  video_read_flow.reset();
   enc_flow->RemoveDownFlow(rtsp_flow);
   enc_flow.reset();
   rtsp_flow.reset();
