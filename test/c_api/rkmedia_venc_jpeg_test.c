@@ -160,7 +160,7 @@ int main() {
   signal(SIGINT, sigterm_handler);
 
   char cmd[64];
-  int quant = 1;
+  int qfactor = 0;
   VENC_JPEG_PARAM_S stJpegParam;
   printf("#Usage: input 'quit' to exit programe!\n"
          "peress any other key to capture one picture to file\n");
@@ -171,10 +171,15 @@ int main() {
       printf("#Get 'quit' cmd!\n");
       break;
     }
-    stRecvParam.s32RecvPicNum = 1;
-    stJpegParam.u32Qfactor = quant;
-    quant = (quant == 10) ? 1 : (quant + 1);
+
+    if (qfactor >= 99)
+      qfactor = 1;
+    else
+      qfactor = ((qfactor + 10) > 99) ? 99 : (qfactor + 10);
+    stJpegParam.u32Qfactor = qfactor;
     RK_MPI_VENC_SetJpegParam(0, &stJpegParam);
+
+    stRecvParam.s32RecvPicNum = 1;
     ret = RK_MPI_VENC_StartRecvFrame(0, &stRecvParam);
     if (ret) {
       printf("RK_MPI_VENC_StartRecvFrame failed!\n");

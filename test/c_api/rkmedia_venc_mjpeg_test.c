@@ -47,8 +47,32 @@ static void set_argb8888_buffer(RK_U32 *buf, RK_U32 size, RK_U32 color) {
     *(buf + i) = color;
 }
 
-int main() {
+static char optstr[] = "?:m:";
+
+static void print_usage(char *name) {
+  printf("#Usage Example: \n");
+  printf("  %s [-m cbr]\n", name);
+  printf("  @[-m] Set RcMode:cbr/vbr. defalut:vbr\n");
+}
+
+int main(int argc, char *argv[]) {
   RK_S32 ret;
+  const RK_CHAR *pcRcMode = "vbr";
+  int c = 0;
+
+  opterr = 1;
+  while ((c = getopt(argc, argv, optstr)) != -1) {
+    switch (c) {
+    case 'm':
+      pcRcMode = optarg;
+      printf("#IN ARGS: pcRcMode: %s\n", pcRcMode);
+      break;
+    case '?':
+    default:
+      print_usage(argv[0]);
+      exit(0);
+    }
+  }
 
   ret = RK_MPI_SYS_Init();
   if (ret) {
@@ -78,11 +102,23 @@ int main() {
   venc_chn_attr.stVencAttr.u32PicHeight = 1080;
   venc_chn_attr.stVencAttr.u32VirWidth = 1920;
   venc_chn_attr.stVencAttr.u32VirHeight = 1080;
-  venc_chn_attr.stRcAttr.stMjpegCbr.fr32DstFrameRateDen = 1;
-  venc_chn_attr.stRcAttr.stMjpegCbr.fr32DstFrameRateNum = 15;
-  venc_chn_attr.stRcAttr.stMjpegCbr.u32SrcFrameRateDen = 2;
-  venc_chn_attr.stRcAttr.stMjpegCbr.u32SrcFrameRateNum = 45;
   // venc_chn_attr.stVencAttr.enRotation = VENC_ROTATION_90;
+  if (!strcmp(pcRcMode, "cbr")) {
+    venc_chn_attr.stRcAttr.enRcMode = VENC_RC_MODE_MJPEGCBR;
+    venc_chn_attr.stRcAttr.stMjpegCbr.fr32DstFrameRateDen = 1;
+    venc_chn_attr.stRcAttr.stMjpegCbr.fr32DstFrameRateNum = 30;
+    venc_chn_attr.stRcAttr.stMjpegCbr.u32SrcFrameRateDen = 1;
+    venc_chn_attr.stRcAttr.stMjpegCbr.u32SrcFrameRateNum = 30;
+    venc_chn_attr.stRcAttr.stMjpegCbr.u32BitRate = 50000000; // 50Mbps
+  } else {
+    venc_chn_attr.stRcAttr.enRcMode = VENC_RC_MODE_MJPEGVBR;
+    venc_chn_attr.stRcAttr.stMjpegVbr.fr32DstFrameRateDen = 1;
+    venc_chn_attr.stRcAttr.stMjpegVbr.fr32DstFrameRateNum = 30;
+    venc_chn_attr.stRcAttr.stMjpegVbr.u32SrcFrameRateDen = 1;
+    venc_chn_attr.stRcAttr.stMjpegVbr.u32SrcFrameRateNum = 30;
+    venc_chn_attr.stRcAttr.stMjpegCbr.u32BitRate = 50000000; // 50Mbps
+  }
+
   ret = RK_MPI_VENC_CreateChn(0, &venc_chn_attr);
   if (ret) {
     printf("Create Venc failed! ret=%d\n", ret);

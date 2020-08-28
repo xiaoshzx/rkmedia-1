@@ -1026,9 +1026,13 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   RK_S32 s32ZoomHeight = 0;
   RK_S32 s32ZoomVirWidth = 0;
   RK_S32 s32ZoomVirHeight = 0;
+  const RK_CHAR *pcRkmediaRcMode = nullptr;
+  const RK_CHAR *pcRkmediaCodecType = nullptr;
   VENC_CHN_ATTR_S *stVencChnAttr = &VenChn->venc_attr.attr;
   VENC_ROTATION_E enRotation = stVencChnAttr->stVencAttr.enRotation;
-  RK_S32 bps = 2000000;
+  // pre encoder bps, in FIXQP mode, bps is invalid.
+  RK_S32 pre_enc_bps = 2000000;
+  RK_S32 mjpeg_bps = 0;
   RK_S32 video_width = stVencChnAttr->stVencAttr.u32PicWidth;
   RK_S32 video_height = stVencChnAttr->stVencAttr.u32PicHeight;
   RK_S32 vir_width = stVencChnAttr->stVencAttr.u32VirWidth;
@@ -1038,22 +1042,41 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
 
   if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG) {
     // MJPEG:
-    // Frame rate parameter analysis
-    u32InFpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateNum;
-    u32InFpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateDen;
+    if (stVencChnAttr->stRcAttr.enRcMode == VENC_RC_MODE_MJPEGCBR) {
+      mjpeg_bps = stVencChnAttr->stRcAttr.stMjpegCbr.u32BitRate;
+      u32InFpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateNum;
+      u32InFpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateDen;
+      u32OutFpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateNum;
+      u32OutFpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateDen;
+      pcRkmediaRcMode = KEY_CBR;
+    } else if (stVencChnAttr->stRcAttr.enRcMode == VENC_RC_MODE_MJPEGVBR) {
+      mjpeg_bps = stVencChnAttr->stRcAttr.stMjpegVbr.u32BitRate;
+      u32InFpsNum = stVencChnAttr->stRcAttr.stMjpegVbr.u32SrcFrameRateNum;
+      u32InFpsDen = stVencChnAttr->stRcAttr.stMjpegVbr.u32SrcFrameRateDen;
+      u32OutFpsNum = stVencChnAttr->stRcAttr.stMjpegVbr.fr32DstFrameRateNum;
+      u32OutFpsDen = stVencChnAttr->stRcAttr.stMjpegVbr.fr32DstFrameRateDen;
+      pcRkmediaRcMode = KEY_VBR;
+    } else {
+      LOG("ERROR: [%s]: Invalid RcMode[%d]\n", __func__, stVencChnAttr->stRcAttr.enRcMode);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
+
+    if ((mjpeg_bps < 2000) || (mjpeg_bps > 100000000)) {
+      LOG("ERROR: [%s]: Invalid BitRate[%d], should be [2000, 100000000]\n",
+          __func__, mjpeg_bps);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
     if (!u32InFpsNum) {
       LOG("ERROR: [%s]: Invalid src frame rate [%d/%d]\n", __func__, u32InFpsNum,
           u32InFpsDen);
       return -RK_ERR_VENC_ILLEGAL_PARAM;
     }
-    u32OutFpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateNum;
-    u32OutFpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateDen;
     if (!u32OutFpsNum) {
       LOG("ERROR: [%s]: Invalid dst frame rate [%d/%d]\n", __func__, u32OutFpsNum,
           u32OutFpsDen);
       return -RK_ERR_VENC_ILLEGAL_PARAM;
     }
-
+    pcRkmediaCodecType = VIDEO_MJPEG;
     // Scaling parameter analysis
     s32ZoomWidth = stVencChnAttr->stVencAttr.stAttrMjpege.u32ZoomWidth;
     s32ZoomHeight = stVencChnAttr->stVencAttr.stAttrMjpege.u32ZoomHeight;
@@ -1061,6 +1084,7 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
     s32ZoomVirHeight = stVencChnAttr->stVencAttr.stAttrMjpege.u32ZoomVirHeight;
   } else {
     // JPEG
+    pcRkmediaCodecType = IMAGE_JPEG;
     // Scaling parameter analysis
     s32ZoomWidth = stVencChnAttr->stVencAttr.stAttrJpege.u32ZoomWidth;
     s32ZoomHeight = stVencChnAttr->stVencAttr.stAttrJpege.u32ZoomHeight;
@@ -1078,9 +1102,9 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, video_height);
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, vir_width);
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT, vir_height);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE, bps);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, bps);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, bps);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE, pre_enc_bps);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, pre_enc_bps);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, pre_enc_bps);
   PARAM_STRING_APPEND(enc_param, KEY_VIDEO_GOP, "1");
   // set input fps
   std::string str_fps;
@@ -1191,15 +1215,26 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   flow_param = "";
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, IMAGE_NV12);
-  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, IMAGE_JPEG);
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, pcRkmediaCodecType);
   enc_param = "";
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_WIDTH, jpeg_width);
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, jpeg_height);
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, jpeg_vir_width);
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT, jpeg_vir_height);
 
+  if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG) {
+    // MJPEG
+    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, mjpeg_bps);
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, "1/1");
+    PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "1/1");
+    PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, pcRkmediaRcMode);
+  } else {
+    // JPEG
+    PARAM_STRING_APPEND_TO(enc_param, KEY_JPEG_QFACTOR, 50);
+  }
+
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
-  LOGD("\n#JPEG: Jpeg encoder flow param:\n%s\n", flow_param.c_str());
+  LOGD("\n#JPEG: [%s] encoder flow param:\n%s\n", pcRkmediaCodecType, flow_param.c_str());
   video_jpeg_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
       flow_name.c_str(), flow_param.c_str());
   if (!video_jpeg_flow) {
@@ -1526,6 +1561,9 @@ RK_S32 RK_MPI_VENC_SetRcMode(VENC_CHN VeChn, VENC_RC_MODE_E RcMode) {
     break;
   case VENC_RC_MODE_MJPEGCBR:
     video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_CBR);
+    break;
+  case VENC_RC_MODE_MJPEGVBR:
+    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_VBR);
     break;
   default:
     break;
