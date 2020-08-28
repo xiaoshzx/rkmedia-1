@@ -17,7 +17,10 @@ static bool do_filters(Flow *f, MediaBufferVector &input_vector);
 class FilterFlow : public Flow {
 public:
   FilterFlow(const char *param);
-  virtual ~FilterFlow() { StopAllThread(); }
+  virtual ~FilterFlow() {
+    AutoPrintLine apl(__func__);
+    StopAllThread();
+  }
   static const char *GetFlowName() { return "filter"; }
   virtual int Control(unsigned long int request, ...) final {
     int ret = 0;

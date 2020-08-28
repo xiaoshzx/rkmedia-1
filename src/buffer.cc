@@ -536,7 +536,7 @@ BufferPool::~BufferPool() {
   int wait_times = 30;
 
   while (busy_buffers.size() > 0) {
-    if (wait_times <= 0) {
+    if (wait_times-- <= 0) {
       LOG("ERROR: BufferPool: waiting bufferpool free for 900ms, TimeOut!\n");
       break;
     }
