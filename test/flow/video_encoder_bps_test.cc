@@ -217,7 +217,7 @@ int main(int argc, char **argv) {
     PARAM_STRING_APPEND_TO(enc_param, KEY_FULL_RANGE, 1);
     PARAM_STRING_APPEND_TO(enc_param, KEY_ROTATION, 0);
   } else {
-    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_QP_INIT, 8);
+    PARAM_STRING_APPEND_TO(enc_param, KEY_JPEG_QFACTOR, 50);
   }
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
@@ -252,8 +252,8 @@ int main(int argc, char **argv) {
    *****************************************************/
   if (video_enc_type == IMAGE_JPEG) {
     easymedia::msleep(3000);
-    for (int i = 1; i <= 10; i++) {
-      easymedia::jpeg_encoder_set_quant(video_encoder_flow, i);
+    for (int i = 0; i < 10; i++) {
+      easymedia::jpeg_encoder_set_qfactor(video_encoder_flow, i * 10 + 9);
       LOG("Change jpeg quant to %d, keep 3s....\n", i);
       easymedia::msleep(3000);
     }

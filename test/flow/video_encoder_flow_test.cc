@@ -45,7 +45,7 @@ static void print_usage(char *name) {
   printf("usage example for normal mode: \n");
   printf("%s -i /dev/video0 -o output.h264 -w 1920 -h 1080 "
          "-f nv12 -t h264\n", name);
-  printf("#[-t] enc type support list:\n\th264\n\th265\n\tjpeg\n");
+  printf("#[-t] enc type support list:\n\th264\n\th265\n\tjpeg\n\tmjpeg\n");
   printf("#[-f] pix formate support list:\n\tyuyv422\n\tnv12\n\tfbc0\n\tfbc2\n");
   printf("#[-m] mode support list:\n\tnormal\n\tstressTest\n");
   printf("#[-s] Slice split mode:\n");
@@ -164,7 +164,8 @@ int main(int argc, char **argv) {
   }
 
   //add prefix for encoder type
-  if ((video_enc_type =="h264") || (video_enc_type == "h265"))
+  if ((video_enc_type == "h264") || (video_enc_type == "h265") ||
+      (video_enc_type == "mjpeg"))
     video_enc_type = "video:" + video_enc_type;
   else if (video_enc_type == "jpeg")
     video_enc_type = "image:" + video_enc_type;
@@ -253,34 +254,28 @@ RESTART:
   PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, pixel_format);
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, video_enc_type);
 
-#if 0
-  VideoEncoderCfg vcfg;
-  memset(&vcfg, 0, sizeof(vcfg));
-  vcfg.type = (char *)video_enc_type.c_str();
-  vcfg.fps = video_fps;
-  vcfg.max_bps = video_width * video_height * video_fps / 14;
-  ImageInfo image_info;
-  image_info.pix_fmt = StringToPixFmt(pixel_format.c_str());
-  image_info.width = video_width;
-  image_info.height = video_height;
-  image_info.vir_width = vir_width;
-  image_info.vir_height = vir_height;
-  enc_param = easymedia::get_video_encoder_config_string(image_info, vcfg);
-#else
-  int bps = video_width * video_height * video_fps / 14;
   enc_param = "";
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_WIDTH, video_width);
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, video_height);
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, vir_width);
   PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT, vir_height);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE, bps);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, bps * 17 / 16);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, bps / 16);
-  PARAM_STRING_APPEND(enc_param, KEY_FPS, "30/1");
-  PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "30/1");
-  PARAM_STRING_APPEND_TO(enc_param, KEY_FULL_RANGE, 1);
-  PARAM_STRING_APPEND_TO(enc_param, KEY_ROTATION, rotation);
-#endif
+  if ((video_enc_type == VIDEO_H264) || (video_enc_type == VIDEO_H265)) {
+    int bps = video_width * video_height * video_fps / 14;
+    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, bps);
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, "30/1");
+    PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "30/1");
+    PARAM_STRING_APPEND_TO(enc_param, KEY_FULL_RANGE, 1);
+    PARAM_STRING_APPEND_TO(enc_param, KEY_ROTATION, rotation);
+    PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_CBR);
+  } else if (video_enc_type == VIDEO_MJPEG) {
+    int bps = video_width * video_height * 12;
+    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, bps);
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, "30/1");
+    PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "30/1");
+    PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_CBR);
+  } else if (video_enc_type == IMAGE_JPEG) {
+    PARAM_STRING_APPEND_TO(enc_param, KEY_JPEG_QFACTOR, 50);
+  }
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   printf("\n#VideoEncoder flow param:\n%s\n", flow_param.c_str());
@@ -349,6 +344,8 @@ RESTART:
   mb->SetValidSize(YUV_IMG_SIZE);
   video_encoder_flow->SendInput(mb, 0);
   */
+
+  easymedia::video_encoder_enable_statistics(video_encoder_flow, 1);
 
   if (output_cb_enable) {
     LOG("Regest callback handle:%p\n", cb_str);

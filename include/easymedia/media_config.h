@@ -13,15 +13,13 @@
 typedef struct {
   ImageInfo image_info;
   CodecType codec_type;
-  int qp_init; // h264 : 0 - 48, higher value means higher compress
-               //        but lower quality
-               // jpeg (quantization coefficient): 1 - 10,
-               // higher value means lower compress but higher quality,
-               // contrary to h264
+  // for jpeg only
+  int qfactor; // 1-99: higher value => higher quality
 } ImageConfig;
 
 typedef struct {
   ImageConfig image_cfg;
+  int qp_init;
   int qp_step;
   int qp_min;
   int qp_max;
@@ -146,6 +144,7 @@ namespace easymedia {
 extern const char *rc_quality_strings[7];
 extern const char *rc_mode_strings[3];
 const char *ConvertRcQuality(const std::string &s);
+const char *ConvertRcMode(const std::string &s);
 bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
                              MediaConfig &mc);
 _API std::vector<EncROIRegion> StringToRoiRegions(
@@ -208,8 +207,8 @@ _API int video_encoder_set_userdata(std::shared_ptr<Flow> &enc_flow,
   void *data, int len, int all_frames = 0);
 _API int video_encoder_enable_statistics(std::shared_ptr<Flow> &enc_flow,
   int enable);
-// Set jpeg encoder quant, value frome 1 to 10.
-_API int jpeg_encoder_set_quant(std::shared_ptr<Flow> &enc_flow, int quant);
+// Set jpeg encoder qfactor, value frome 1 to 99.
+_API int jpeg_encoder_set_qfactor(std::shared_ptr<Flow> &enc_flow, int qfactor);
 } // namespace easymedia
 
 #endif // #ifndef EASYMEDIA_MEDIA_CONFIG_H_

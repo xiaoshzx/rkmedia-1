@@ -1484,8 +1484,8 @@ RK_S32 RK_MPI_VENC_SetJpegParam(VENC_CHN VeChn,
   if (!pstJpegParam)
     return -RK_ERR_VENC_NULL_PTR;
 
-  if (pstJpegParam->u32Qfactor > 10) {
-    LOG("ERROR:[%s] u32Qfactor(%d) is invalid, should be [1, 10]\n", __func__,
+  if (pstJpegParam->u32Qfactor > 99 || !pstJpegParam->u32Qfactor) {
+    LOG("ERROR:[%s] u32Qfactor(%d) is invalid, should be [1, 99]\n", __func__,
         pstJpegParam->u32Qfactor);
     return -RK_ERR_VENC_ILLEGAL_PARAM;
   }
@@ -1499,7 +1499,7 @@ RK_S32 RK_MPI_VENC_SetJpegParam(VENC_CHN VeChn,
 
   std::shared_ptr<easymedia::Flow> rkmedia_flow =
       g_venc_chns[VeChn].rkmedia_flow_list.back();
-  easymedia::jpeg_encoder_set_quant(rkmedia_flow, pstJpegParam->u32Qfactor);
+  easymedia::jpeg_encoder_set_qfactor(rkmedia_flow, pstJpegParam->u32Qfactor);
 
   return RK_ERR_SYS_OK;
 }
