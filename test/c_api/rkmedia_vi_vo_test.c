@@ -125,7 +125,7 @@ int main() {
   stSrcChn.s32ChnId = 0;
   stDestChn.enModId = RK_ID_VO;
   stDestChn.s32ChnId = 0;
-  ret = RK_MPI_SYS_Bind(&stSrcChn, &stDestChn);
+  ret = RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
   if (ret) {
     printf("UnBind rga[0] to vo[0] failed! ret=%d\n", ret);
     return -1;

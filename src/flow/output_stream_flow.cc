@@ -12,7 +12,10 @@ static bool send_buffer(Flow *f, MediaBufferVector &input_vector);
 class OutPutStreamFlow : public Flow {
 public:
   OutPutStreamFlow(const char *param);
-  virtual ~OutPutStreamFlow() { StopAllThread(); };
+  virtual ~OutPutStreamFlow() {
+    AutoPrintLine apl(__func__);
+    StopAllThread();
+  };
   static const char *GetFlowName() { return "output_stream"; }
   virtual int Control(unsigned long int request, ...) final {
     if (!out_stream)
