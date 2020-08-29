@@ -7,7 +7,6 @@
 add_subdirectory(stream)
 add_subdirectory(flow)
 add_subdirectory(buffer)
-add_subdirectory(c_api)
 
 if(FFMPEG)
 add_subdirectory(ffmpeg)
@@ -23,9 +22,7 @@ endif()
 
 if(RKMPP)
 add_subdirectory(rkmpp)
-
 if(UVC)
 add_subdirectory(uvc)
 endif()
-
 endif()

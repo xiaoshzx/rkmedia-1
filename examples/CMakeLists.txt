@@ -6,7 +6,7 @@
 
 # vi: set noexpandtab syntax=cmake:
 
-project(easymedia_c_api_test)
+project(rkmedia_examples)
 
 add_definitions(-g -O0 -ggdb -gdwarf -funwind-tables -rdynamic)
 
