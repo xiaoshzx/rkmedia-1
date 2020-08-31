@@ -1153,9 +1153,17 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
 
   RK_S32 jpeg_width = video_width;
   RK_S32 jpeg_height = video_height;
+  RK_S32 s32RgaWidth = s32ZoomWidth;
+  RK_S32 s32RgaHeight = s32ZoomHeight;
+  RK_S32 s32RgaVirWidht = s32ZoomVirWidth;
+  RK_S32 s32RgaVirHeight = s32ZoomVirHeight;
   if ((enRotation == VENC_ROTATION_90) || (enRotation == VENC_ROTATION_270)) {
     jpeg_width = video_height;
     jpeg_height = video_width;
+    s32RgaWidth = s32ZoomHeight;
+    s32RgaHeight = s32ZoomWidth;
+    s32RgaVirWidht = s32ZoomVirHeight;
+    s32RgaVirHeight = s32ZoomVirWidth;
   }
 
   RK_S32 jpeg_vir_height = UPALIGNTO(jpeg_height, 8);
@@ -1167,10 +1175,10 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
 
   // When the zoom parameter is valid and is not equal to
   // the original resolution, the zoom function will be turned on.
-  if ((s32ZoomWidth > 0) && (s32ZoomHeight > 0) &&
-      (s32ZoomVirWidth > 0) && (s32ZoomVirHeight > 0) &&
-      ((s32ZoomWidth != video_width) || (s32ZoomHeight != video_height) ||
-      (s32ZoomVirWidth != vir_width) || (s32ZoomVirHeight != vir_height))) {
+  if ((s32RgaWidth > 0) && (s32RgaHeight > 0) &&
+      (s32RgaVirWidht > 0) && (s32RgaVirHeight > 0) &&
+      ((s32RgaWidth != video_width) || (s32RgaHeight != video_height) ||
+      (s32RgaVirWidht != vir_width) || (s32RgaVirHeight != vir_height))) {
     flow_name = "filter";
     flow_param = "";
     PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkrga");
@@ -1178,17 +1186,17 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
     // Set output buffer type.
     PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, IMAGE_NV12);
     // Set output buffer size.
-    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_WIDTH, s32ZoomWidth);
-    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_HEIGHT, s32ZoomHeight);
-    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_WIDTH, s32ZoomVirWidth);
-    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_HEIGHT, s32ZoomVirHeight);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_WIDTH, s32RgaWidth);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_HEIGHT, s32RgaHeight);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_WIDTH, s32RgaVirWidht);
+    PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_HEIGHT, s32RgaVirHeight);
     // enable buffer pool?
     //PARAM_STRING_APPEND(flow_param, KEY_MEM_TYPE, KEY_MEM_HARDWARE);
     //PARAM_STRING_APPEND_TO(flow_param, KEY_MEM_CNT, u16BufPoolCnt);
 
     std::string filter_param = "";
-    ImageRect src_rect = {0, 0, video_width, video_height};
-    ImageRect dst_rect = {0, 0, s32ZoomWidth, s32ZoomHeight};
+    ImageRect src_rect = {0, 0, jpeg_width, jpeg_height};
+    ImageRect dst_rect = {0, 0, s32RgaWidth, s32RgaHeight};
     std::vector<ImageRect> rect_vect;
     rect_vect.push_back(src_rect);
     rect_vect.push_back(dst_rect);
@@ -1205,10 +1213,10 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
     }
     // enable rga process.
     bEnableRga = RK_TRUE;
-    jpeg_width = s32ZoomWidth;
-    jpeg_height = s32ZoomHeight;
-    jpeg_vir_width = s32ZoomVirWidth;
-    jpeg_vir_height = s32ZoomVirHeight;
+    jpeg_width = s32RgaWidth;
+    jpeg_height = s32RgaHeight;
+    jpeg_vir_width = s32RgaVirWidht;
+    jpeg_vir_height = s32RgaVirHeight;
   }
 
   flow_name = "video_enc";

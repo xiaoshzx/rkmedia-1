@@ -53,12 +53,12 @@ static void set_argb8888_buffer(RK_U32 *buf, RK_U32 size, RK_U32 color) {
 
 int main() {
   RK_S32 ret;
-  RK_U32 u32SrcWidth = 2688;
-  RK_U32 u32SrcHeight = 1520;
+  RK_U32 u32SrcWidth = 1920;
+  RK_U32 u32SrcHeight = 1080;
   RK_U32 u32DstWidth = 720;
   RK_U32 u32DstHeight = 480;
-  IMAGE_TYPE_E enPixFmt = IMAGE_TYPE_FBC0;
-  const RK_CHAR *pcVideoNode = "rkispp_m_bypass";
+  IMAGE_TYPE_E enPixFmt = IMAGE_TYPE_NV12;
+  const RK_CHAR *pcVideoNode = "rkispp_scale0";
 
   ret = RK_MPI_SYS_Init();
   if (ret) {
@@ -92,7 +92,7 @@ int main() {
   venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomHeight = u32DstHeight;
   venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomVirWidth = u32DstWidth;
   venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomVirHeight = u32DstHeight;
-  // venc_chn_attr.stVencAttr.enRotation = VENC_ROTATION_90;
+  //venc_chn_attr.stVencAttr.enRotation = VENC_ROTATION_90;
   ret = RK_MPI_VENC_CreateChn(0, &venc_chn_attr);
   if (ret) {
     printf("Create Venc failed! ret=%d\n", ret);
