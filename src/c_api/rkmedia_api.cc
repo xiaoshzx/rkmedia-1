@@ -2769,6 +2769,7 @@ RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn, const ALGO_OD_ATTR_S *pstChnA
       flow_name.c_str(), flow_param.c_str());
   if (!g_algo_od_chns[OdChn].rkmedia_flow) {
     LOG("ERROR: OD: Create flow %s failed!\n", flow_name.c_str());
+    g_algo_od_mtx.unlock();
     return -RK_ERR_ALGO_OD_NOT_CONFIG;
   }
 
