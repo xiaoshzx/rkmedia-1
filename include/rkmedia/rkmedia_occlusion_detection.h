@@ -20,6 +20,7 @@ typedef struct rkALGO_OD_ATTR_S {
   RK_U32 u32Height;
   RK_U16 u16RoiCnt; // RW; Range:[0, ALGO_OD_ROI_RET_MAX].
   RECT_S stRoiRects[ALGO_OD_ROI_RET_MAX];
+  RK_U16 u16Sensitivity; // value 0(sys default) or [1 - 100].
 } ALGO_OD_ATTR_S;
 
 #ifdef __cplusplus

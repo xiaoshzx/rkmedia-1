@@ -138,6 +138,8 @@ enum {
   G_OD_ROI_ENABLE,
   S_OD_ROI_RECTS,
   G_OD_ROI_RECTS,
+  S_OD_SENSITIVITY,
+  G_OD_SENSITIVITY,
 };
 
 } // namespace easymedia

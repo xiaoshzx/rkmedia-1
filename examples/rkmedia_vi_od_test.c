@@ -64,6 +64,7 @@ int main() {
   stOdChnAttr.stRoiRects[0].s32Y = 0;
   stOdChnAttr.stRoiRects[0].u32Width = 1920;
   stOdChnAttr.stRoiRects[0].u32Height = 1080;
+  stOdChnAttr.u16Sensitivity = 30;
   ret = RK_MPI_ALGO_OD_CreateChn(0, &stOdChnAttr);
   if (ret) {
     printf("ERROR: OcclusionDetection Create failed! ret=%d\n", ret);
