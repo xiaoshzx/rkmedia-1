@@ -2731,6 +2731,12 @@ RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn, const ALGO_OD_ATTR_S *pstChnA
     return -RK_ERR_ALGO_OD_ILLEGAL_PARAM;
   }
 
+  if (pstChnAttr->u16Sensitivity > 100) {
+    LOG("ERROR: OD: sensitivity(%d) invalid, shlould be <= 100.\n",
+        pstChnAttr->u16Sensitivity);
+    return -RK_ERR_ALGO_OD_ILLEGAL_PARAM;
+  }
+
   g_algo_od_mtx.lock();
   if (g_algo_od_chns[OdChn].status != CHN_STATUS_CLOSED) {
     g_algo_od_mtx.unlock();
@@ -2746,6 +2752,7 @@ RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn, const ALGO_OD_ATTR_S *pstChnA
                       ImageTypeToString(pstChnAttr->enImageType));
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, "NULL");
   std::string od_param = "";
+  PARAM_STRING_APPEND_TO(od_param, KEY_OD_SENSITIVITY, pstChnAttr->u16Sensitivity);
   PARAM_STRING_APPEND_TO(od_param, KEY_OD_WIDTH, pstChnAttr->u32Width);
   PARAM_STRING_APPEND_TO(od_param, KEY_OD_HEIGHT, pstChnAttr->u32Height);
   PARAM_STRING_APPEND_TO(od_param, KEY_OD_ROI_CNT, pstChnAttr->u16RoiCnt);

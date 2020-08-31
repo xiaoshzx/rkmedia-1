@@ -22,6 +22,7 @@
 enum {
   OD_UPDATE_NONE = 0x00,
   OD_UPDATE_ROI_RECTS = 0x01,
+  OD_UPDATE_SENSITIVITY = 0x02,
 };
 
 namespace easymedia {
@@ -44,6 +45,7 @@ protected:
   int init_bg_interval;
   int init_bg_sucess;
   std::vector<ImageRect> new_roi;
+  int sensitivity;
 
 private:
   int img_width, img_height;
@@ -92,6 +94,13 @@ bool od_process(Flow *f, MediaBufferVector &input_vector) {
     }
     odf->update_mask &= (~OD_UPDATE_ROI_RECTS);
     odf->new_roi.clear();
+  }
+
+  if (odf->update_mask & OD_UPDATE_SENSITIVITY) {
+    LOG("OD: Applying new sensitivity(%d)\n", odf->sensitivity);
+    if (occlusion_set_sensitivity(odf->detection_ctx, odf->sensitivity))
+      LOG("ERROR: OD: update sensitivity(%d) failed!\n", odf->sensitivity);
+    odf->update_mask &= (~OD_UPDATE_SENSITIVITY);
   }
 
   for (int i = 0; i < odf->roi_cnt; i++) {
@@ -245,6 +254,11 @@ OcclusionDetectionFlow::OcclusionDetectionFlow(const char *param) {
   img_height = std::stoi(value);
   CHECK_EMPTY_SETERRNO(value, od_params, KEY_OD_ROI_CNT, 0)
   roi_cnt = std::stoi(value);
+  value = od_params[KEY_OD_SENSITIVITY];
+  if (value.empty())
+    sensitivity = 0;
+  else
+    sensitivity = std::stoi(value);
   init_bg_interval = 0;
   init_bg_sucess = 0;
 
@@ -265,6 +279,7 @@ OcclusionDetectionFlow::OcclusionDetectionFlow(const char *param) {
     }
   }
 
+  LOGD("OD: param: sensitivity=%d\n", sensitivity);
   LOGD("OD: param: orignale width=%d\n", img_width);
   LOGD("OD: param: orignale height=%d\n", img_height);
   LOGD("OD: param: roi_cnt=%d\n", roi_cnt);
@@ -289,6 +304,13 @@ OcclusionDetectionFlow::OcclusionDetectionFlow(const char *param) {
     LOGD("ERROR: OD: od ctx init failed!\n");
     SetError(-EINVAL);
     return;
+  }
+
+  if ((sensitivity > 0) && (sensitivity <= 100)) {
+    if (occlusion_set_sensitivity(detection_ctx, sensitivity))
+      LOG("ERROR: OD: cfg sensitivity(%d) failed!\n", sensitivity);
+    else
+      LOG("OD: init ctx with sensitivity(%d)...\n", sensitivity);
   }
 
   SlotMap sm;
@@ -340,6 +362,11 @@ int OcclusionDetectionFlow::Control(unsigned long int request, ...) {
     }
 
     update_mask |= OD_UPDATE_ROI_RECTS;
+    break;
+  }
+  case S_OD_SENSITIVITY: {
+    sensitivity = va_arg(ap, int);
+    LOG("OD: new sensitivity=%d!\n", sensitivity);
     break;
   }
   default:

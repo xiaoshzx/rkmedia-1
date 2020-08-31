@@ -96,6 +96,7 @@
 #define KEY_OD_HEIGHT "od_height"
 #define KEY_OD_ROI_CNT "od_roi_cnt"
 #define KEY_OD_ROI_RECT "od_roi_rect"
+#define KEY_OD_SENSITIVITY "od_sensitivity"
 
 // audio info
 #define KEY_SAMPLE_FMT "sample_format"
