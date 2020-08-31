@@ -15,7 +15,7 @@ LD_FLAGS := -lpthread -leasymedia -ldrm -lrockchip_mpp \
 	        -lavformat -lavcodec -lswresample -lavutil \
 			-lasound -lv4l2 -lv4lconvert -lrga \
 			-lRKAP_ANR -lRKAP_Common -lRKAP_AEC \
-			-lmd_share -lrkaiq
+			-lmd_share -lrkaiq -lod_share
 
 CFLAGS += -DRKAIQ
 
