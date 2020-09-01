@@ -1155,15 +1155,15 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   RK_S32 jpeg_height = video_height;
   RK_S32 s32RgaWidth = s32ZoomWidth;
   RK_S32 s32RgaHeight = s32ZoomHeight;
-  RK_S32 s32RgaVirWidht = s32ZoomVirWidth;
-  RK_S32 s32RgaVirHeight = s32ZoomVirHeight;
+  RK_S32 s32RgaVirWidht = UPALIGNTO16(s32ZoomVirWidth);
+  RK_S32 s32RgaVirHeight = UPALIGNTO16(s32ZoomVirHeight);
   if ((enRotation == VENC_ROTATION_90) || (enRotation == VENC_ROTATION_270)) {
     jpeg_width = video_height;
     jpeg_height = video_width;
     s32RgaWidth = s32ZoomHeight;
     s32RgaHeight = s32ZoomWidth;
-    s32RgaVirWidht = s32ZoomVirHeight;
-    s32RgaVirHeight = s32ZoomVirWidth;
+    s32RgaVirWidht = UPALIGNTO16(s32ZoomVirHeight);
+    s32RgaVirHeight = UPALIGNTO16(s32ZoomVirWidth);
   }
 
   RK_S32 jpeg_vir_height = UPALIGNTO(jpeg_height, 8);
