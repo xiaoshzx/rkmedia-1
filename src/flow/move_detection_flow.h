@@ -34,8 +34,6 @@ protected:
   struct md_ctx  *md_ctx;
   int roi_enable;
   int Sensitivity;
-  int still_threshold0;
-  int still_threshold1;
   int update_mask;
   std::vector<ImageRect> new_roi;
   void InsertMdResult(std::shared_ptr<MediaBuffer> &buffer);

@@ -51,11 +51,7 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
 
   if (mdf->update_mask & MD_UPDATE_SENSITIVITY) {
     LOG("MD: Applying new sensitivity....\n");
-    MD_PARAMS param;
-    param.still_threshold0 = mdf->still_threshold0;
-    param.still_threshold1 = mdf->still_threshold1;
-    param.pix_threshold = mdf->Sensitivity;
-    move_detection_set_params(mdf->md_ctx, param);
+    move_detection_set_sensitivity(mdf->md_ctx, mdf->Sensitivity);
     mdf->update_mask &= (~MD_UPDATE_SENSITIVITY);
   } else if (mdf->update_mask & MD_UPDATE_ROI_RECTS) {
     LOG("MD: Applying new roi rects...\n");
@@ -325,6 +321,11 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
   ds_height = std::stoi(value);
   CHECK_EMPTY_SETERRNO(value, md_params, KEY_MD_ROI_CNT, 0)
   roi_cnt = std::stoi(value);
+  value = md_params[KEY_MD_SENSITIVITY];
+  if (value.empty())
+    Sensitivity = 0;
+  else
+    Sensitivity = std::stoi(value);
 
   std::vector<ImageRect> rects;
   if (roi_cnt > 0) {
@@ -343,6 +344,7 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
     }
   }
 
+  LOGD("MD: param: sensitivity=%d\n", Sensitivity);
   LOGD("MD: param: is_single_ref=%d\n", is_single_ref);
   LOGD("MD: param: orignale width=%d\n", ori_width);
   LOGD("MD: param: orignale height=%d\n", ori_height);
@@ -366,13 +368,17 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
   }
 
   roi_enable = 1;
-  Sensitivity = 3;
-  still_threshold0 = 20;
-  still_threshold1 = is_single_ref ? 60 : 50;
   update_mask = MD_UPDATE_NONE;
 
   md_ctx = move_detection_init(ori_width, ori_height, ds_width, ds_height,
                                is_single_ref);
+
+  if ((Sensitivity > 0) && (Sensitivity <= 100)) {
+    if (move_detection_set_sensitivity(md_ctx, Sensitivity))
+      LOG("ERROR: MD: cfg sensitivity(%d) failed!\n", Sensitivity);
+    else
+      LOG("OD: init ctx with sensitivity(%d)...\n", Sensitivity);
+  }
 
   SlotMap sm;
   sm.input_slots.push_back(0);
@@ -416,9 +422,12 @@ int MoveDetectionFlow::Control(unsigned long int request, ...) {
     break;
   }
   case S_MD_SENSITIVITY: {
-    auto value = va_arg(ap, int);
-    assert((value >= 0) && (value <= 100));
-    LOG("MD: TODO(sensitivtiy(%d) to table)...\n", value);
+    Sensitivity = va_arg(ap, int);
+    if ((Sensitivity < 1) || (Sensitivity > 100)) {
+      LOG("ERROR: MD: invalid sensitivity value!\n");
+      break;
+    }
+
     update_mask |= MD_UPDATE_SENSITIVITY;
     break;
   }
