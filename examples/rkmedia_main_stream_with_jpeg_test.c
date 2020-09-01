@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +14,6 @@
 #include <unistd.h>
 
 #include "rkmedia_api.h"
-#include "rkmedia_venc.h"
 
 static bool quit = false;
 static void sigterm_handler(int sig) {
@@ -21,7 +21,38 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
-void video_packet_cb(MEDIA_BUFFER mb) {
+static void *GetMediaBuffer(void *arg) {
+  printf("#Start %s thread, arg:%p\n", __func__, arg);
+  FILE *save_file = fopen("/userdata/output.h265", "w");
+  if (!save_file)
+    printf("ERROR: Open /userdata/output.h265 failed!\n");
+
+  MEDIA_BUFFER mb = NULL;
+  while (!quit) {
+    mb = RK_MPI_SYS_GetMediaBuffer(RK_ID_VENC, 0, -1);
+    if (!mb) {
+      printf("RK_MPI_SYS_GetMediaBuffer get null buffer!\n");
+      break;
+    }
+
+//    printf("Get packet:ptr:%p, fd:%d, size:%zu, mode:%d, channel:%d, "
+//           "timestamp:%lld\n",
+//           RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb), RK_MPI_MB_GetSize(mb),
+//           RK_MPI_MB_GetModeID(mb), RK_MPI_MB_GetChannelID(mb),
+//           RK_MPI_MB_GetTimestamp(mb));
+
+    if (save_file)
+      fwrite(RK_MPI_MB_GetPtr(mb), 1, RK_MPI_MB_GetSize(mb), save_file);
+    RK_MPI_MB_ReleaseBuffer(mb);
+  }
+
+  if (save_file)
+    fclose(save_file);
+
+  return NULL;
+}
+
+void take_pictures_cb(MEDIA_BUFFER mb) {
   static RK_U32 jpeg_id = 0;
   printf("Get JPEG packet[%d]:ptr:%p, fd:%d, size:%zu, mode:%d, channel:%d, "
          "timestamp:%lld\n",
@@ -41,24 +72,14 @@ void video_packet_cb(MEDIA_BUFFER mb) {
   jpeg_id++;
 }
 
-#define TEST_ARGB32_YELLOW 0xFFFFFF00
-#define TEST_ARGB32_RED 0xFFFF0033
-#define TEST_ARGB32_BLUE 0xFF003399
-#define TEST_ARGB32_TRANS 0x00FFFFFF
-
-static void set_argb8888_buffer(RK_U32 *buf, RK_U32 size, RK_U32 color) {
-  for (RK_U32 i = 0; buf && (i < size); i++)
-    *(buf + i) = color;
-}
-
 int main() {
   RK_S32 ret;
-  RK_U32 u32SrcWidth = 1920;
-  RK_U32 u32SrcHeight = 1080;
-  RK_U32 u32DstWidth = 720;
-  RK_U32 u32DstHeight = 480;
-  IMAGE_TYPE_E enPixFmt = IMAGE_TYPE_NV12;
-  const RK_CHAR *pcVideoNode = "rkispp_scale0";
+  RK_U32 u32SrcWidth = 2688;
+  RK_U32 u32SrcHeight = 1520;
+  RK_U32 u32DstWidth = 1920;
+  RK_U32 u32DstHeight = 1080;
+  IMAGE_TYPE_E enPixFmt = IMAGE_TYPE_FBC0;
+  const RK_CHAR *pcVideoNode = "rkispp_m_bypass";
 
   ret = RK_MPI_SYS_Init();
   if (ret) {
@@ -73,14 +94,36 @@ int main() {
   vi_chn_attr.u32Height = u32SrcHeight;
   vi_chn_attr.enPixFmt = enPixFmt;
   vi_chn_attr.enWorkMode = VI_WORK_MODE_NORMAL;
-  ret = RK_MPI_VI_SetChnAttr(0, 1, &vi_chn_attr);
-  ret |= RK_MPI_VI_EnableChn(0, 1);
+  ret = RK_MPI_VI_SetChnAttr(0, 0, &vi_chn_attr);
+  ret |= RK_MPI_VI_EnableChn(0, 0);
   if (ret) {
     printf("Create Vi failed! ret=%d\n", ret);
     return -1;
   }
 
+  // Create H265 for Main Stream.
   VENC_CHN_ATTR_S venc_chn_attr;
+  venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_H265;
+  venc_chn_attr.stVencAttr.imageType = IMAGE_TYPE_FBC0;
+  venc_chn_attr.stVencAttr.u32PicWidth = u32SrcWidth;
+  venc_chn_attr.stVencAttr.u32PicHeight = u32SrcHeight;
+  venc_chn_attr.stVencAttr.u32VirWidth = u32SrcWidth;
+  venc_chn_attr.stVencAttr.u32VirHeight = u32SrcHeight;
+  venc_chn_attr.stVencAttr.u32Profile = 77;
+  venc_chn_attr.stRcAttr.enRcMode = VENC_RC_MODE_H264CBR;
+  venc_chn_attr.stRcAttr.stH264Cbr.u32Gop = 30;
+  venc_chn_attr.stRcAttr.stH264Cbr.u32BitRate = u32SrcWidth * u32SrcHeight * 30 / 14;
+  venc_chn_attr.stRcAttr.stH264Cbr.fr32DstFrameRateDen = 0;
+  venc_chn_attr.stRcAttr.stH264Cbr.fr32DstFrameRateNum = 30;
+  venc_chn_attr.stRcAttr.stH264Cbr.u32SrcFrameRateDen = 0;
+  venc_chn_attr.stRcAttr.stH264Cbr.u32SrcFrameRateNum = 30;
+  ret = RK_MPI_VENC_CreateChn(0, &venc_chn_attr);
+  if (ret) {
+    printf("Create Venc(H265) failed! ret=%d\n", ret);
+    return -1;
+  }
+
+  // Create JPEG for take pictures.
   memset(&venc_chn_attr, 0, sizeof(venc_chn_attr));
   venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_JPEG;
   venc_chn_attr.stVencAttr.imageType = enPixFmt;
@@ -92,76 +135,53 @@ int main() {
   venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomHeight = u32DstHeight;
   venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomVirWidth = u32DstWidth;
   venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomVirHeight = u32DstHeight;
-  //venc_chn_attr.stVencAttr.enRotation = VENC_ROTATION_90;
-  ret = RK_MPI_VENC_CreateChn(0, &venc_chn_attr);
+  ret = RK_MPI_VENC_CreateChn(1, &venc_chn_attr);
   if (ret) {
-    printf("Create Venc failed! ret=%d\n", ret);
+    printf("Create Venc(JPEG) failed! ret=%d\n", ret);
     return -1;
   }
 
+  // Put the jpeg encoder to sleep.
+  VENC_RECV_PIC_PARAM_S stRecvParam;
+  stRecvParam.s32RecvPicNum = 0;
+  RK_MPI_VENC_StartRecvFrame(1, &stRecvParam);
+
   MPP_CHN_S stEncChn;
   stEncChn.enModId = RK_ID_VENC;
-  stEncChn.s32ChnId = 0;
-  ret = RK_MPI_SYS_RegisterOutCb(&stEncChn, video_packet_cb);
+  stEncChn.s32ChnId = 1;
+  ret = RK_MPI_SYS_RegisterOutCb(&stEncChn, take_pictures_cb);
   if (ret) {
     printf("Register Output callback failed! ret=%d\n", ret);
     return -1;
   }
 
-  // The encoder defaults to continuously receiving frames from the previous
-  // stage. Before performing the bind operation, set s32RecvPicNum to 0 to
-  // make the encoding enter the pause state.
-  VENC_RECV_PIC_PARAM_S stRecvParam;
-  stRecvParam.s32RecvPicNum = 0;
-  RK_MPI_VENC_StartRecvFrame(0, &stRecvParam);
+  // Get MediaBuffer frome VENC::H265, and save packets to file.
+  pthread_t read_thread;
+  pthread_create(&read_thread, NULL, GetMediaBuffer, NULL);
 
   MPP_CHN_S stSrcChn;
   stSrcChn.enModId = RK_ID_VI;
-  stSrcChn.s32ChnId = 1;
+  stSrcChn.s32ChnId = 0;
   MPP_CHN_S stDestChn;
   stDestChn.enModId = RK_ID_VENC;
   stDestChn.s32ChnId = 0;
   ret = RK_MPI_SYS_Bind(&stSrcChn, &stDestChn);
   if (ret) {
-    printf("Bind VI[1] to VENC[0]::JPEG failed! ret=%d\n", ret);
+    printf("Bind VI[0] to VENC[0]::H265 failed! ret=%d\n", ret);
     return -1;
   }
 
-  RK_MPI_VENC_RGN_Init(0);
-
-  BITMAP_S BitMap;
-  BitMap.enPixelFormat = PIXEL_FORMAT_ARGB_8888;
-  BitMap.u32Width = 64;
-  BitMap.u32Height = 256;
-  BitMap.pData = malloc(BitMap.u32Width * 4 * BitMap.u32Height);
-  RK_U8 *ColorData = (RK_U8 *)BitMap.pData;
-  RK_U16 ColorBlockSize = BitMap.u32Height * BitMap.u32Width;
-  set_argb8888_buffer((RK_U32 *)ColorData, ColorBlockSize / 4,
-                      TEST_ARGB32_YELLOW);
-  set_argb8888_buffer((RK_U32 *)(ColorData + ColorBlockSize),
-                      ColorBlockSize / 4, TEST_ARGB32_TRANS);
-  set_argb8888_buffer((RK_U32 *)(ColorData + 2 * ColorBlockSize),
-                      ColorBlockSize / 4, TEST_ARGB32_RED);
-  set_argb8888_buffer((RK_U32 *)(ColorData + 3 * ColorBlockSize),
-                      ColorBlockSize / 4, TEST_ARGB32_BLUE);
-
-  // Case 1: Canvas and bitmap are equal in size
-  OSD_REGION_INFO_S RngInfo;
-  RngInfo.enRegionId = REGION_ID_0;
-  RngInfo.u32PosX = 0;
-  RngInfo.u32PosY = 0;
-  RngInfo.u32Width = 64;
-  RngInfo.u32Height = 256;
-  RngInfo.u8Enable = 1;
-  RngInfo.u8Inverse = 0;
-  RK_MPI_VENC_RGN_SetBitMap(0, &RngInfo, &BitMap);
+  stDestChn.s32ChnId = 1;
+  ret = RK_MPI_SYS_Bind(&stSrcChn, &stDestChn);
+  if (ret) {
+    printf("Bind VI[0] to VENC[1]::JPEG failed! ret=%d\n", ret);
+    return -1;
+  }
 
   printf("%s initial finish\n", __func__);
   signal(SIGINT, sigterm_handler);
 
   char cmd[64];
-  int qfactor = 0;
-  VENC_JPEG_PARAM_S stJpegParam;
   printf("#Usage: input 'quit' to exit programe!\n"
          "peress any other key to capture one picture to file\n");
   while (!quit) {
@@ -171,16 +191,9 @@ int main() {
       printf("#Get 'quit' cmd!\n");
       break;
     }
-
-    if (qfactor >= 99)
-      qfactor = 1;
-    else
-      qfactor = ((qfactor + 10) > 99) ? 99 : (qfactor + 10);
-    stJpegParam.u32Qfactor = qfactor;
-    RK_MPI_VENC_SetJpegParam(0, &stJpegParam);
-
+    // Activate the JPEG encoder and receive one frame.
     stRecvParam.s32RecvPicNum = 1;
-    ret = RK_MPI_VENC_StartRecvFrame(0, &stRecvParam);
+    ret = RK_MPI_VENC_StartRecvFrame(1, &stRecvParam);
     if (ret) {
       printf("RK_MPI_VENC_StartRecvFrame failed!\n");
       break;
@@ -189,9 +202,13 @@ int main() {
   }
 
   printf("%s exit!\n", __func__);
+  stDestChn.s32ChnId = 0;
   RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
-  RK_MPI_VI_DisableChn(0, 1);
+  stDestChn.s32ChnId = 1;
+  RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
+  RK_MPI_VI_DisableChn(0, 0);
   RK_MPI_VENC_DestroyChn(0);
+  RK_MPI_VENC_DestroyChn(1);
 
   return 0;
 }

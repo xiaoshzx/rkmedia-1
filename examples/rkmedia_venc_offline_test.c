@@ -46,6 +46,9 @@ static void *GetMediaBuffer(void *arg) {
     RK_MPI_MB_ReleaseBuffer(mb);
   }
 
+  if (save_file)
+    fclose(save_file);
+
   return NULL;
 }
 
