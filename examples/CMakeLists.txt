@@ -165,3 +165,12 @@ add_dependencies(rkmedia_vi_vo_test easymedia)
 target_link_libraries(rkmedia_vi_vo_test easymedia)
 target_include_directories(rkmedia_vi_vo_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_vi_vo_test RUNTIME DESTINATION "bin")
+
+#--------------------------
+#  rkmedia_main_stream_with_jpeg_test
+#--------------------------
+add_executable(rkmedia_main_stream_with_jpeg_test rkmedia_main_stream_with_jpeg_test.c)
+add_dependencies(rkmedia_main_stream_with_jpeg_test easymedia)
+target_link_libraries(rkmedia_main_stream_with_jpeg_test easymedia)
+target_include_directories(rkmedia_main_stream_with_jpeg_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_main_stream_with_jpeg_test RUNTIME DESTINATION "bin")
