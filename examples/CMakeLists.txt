@@ -243,6 +243,18 @@ target_link_libraries(rkmedia_rga_api_test easymedia rga)
 target_include_directories(rkmedia_rga_api_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_rga_api_test RUNTIME DESTINATION "bin")
 
+#  rkmedia_vi_person_detect_venc_rtsp_test
+#--------------------------
+if(ROCKX)
+link_directories(${PROJECT_SOURCE_DIR}/librtsp/)
+add_executable(rkmedia_vi_person_detect_venc_rtsp_test rkmedia_vi_person_detect_venc_rtsp_test.c ${COMMON_SRC})
+add_dependencies(rkmedia_vi_person_detect_venc_rtsp_test easymedia)
+target_link_libraries(rkmedia_vi_person_detect_venc_rtsp_test rtsp rockx easymedia)
+target_include_directories(rkmedia_vi_person_detect_venc_rtsp_test PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SYSROOT}/usr/include/rockx)
+install(TARGETS rkmedia_vi_person_detect_venc_rtsp_test RUNTIME DESTINATION "bin")
+install(FILES rtsp-nn.cfg DESTINATION share)
+endif()
+
 option(COMPILES_UINT_TEST "Enable unit tests" OFF)
 if(COMPILES_UINT_TEST)
   add_subdirectory(uintTest)
