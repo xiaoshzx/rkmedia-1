@@ -63,7 +63,8 @@ void video_packet_cb_sub1(MEDIA_BUFFER mb) {
   RK_MPI_MB_ReleaseBuffer(mb);
 }
 
-int StreamOn(int width, int height, IMAGE_TYPE_E img_type, const char* video_node, int sec) {
+int StreamOn(int width, int height, IMAGE_TYPE_E img_type,
+             const char *video_node, int sec) {
   static int stream_on_cnt = 0;
   int ret = 0;
 
@@ -74,8 +75,9 @@ int StreamOn(int width, int height, IMAGE_TYPE_E img_type, const char* video_nod
     codec_type = RK_CODEC_TYPE_H265;
 
   printf("\n### %04d, wxh: %dx%d, CodeType: %s, ImgType: %s Start........\n\n",
-    stream_on_cnt++, width, height, (codec_type == RK_CODEC_TYPE_H264)?"H264":"H265",
-    (img_type == IMAGE_TYPE_FBC0)?"FBC0":"NV12");
+         stream_on_cnt++, width, height,
+         (codec_type == RK_CODEC_TYPE_H264) ? "H264" : "H265",
+         (img_type == IMAGE_TYPE_FBC0) ? "FBC0" : "NV12");
 
   VI_CHN_ATTR_S vi_chn_attr;
   vi_chn_attr.pcVideoNode = video_node;
@@ -180,9 +182,33 @@ int StreamOn(int width, int height, IMAGE_TYPE_E img_type, const char* video_nod
   signal(SIGINT, sigterm_handler);
 
   int loop_cnt = sec * 2;
+  RECT_S stRects[2] = {{0, 0, 256, 256}, {256, 256, 256, 256}};
+
+  VI_CHN luma_chn = 0;
+  if (img_type == IMAGE_TYPE_FBC0) {
+    luma_chn = 3;
+    ret = RK_MPI_VI_StartStream(0, luma_chn);
+    if (ret) {
+      printf("ERROR: RK_MPI_VI_StartStream ret=%d\n", ret);
+      return -1;
+    }
+  }
+
+  VIDEO_REGION_INFO_S stVideoRgn;
+  stVideoRgn.pstRegion = stRects;
+  stVideoRgn.u32RegionNum = 2;
+  RK_U64 u64LumaData[2];
   while (!quit) {
     usleep(500000);
     loop_cnt--;
+
+    ret = RK_MPI_VI_GetChnRegionLuma(0, luma_chn, &stVideoRgn, u64LumaData, 100);
+    if (ret) {
+      printf("ERROR: Venc[%d]:RK_MPI_VI_GetChnRegionLuma ret = %d\n", luma_chn, ret);
+    } else {
+      printf("Venc[%d]:Rect[0] {0, 0, 256, 256} -> luma:%llu\n", luma_chn, u64LumaData[0]);
+      printf("Venc[%d]:Rect[1] {256, 256, 256, 256} -> luma:%llu\n", luma_chn, u64LumaData[1]);
+    }
     if (loop_cnt < 0)
       break;
   }
@@ -193,24 +219,26 @@ int StreamOn(int width, int height, IMAGE_TYPE_E img_type, const char* video_nod
   stDestChn.s32ChnId = 3;
   RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
 
-  RK_MPI_VI_DisableChn(0, 0);
   RK_MPI_VENC_DestroyChn(0); // avc/hevc
   RK_MPI_VENC_DestroyChn(3); // jpeg
+  RK_MPI_VI_DisableChn(0, 0);
   if (img_type == IMAGE_TYPE_FBC0) {
-      printf("TEST: INFO: Disable luma caculation vi[3]!\n");
-      RK_MPI_VI_DisableChn(0, 3);
+    printf("TEST: INFO: Disable luma caculation vi[3]!\n");
+    RK_MPI_VI_DisableChn(0, 3);
   }
   printf("\n-------------------END----------------------------\n");
 
   return 0;
 }
 
-int SubStreamOn(int width, int height, const char* video_node, int vi_chn, int venc_chn) {
+int SubStreamOn(int width, int height, const char *video_node, int vi_chn,
+                int venc_chn) {
   static int sub_stream_cnt = 0;
   int ret = 0;
 
-  printf("*** SubStreamOn[%d]: VideoNode:%s, wxh:%dx%d, vi:%d, venc:%d START....\n",
-    sub_stream_cnt, video_node, width, height, vi_chn, venc_chn);
+  printf("*** SubStreamOn[%d]: VideoNode:%s, wxh:%dx%d, vi:%d, venc:%d "
+         "START....\n",
+         sub_stream_cnt, video_node, width, height, vi_chn, venc_chn);
 
   CODEC_TYPE_E codec_type = RK_CODEC_TYPE_H264;
   VI_CHN_ATTR_S vi_chn_attr;
@@ -310,8 +338,10 @@ static void print_usage(char *name) {
   printf("There are three streams in total:MainStream/SubStream0/SubStream.\n"
          "The sub-stream remains unchanged, and the resolution of the main \n"
          "stream is constantly switched.\n");
-  printf("  SubStream0: rkispp_scale1: 720x480 NV12 -> /userdata/sub0.h264(150 frames)\n");
-  printf("  SubStream1: rkispp_scale2: 1280x720 NV12 -> /userdata/sub1.h264(150 frames)\n");
+  printf("  SubStream0: rkispp_scale1: 720x480 NV12 -> /userdata/sub0.h264(150 "
+         "frames)\n");
+  printf("  SubStream1: rkispp_scale2: 1280x720 NV12 -> "
+         "/userdata/sub1.h264(150 frames)\n");
   printf("  MainStream: case1: rkispp_m_bypass: widthxheight FBC0\n");
   printf("                     rkispp_scale0: 1280x720 for luma caculation.\n");
   printf("  MainStream: case2: rkispp_scale0: 1280x720 NV12\n");
@@ -342,11 +372,13 @@ int main(int argc, char *argv[]) {
       printf("#IN ARGS: loop_seconds: %d\n", loop_seconds);
       break;
     case 'w':
-      width = atoi(optarg);;
+      width = atoi(optarg);
+      ;
       printf("#IN ARGS: bypass width: %d\n", width);
       break;
     case 'h':
-      height = atoi(optarg);;
+      height = atoi(optarg);
+      ;
       printf("#IN ARGS: bypass height: %d\n", height);
       break;
     case '?':
@@ -364,28 +396,29 @@ int main(int argc, char *argv[]) {
 
   RK_MPI_SYS_Init();
 
-  g_save_file_sub0 = fopen("/data/sub0.h264", "w");
+  g_save_file_sub0 = fopen("/tmp/sub0.h264", "w");
   if (SubStreamOn(720, 480, "rkispp_scale1", 1, 1)) {
     printf("ERROR: SubStreamOn failed!\n");
     return -1;
   }
 
-  g_save_file_sub1 = fopen("/data/sub1.h264", "w");
+  g_save_file_sub1 = fopen("/tmp/sub1.h264", "w");
   if (SubStreamOn(1280, 720, "rkispp_scale2", 2, 2)) {
     printf("ERROR: SubStreamOn failed!\n");
     return -1;
   }
 
-  for (int i = 0; !quit && (i < loop_cnt); i++ ) {
-    g_save_file = fopen("/data/fbc0.h264", "w");
-    if (StreamOn(width, height, IMAGE_TYPE_FBC0, "rkispp_m_bypass", loop_seconds)) {
+  for (int i = 0; !quit && (i < loop_cnt); i++) {
+    g_save_file = fopen("/tmp/fbc0.h264", "w");
+    if (StreamOn(width, height, IMAGE_TYPE_FBC0, "rkispp_m_bypass",
+                 loop_seconds)) {
       printf("ERROR: StreamOn 2k failed!\n");
       break;
     }
     fclose(g_save_file);
     g_save_file = NULL;
 
-    g_save_file = fopen("/data/720p.h264", "w");
+    g_save_file = fopen("/tmp/720p.h264", "w");
     if (StreamOn(1280, 720, IMAGE_TYPE_NV12, "rkispp_scale0", loop_seconds)) {
       printf("ERROR: StreamOn 720p failed!\n");
       break;
