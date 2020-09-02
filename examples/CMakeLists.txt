@@ -174,3 +174,8 @@ add_dependencies(rkmedia_main_stream_with_jpeg_test easymedia)
 target_link_libraries(rkmedia_main_stream_with_jpeg_test easymedia)
 target_include_directories(rkmedia_main_stream_with_jpeg_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_main_stream_with_jpeg_test RUNTIME DESTINATION "bin")
+
+option(COMPILES_UINT_TEST "Enable unit tests" OFF)
+if(COMPILES_UINT_TEST)
+  add_subdirectory(uintTest)
+endif()
