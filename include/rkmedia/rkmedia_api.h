@@ -162,9 +162,8 @@ _CAPI RK_S32 RK_MPI_AENC_DestroyChn(AENC_CHN AencChn);
 /********************************************************************
  * Algorithm::Move Detection api
  ********************************************************************/
-_CAPI RK_S32 RK_MPI_ALGO_MD_SetChnAttr(ALGO_MD_CHN MdChn,
-                                       const ALGO_MD_ATTR_S *pstChnAttr);
-_CAPI RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn);
+_CAPI RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn,
+                                      const ALGO_MD_ATTR_S *pstChnAttr);
 _CAPI RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn);
 
 /********************************************************************

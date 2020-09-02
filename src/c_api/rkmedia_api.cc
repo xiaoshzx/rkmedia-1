@@ -2623,35 +2623,24 @@ RK_S32 RK_MPI_AENC_DestroyChn(AENC_CHN AencChn) {
 /********************************************************************
  * Algorithm::Move Detection api
  ********************************************************************/
-RK_S32 RK_MPI_ALGO_MD_SetChnAttr(ALGO_MD_CHN MdChn,
-                                 const ALGO_MD_ATTR_S *pstChnAttr) {
+RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn, const ALGO_MD_ATTR_S *pstMDAttr) {
   if ((MdChn < 0) || (MdChn > ALGO_MD_MAX_CHN_NUM))
     return -RK_ERR_ALGO_MD_INVALID_CHNID;
 
-  if (!pstChnAttr)
+  if (!pstMDAttr)
     return -RK_ERR_ALGO_MD_ILLEGAL_PARAM;
 
-  g_algo_md_mtx.lock();
-  memcpy(&g_algo_md_chns[MdChn].md_attr, pstChnAttr, sizeof(ALGO_MD_ATTR_S));
-  g_algo_md_chns[MdChn].status = CHN_STATUS_READY;
-  g_algo_md_mtx.unlock();
-
-  return RK_ERR_SYS_OK;
-}
-
-RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn) {
-  if ((MdChn < 0) || (MdChn > ALGO_MD_MAX_CHN_NUM))
-    return -RK_ERR_ALGO_MD_INVALID_CHNID;
-
-  g_algo_md_mtx.lock();
-  if (g_algo_md_chns[MdChn].status != CHN_STATUS_READY) {
-    g_algo_md_mtx.unlock();
-    return (g_vi_chns[MdChn].status > CHN_STATUS_READY)
-               ? -RK_ERR_ALGO_MD_EXIST
-               : -RK_ERR_ALGO_MD_NOT_CONFIG;
+  if (pstMDAttr->u16Sensitivity > 100) {
+    LOG("ERROR: MD: invalid sensitivity(%d), should be <= 100\n",
+        pstMDAttr->u16Sensitivity);
+    return -RK_ERR_ALGO_MD_ILLEGAL_PARAM;
   }
 
-  ALGO_MD_ATTR_S *pstMDAttr = &g_algo_md_chns[MdChn].md_attr;
+  g_algo_md_mtx.lock();
+  if (g_algo_md_chns[MdChn].status != CHN_STATUS_CLOSED) {
+    g_algo_md_mtx.unlock();
+    return -RK_ERR_ALGO_MD_EXIST;
+  }
 
   std::string flow_name = "move_detec";
   std::string flow_param = "";
@@ -2661,6 +2650,7 @@ RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn) {
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, "NULL");
   std::string md_param = "";
   PARAM_STRING_APPEND_TO(md_param, KEY_MD_SINGLE_REF, 1);
+  PARAM_STRING_APPEND_TO(md_param, KEY_MD_SENSITIVITY, pstMDAttr->u16Sensitivity);
   PARAM_STRING_APPEND_TO(md_param, KEY_MD_ORI_WIDTH, pstMDAttr->u32Width);
   PARAM_STRING_APPEND_TO(md_param, KEY_MD_ORI_HEIGHT, pstMDAttr->u32Height);
   PARAM_STRING_APPEND_TO(md_param, KEY_MD_DS_WIDTH, pstMDAttr->u32Width);

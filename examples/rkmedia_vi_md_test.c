@@ -57,6 +57,7 @@ int main() {
 
   ALGO_MD_ATTR_S md_chn_attr;
   md_chn_attr.imageType = IMAGE_TYPE_NV12;
+  md_chn_attr.u16Sensitivity = 70;
   md_chn_attr.u32Width = 640;
   md_chn_attr.u32Height = 480;
   md_chn_attr.u16RoiCnt = 2;
@@ -68,8 +69,7 @@ int main() {
   md_chn_attr.stRoiRects[1].s32Y = 120;
   md_chn_attr.stRoiRects[1].u32Width = 160;
   md_chn_attr.stRoiRects[1].u32Height = 120;
-  ret = RK_MPI_ALGO_MD_SetChnAttr(0, &md_chn_attr);
-  ret |= RK_MPI_ALGO_MD_CreateChn(0);
+  ret = RK_MPI_ALGO_MD_CreateChn(0, &md_chn_attr);
   if (ret) {
     printf("ERROR: MoveDetection Create failed!\n");
     exit(0);

@@ -90,6 +90,7 @@
 #define KEY_MD_DS_HEIGHT "md_down_scale_height"
 #define KEY_MD_ROI_CNT "md_roi_cnt"
 #define KEY_MD_ROI_RECT "md_roi_rect"
+#define KEY_MD_SENSITIVITY "md_sensitivity"
 
 // occlusion detection
 #define KEY_OD_WIDTH "od_width"
