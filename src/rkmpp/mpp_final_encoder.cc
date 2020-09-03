@@ -182,6 +182,7 @@ bool MPPMJPEGConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
     LOG("MPP Encoder[JPEG]: config for JPEG...\n");
     img_cfg = cfg.img_cfg;
     img_info = cfg.img_cfg.image_info;
+    ENCODER_CFG_CHECK(img_cfg.qfactor, 1, 99, 70, "qfactor");
   } else if (cfg.type == Type::Video) {
     LOG("MPP Encoder[JPEG]: config for MJPEG...\n");
     vid_cfg = cfg.vid_cfg;
