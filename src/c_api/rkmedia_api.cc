@@ -893,12 +893,13 @@ RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   }
 
   RkmediaChnClearBuffer(&g_vi_chns[ViChn]);
-  g_vi_chns[ViChn].rkmedia_flow.reset();
   g_vi_chns[ViChn].status = CHN_STATUS_CLOSED;
   g_vi_chns[ViChn].luma_buf_mtx.lock();
   g_vi_chns[ViChn].luma_rkmedia_buf.reset();
   g_vi_chns[ViChn].luma_buf_cond.notify_all();
   g_vi_chns[ViChn].luma_buf_mtx.unlock();
+  // VI flow Should be released last
+  g_vi_chns[ViChn].rkmedia_flow.reset();
   g_vi_mtx.unlock();
 
   return RK_ERR_SYS_OK;
