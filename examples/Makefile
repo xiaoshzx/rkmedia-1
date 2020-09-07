@@ -27,6 +27,7 @@ all:
 	$(GCC) rkmedia_venc_cover_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_venc_cover_test
 	$(GCC) rkmedia_venc_jpeg_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_venc_jpeg_test
 	$(GCC) rkmedia_vi_md_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_vi_md_test
+	$(GCC) rkmedia_isp_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_isp_test
 	$(GCC) rkmedia_vi_multi_bind_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_vi_multi_bind_test
 
 	$(hide)$(ECHO) "Build Done ..."

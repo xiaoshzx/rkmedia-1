@@ -39,7 +39,89 @@ void video_packet_cb(MEDIA_BUFFER mb) {
   RK_MPI_MB_ReleaseBuffer(mb);
 }
 
+int menu() {
+  int menu;
+  char choose[5];
+
+  printf("\n***************************************\n");
+  printf("©¦²Ëµ¥©¦\n");
+  printf("__________________________________\n");
+  printf("|    0. quit       \n");
+  printf("©¦1. Normal  \n");
+  printf("©¦2. HDRX2  \n");
+  printf("©¦3. HDRX3  \n");
+  printf("©¦4. FEC ON \n");
+  printf("©¦5. FEC OFF\n");
+  printf("©¦6. LDCH    \n");
+  printf("©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤\n");
+  printf("**************************************\n\n");
+
+  do {
+    printf("Please input your select (0-6):");
+    scanf("%s", choose);
+    menu = atoi(choose);
+  } while (menu < 0 || menu > 6);
+
+  return menu;
+}
+
+int menu_ldch() {
+  int menu;
+  char choose[5];
+
+  do {
+    printf("Please input ldch level (0-255 ):");
+    scanf("%s", choose);
+    menu = atoi(choose);
+  } while (menu < 0 || menu > 255);
+
+  return menu;
+}
+
 int main() {
+
+  signal(SIGINT, sigterm_handler);
+
+  rk_aiq_working_mode_t hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+  RK_BOOL fec_enable = RK_FALSE;
+  int fps = 30;
+  char *tmp = getenv("HDR_MODE");
+  if (tmp) {
+    if (strstr(tmp, "32")) {
+      hdr_mode = RK_AIQ_WORKING_MODE_ISP_HDR3;
+      fps = 20;
+    }
+    if (strstr(tmp, "16")) {
+      hdr_mode = RK_AIQ_WORKING_MODE_ISP_HDR2;
+      fps = 25;
+    }
+  }
+  char *fec_mode = getenv("FEC_MODE");
+  if (fec_mode)
+    if (strstr(fec_mode, "1"))
+      fec_enable = RK_TRUE;
+
+  char *sfps = getenv("FPS");
+  if (sfps)
+    fps = atoi(sfps);
+
+  RK_BOOL running = RK_FALSE;
+  RK_MPI_SYS_Init();
+  MPP_CHN_S stSrcChn;
+  MPP_CHN_S stDestChn;
+
+restart:
+  if (running) {
+    SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
+    RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
+    RK_MPI_VENC_DestroyChn(0);
+    RK_MPI_VI_DisableChn(0, 1);
+  }
+
+  printf("hdr mode %d, fec mode %d, fps %d\n", hdr_mode, fec_enable, fps);
+  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable);
+  SAMPLE_COMM_ISP_Run();
+  SAMPLE_COMM_ISP_SetFrameRate(fps);
 
   VENC_CHN_ATTR_S venc_chn_attr;
   venc_chn_attr.stVencAttr.enType = RK_CODEC_TYPE_H264;
@@ -67,8 +149,6 @@ int main() {
   vi_chn_attr.enPixFmt = IMAGE_TYPE_NV12;
   vi_chn_attr.enWorkMode = VI_WORK_MODE_NORMAL;
 
-  RK_MPI_SYS_Init();
-
   RK_MPI_VI_SetChnAttr(0, 1, &vi_chn_attr);
   RK_MPI_VI_EnableChn(0, 1);
   RK_MPI_VENC_CreateChn(0, &venc_chn_attr);
@@ -79,9 +159,6 @@ int main() {
   stEncChn.s32ChnId = 0;
   RK_MPI_SYS_RegisterOutCb(&stEncChn, video_packet_cb);
 
-  MPP_CHN_S stSrcChn;
-  MPP_CHN_S stDestChn;
-
   stSrcChn.enModId = RK_ID_VI;
   stSrcChn.s32DevId = 0;
   stSrcChn.s32ChnId = 1;
@@ -91,9 +168,6 @@ int main() {
   stDestChn.s32ChnId = 0;
 
   RK_MPI_SYS_Bind(&stSrcChn, &stDestChn);
-
-  printf("%s initial finish\n", __func__);
-  signal(SIGINT, sigterm_handler);
 
   VENC_RC_PARAM_S venc_rc_param;
   venc_rc_param.s32FirstFrameStartQp = 30;
@@ -107,14 +181,62 @@ int main() {
   RK_MPI_VENC_SetRcParam(stDestChn.s32ChnId, &venc_rc_param);
   printf("%s: after set qp.\n", __func__);
 
+  running = RK_TRUE;
+  /*
+       printf(" |   0. quit   \n");
+       printf("©¦1. Normal  \n");
+        printf("©¦2. HDRX2	\n");
+        printf("©¦3. HDRX3	\n");
+        printf("©¦4. FEC ON \n");
+        printf("©¦5. FEC OFF\n");
+       printf("©¦6. LDCH level \n");
+  */
   while (!quit) {
-    usleep(100);
+    switch (menu()) {
+    case 0:
+      quit = true;
+      break;
+    case 1:
+      if (hdr_mode == RK_AIQ_WORKING_MODE_ISP_HDR3) {
+        hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+        goto restart;
+      } else {
+        hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+        SAMPLE_COMM_ISP_SetWDRModeDyn(hdr_mode);
+      }
+      break;
+    case 2:
+      if (hdr_mode == RK_AIQ_WORKING_MODE_ISP_HDR3) {
+        hdr_mode = RK_AIQ_WORKING_MODE_ISP_HDR2;
+        goto restart;
+      } else {
+        hdr_mode = RK_AIQ_WORKING_MODE_ISP_HDR2;
+        SAMPLE_COMM_ISP_SetWDRModeDyn(hdr_mode);
+      }
+      break;
+    case 3:
+      hdr_mode = RK_AIQ_WORKING_MODE_ISP_HDR3;
+      goto restart;
+    case 4:
+      fec_enable = 1;
+      goto restart;
+    case 5:
+      fec_enable = 0;
+      goto restart;
+    case 6:
+      SAMPLE_COMM_ISP_SetLDCHLevel(menu_ldch());
+      continue;
+    }
+    usleep(30000); // sleep 30 ms.
   }
 
   printf("%s exit!\n", __func__);
+
+  SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
+
   RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
-  RK_MPI_VI_DisableChn(0, 1);
   RK_MPI_VENC_DestroyChn(0);
+  RK_MPI_VI_DisableChn(0, 1);
 
   return 0;
 }

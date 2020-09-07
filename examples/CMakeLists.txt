@@ -175,6 +175,17 @@ target_link_libraries(rkmedia_main_stream_with_jpeg_test easymedia)
 target_include_directories(rkmedia_main_stream_with_jpeg_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_main_stream_with_jpeg_test RUNTIME DESTINATION "bin")
 
+#--------------------------
+# rkmedia_isp_test
+#--------------------------
+if(USE_RKAIQ)
+add_executable(rkmedia_isp_test rkmedia_isp_test.c ${COMMON_SRC})
+add_dependencies(rkmedia_isp_test easymedia)
+target_link_libraries(rkmedia_isp_test easymedia)
+target_include_directories(rkmedia_isp_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_isp_test RUNTIME DESTINATION "bin")
+endif()
+
 option(COMPILES_UINT_TEST "Enable unit tests" OFF)
 if(COMPILES_UINT_TEST)
   add_subdirectory(uintTest)
