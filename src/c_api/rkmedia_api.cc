@@ -235,10 +235,10 @@ RK_VOID RK_MPI_SYS_DumpChn(MOD_ID_E enModId) {
 
   LOG("Dump Mode:%d:\n", enModId);
   for (RK_U16 i = 0; i < u16ChnMaxCnt; i++) {
-      LOG("  Chn[%d]->status:%d\n", i, pChns[i].status);
-      LOG("  Chn[%d]->bind_ref:%d\n", i, pChns[i].bind_ref);
-      LOG("  Chn[%d]->output_cb:%p\n", i, pChns[i].cb);
-      LOG("  Chn[%d]->event_cb:%p\n\n", i, pChns[i].event_cb);
+    LOG("  Chn[%d]->status:%d\n", i, pChns[i].status);
+    LOG("  Chn[%d]->bind_ref:%d\n", i, pChns[i].bind_ref);
+    LOG("  Chn[%d]->output_cb:%p\n", i, pChns[i].cb);
+    LOG("  Chn[%d]->event_cb:%p\n\n", i, pChns[i].event_cb);
   }
 }
 
@@ -872,8 +872,24 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
                          g_vi_chns[ViChn].vi_attr.attr.u32Height);
   flow_param = easymedia::JoinFlowParam(flow_param, 1, stream_param);
   LOGD("\n#VI: v4l2 source flow param:\n%s\n", flow_param.c_str());
-  g_vi_chns[ViChn].rkmedia_flow = easymedia::REFLECTOR(
-      Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
+  RK_S8 s8RetryCnt = 3;
+  while (s8RetryCnt > 0) {
+    g_vi_chns[ViChn].rkmedia_flow = easymedia::REFLECTOR(
+        Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
+    if (g_vi_chns[ViChn].rkmedia_flow)
+      break; // Stop while
+    LOG("WARN: VI[%d]:\"%s\" buffer may be occupied by other modules or apps, "
+        "try again...\n",
+        ViChn, g_vi_chns[ViChn].vi_attr.attr.pcVideoNode);
+    s8RetryCnt--;
+    msleep(50);
+  }
+
+  if (!g_vi_chns[ViChn].rkmedia_flow) {
+    g_vi_mtx.unlock();
+    return -RK_ERR_VI_BUSY;
+  }
+
   g_vi_chns[ViChn].rkmedia_flow->SetOutputCallBack(&g_vi_chns[ViChn],
                                                    FlowOutputCallback);
   g_vi_chns[ViChn].status = CHN_STATUS_OPEN;
@@ -1058,7 +1074,8 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
       u32OutFpsDen = stVencChnAttr->stRcAttr.stMjpegVbr.fr32DstFrameRateDen;
       pcRkmediaRcMode = KEY_VBR;
     } else {
-      LOG("ERROR: [%s]: Invalid RcMode[%d]\n", __func__, stVencChnAttr->stRcAttr.enRcMode);
+      LOG("ERROR: [%s]: Invalid RcMode[%d]\n", __func__,
+          stVencChnAttr->stRcAttr.enRcMode);
       return -RK_ERR_VENC_ILLEGAL_PARAM;
     }
 
@@ -1068,13 +1085,13 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
       return -RK_ERR_VENC_ILLEGAL_PARAM;
     }
     if (!u32InFpsNum) {
-      LOG("ERROR: [%s]: Invalid src frame rate [%d/%d]\n", __func__, u32InFpsNum,
-          u32InFpsDen);
+      LOG("ERROR: [%s]: Invalid src frame rate [%d/%d]\n", __func__,
+          u32InFpsNum, u32InFpsDen);
       return -RK_ERR_VENC_ILLEGAL_PARAM;
     }
     if (!u32OutFpsNum) {
-      LOG("ERROR: [%s]: Invalid dst frame rate [%d/%d]\n", __func__, u32OutFpsNum,
-          u32OutFpsDen);
+      LOG("ERROR: [%s]: Invalid dst frame rate [%d/%d]\n", __func__,
+          u32OutFpsNum, u32OutFpsDen);
       return -RK_ERR_VENC_ILLEGAL_PARAM;
     }
     pcRkmediaCodecType = VIDEO_MJPEG;
@@ -1176,10 +1193,10 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
 
   // When the zoom parameter is valid and is not equal to
   // the original resolution, the zoom function will be turned on.
-  if ((s32RgaWidth > 0) && (s32RgaHeight > 0) &&
-      (s32RgaVirWidht > 0) && (s32RgaVirHeight > 0) &&
+  if ((s32RgaWidth > 0) && (s32RgaHeight > 0) && (s32RgaVirWidht > 0) &&
+      (s32RgaVirHeight > 0) &&
       ((s32RgaWidth != video_width) || (s32RgaHeight != video_height) ||
-      (s32RgaVirWidht != vir_width) || (s32RgaVirHeight != vir_height))) {
+       (s32RgaVirWidht != vir_width) || (s32RgaVirHeight != vir_height))) {
     flow_name = "filter";
     flow_param = "";
     PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkrga");
@@ -1192,8 +1209,8 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
     PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_WIDTH, s32RgaVirWidht);
     PARAM_STRING_APPEND_TO(flow_param, KEY_BUFFER_VIR_HEIGHT, s32RgaVirHeight);
     // enable buffer pool?
-    //PARAM_STRING_APPEND(flow_param, KEY_MEM_TYPE, KEY_MEM_HARDWARE);
-    //PARAM_STRING_APPEND_TO(flow_param, KEY_MEM_CNT, u16BufPoolCnt);
+    // PARAM_STRING_APPEND(flow_param, KEY_MEM_TYPE, KEY_MEM_HARDWARE);
+    // PARAM_STRING_APPEND_TO(flow_param, KEY_MEM_CNT, u16BufPoolCnt);
 
     std::string filter_param = "";
     ImageRect src_rect = {0, 0, jpeg_width, jpeg_height};
@@ -1206,8 +1223,8 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
     PARAM_STRING_APPEND_TO(filter_param, KEY_BUFFER_ROTATE, 0);
     flow_param = easymedia::JoinFlowParam(flow_param, 1, filter_param);
     LOGD("\n#JPEG: Pre process flow param:\n%s\n", flow_param.c_str());
-    video_rga_flow = easymedia::REFLECTOR(
-        Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
+    video_rga_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+        flow_name.c_str(), flow_param.c_str());
     if (!video_rga_flow) {
       LOG("ERROR: [%s]: Create flow filter:rga failed\n", __func__);
       return -RK_ERR_VENC_ILLEGAL_PARAM;
@@ -1243,7 +1260,8 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   }
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
-  LOGD("\n#JPEG: [%s] encoder flow param:\n%s\n", pcRkmediaCodecType, flow_param.c_str());
+  LOGD("\n#JPEG: [%s] encoder flow param:\n%s\n", pcRkmediaCodecType,
+       flow_param.c_str());
   video_jpeg_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
       flow_name.c_str(), flow_param.c_str());
   if (!video_jpeg_flow) {
@@ -2624,7 +2642,8 @@ RK_S32 RK_MPI_AENC_DestroyChn(AENC_CHN AencChn) {
 /********************************************************************
  * Algorithm::Move Detection api
  ********************************************************************/
-RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn, const ALGO_MD_ATTR_S *pstMDAttr) {
+RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn,
+                                const ALGO_MD_ATTR_S *pstMDAttr) {
   if ((MdChn < 0) || (MdChn > ALGO_MD_MAX_CHN_NUM))
     return -RK_ERR_ALGO_MD_INVALID_CHNID;
 
@@ -2651,7 +2670,8 @@ RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn, const ALGO_MD_ATTR_S *pstMDAt
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, "NULL");
   std::string md_param = "";
   PARAM_STRING_APPEND_TO(md_param, KEY_MD_SINGLE_REF, 1);
-  PARAM_STRING_APPEND_TO(md_param, KEY_MD_SENSITIVITY, pstMDAttr->u16Sensitivity);
+  PARAM_STRING_APPEND_TO(md_param, KEY_MD_SENSITIVITY,
+                         pstMDAttr->u16Sensitivity);
   PARAM_STRING_APPEND_TO(md_param, KEY_MD_ORI_WIDTH, pstMDAttr->u32Width);
   PARAM_STRING_APPEND_TO(md_param, KEY_MD_ORI_HEIGHT, pstMDAttr->u32Height);
   PARAM_STRING_APPEND_TO(md_param, KEY_MD_DS_WIDTH, pstMDAttr->u32Width);
@@ -2700,7 +2720,8 @@ RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn) {
 /********************************************************************
  * Algorithm::Occlusion Detection api
  ********************************************************************/
-RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn, const ALGO_OD_ATTR_S *pstChnAttr) {
+RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn,
+                                const ALGO_OD_ATTR_S *pstChnAttr) {
   if ((OdChn < 0) || (OdChn > ALGO_MD_MAX_CHN_NUM))
     return -RK_ERR_ALGO_OD_INVALID_CHNID;
 
@@ -2743,7 +2764,8 @@ RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn, const ALGO_OD_ATTR_S *pstChnA
                       ImageTypeToString(pstChnAttr->enImageType));
   PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, "NULL");
   std::string od_param = "";
-  PARAM_STRING_APPEND_TO(od_param, KEY_OD_SENSITIVITY, pstChnAttr->u16Sensitivity);
+  PARAM_STRING_APPEND_TO(od_param, KEY_OD_SENSITIVITY,
+                         pstChnAttr->u16Sensitivity);
   PARAM_STRING_APPEND_TO(od_param, KEY_OD_WIDTH, pstChnAttr->u32Width);
   PARAM_STRING_APPEND_TO(od_param, KEY_OD_HEIGHT, pstChnAttr->u32Height);
   PARAM_STRING_APPEND_TO(od_param, KEY_OD_ROI_CNT, pstChnAttr->u16RoiCnt);
@@ -2763,8 +2785,8 @@ RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn, const ALGO_OD_ATTR_S *pstChnA
   flow_param = easymedia::JoinFlowParam(flow_param, 1, od_param);
 
   LOGD("\n#OcclusionDetection flow param:\n%s\n", flow_param.c_str());
-  g_algo_od_chns[OdChn].rkmedia_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
-      flow_name.c_str(), flow_param.c_str());
+  g_algo_od_chns[OdChn].rkmedia_flow = easymedia::REFLECTOR(
+      Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
   if (!g_algo_od_chns[OdChn].rkmedia_flow) {
     LOG("ERROR: OD: Create flow %s failed!\n", flow_name.c_str());
     g_algo_od_mtx.unlock();
@@ -3002,16 +3024,19 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
   PARAM_STRING_APPEND(stream_param, KEY_DEVICE, "/dev/dri/card0");
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_WIDTH, pstAttr->u32Width);
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_HEIGHT, pstAttr->u32Height);
-  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_VIR_WIDTH, pstAttr->u32HorStride);
-  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_VIR_HEIGHT, pstAttr->u32VerStride);
+  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_VIR_WIDTH,
+                         pstAttr->u32HorStride);
+  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_VIR_HEIGHT,
+                         pstAttr->u32VerStride);
   PARAM_STRING_APPEND_TO(stream_param, "framerate", pstAttr->u16Fps);
   PARAM_STRING_APPEND(stream_param, "plane_type", "Primary");
   PARAM_STRING_APPEND_TO(stream_param, "ZPOS", pstAttr->u16Zpos);
-  PARAM_STRING_APPEND(stream_param, KEY_OUTPUTDATATYPE, ImageTypeToString(pstAttr->enImgType));
+  PARAM_STRING_APPEND(stream_param, KEY_OUTPUTDATATYPE,
+                      ImageTypeToString(pstAttr->enImgType));
   flow_param = easymedia::JoinFlowParam(flow_param, 1, stream_param);
   printf("\n#DrmDisplay:\n%s\n", flow_param.c_str());
-  g_vo_chns[VoChn].rkmedia_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
-      flow_name.c_str(), flow_param.c_str());
+  g_vo_chns[VoChn].rkmedia_flow = easymedia::REFLECTOR(
+      Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
   if (!g_vo_chns[VoChn].rkmedia_flow) {
     LOG("ERROR: VO: Create flow %s failed\n", flow_name.c_str());
     ret = -RK_ERR_VO_ILLEGAL_PARAM;
