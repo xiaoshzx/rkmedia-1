@@ -270,6 +270,7 @@ enum {
    * VO::Video Output error types
    **********************************/
   RK_ERR_VO_INVALID_DEVID = 110,
+  RK_ERR_VO_BUSY,
   RK_ERR_VO_EXIST,
   RK_ERR_VO_NOT_CONFIG,
   RK_ERR_VO_TIMEOUT,

@@ -1493,6 +1493,10 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
   g_venc_chns[VeChn].rkmedia_flow = easymedia::REFLECTOR(
       Flow)::Create<easymedia::Flow>("video_enc", flow_param.c_str());
+  if (!g_venc_chns[VeChn].rkmedia_flow) {
+    g_venc_mtx.unlock();
+    return -RK_ERR_VENC_BUSY;
+  }
   g_venc_chns[VeChn].rkmedia_flow->SetOutputCallBack(&g_venc_chns[VeChn],
                                                      FlowOutputCallback);
   g_venc_chns[VeChn].status = CHN_STATUS_OPEN;
@@ -2132,7 +2136,7 @@ create_flow(const std::string &flow_name, const std::string &flow_param,
   auto ret = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
       flow_name.c_str(), param.c_str());
   if (!ret)
-    fprintf(stderr, "Create flow %s failed\n", flow_name.c_str());
+    LOG("ERROR: Create flow %s failed\n", flow_name.c_str());
   return ret;
 }
 
@@ -2163,12 +2167,6 @@ create_alsa_flow(std::string aud_in_path, SampleInfo &info, bool capture) {
   PARAM_STRING_APPEND_TO(sub_param, KEY_SAMPLE_RATE, info.sample_rate);
 
   auto audio_source_flow = create_flow(flow_name, flow_param, sub_param);
-  if (!audio_source_flow) {
-    printf("Create flow %s failed\n", flow_name.c_str());
-    exit(EXIT_FAILURE);
-  } else {
-    printf("%s flow ready!\n", flow_name.c_str());
-  }
   return audio_source_flow;
 }
 
@@ -2208,6 +2206,10 @@ RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn) {
   info.sample_rate = g_ai_chns[AiChn].ai_attr.attr.u32SampleRate;
   g_ai_chns[AiChn].rkmedia_flow = create_alsa_flow(
       g_ai_chns[AiChn].ai_attr.attr.pcAudioNode, info, RK_TRUE);
+  if (!g_ai_chns[AiChn].rkmedia_flow) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_BUSY;
+  }
   g_ai_chns[AiChn].rkmedia_flow->SetOutputCallBack(&g_ai_chns[AiChn],
                                                    FlowOutputCallback);
   g_ai_chns[AiChn].status = CHN_STATUS_OPEN;
@@ -2413,8 +2415,10 @@ RK_S32 RK_MPI_AO_EnableChn(AO_CHN AoChn) {
   info.sample_rate = g_ao_chns[AoChn].ao_attr.attr.u32SampleRate;
   g_ao_chns[AoChn].rkmedia_flow = create_alsa_flow(
       g_ao_chns[AoChn].ao_attr.attr.pcAudioNode, info, RK_FALSE);
-  g_ao_chns[AoChn].rkmedia_flow->SetOutputCallBack(&g_ao_chns[AoChn],
-                                                   FlowOutputCallback);
+  if (!g_ao_chns[AoChn].rkmedia_flow) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AO_BUSY;
+  }
   g_ao_chns[AoChn].status = CHN_STATUS_OPEN;
   g_ao_mtx.unlock();
   return RK_ERR_SYS_OK;
@@ -2611,7 +2615,10 @@ RK_S32 RK_MPI_AENC_CreateChn(AENC_CHN AencChn, const AENC_CHN_ATTR_S *pstAttr) {
   param = easymedia::JoinFlowParam(param, 1, enc_param);
   g_aenc_chns[AencChn].rkmedia_flow = easymedia::REFLECTOR(
       Flow)::Create<easymedia::Flow>(flow_name.c_str(), param.c_str());
-
+  if (!g_aenc_chns[AencChn].rkmedia_flow) {
+    g_aenc_mtx.unlock();
+    return -RK_ERR_AENC_BUSY;
+  }
   g_aenc_chns[AencChn].rkmedia_flow->SetOutputCallBack(&g_aenc_chns[AencChn],
                                                        FlowOutputCallback);
 
@@ -2694,6 +2701,10 @@ RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn,
   LOGD("#MoveDetection flow param:\n%s\n", flow_param.c_str());
   g_algo_md_chns[MdChn].rkmedia_flow = easymedia::REFLECTOR(
       Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
+  if (!g_algo_md_chns[MdChn].rkmedia_flow) {
+    g_algo_md_mtx.unlock();
+    return -RK_ERR_ALGO_MD_BUSY;
+  }
   g_algo_md_chns[MdChn].status = CHN_STATUS_OPEN;
 
   g_algo_md_mtx.unlock();
@@ -2788,9 +2799,8 @@ RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn,
   g_algo_od_chns[OdChn].rkmedia_flow = easymedia::REFLECTOR(
       Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
   if (!g_algo_od_chns[OdChn].rkmedia_flow) {
-    LOG("ERROR: OD: Create flow %s failed!\n", flow_name.c_str());
     g_algo_od_mtx.unlock();
-    return -RK_ERR_ALGO_OD_NOT_CONFIG;
+    return -RK_ERR_ALGO_OD_BUSY;
   }
 
   g_algo_od_chns[OdChn].status = CHN_STATUS_OPEN;
@@ -2885,9 +2895,13 @@ RK_S32 RK_MPI_RGA_CreateChn(RGA_CHN RgaChn, RGA_ATTR_S *pstRgaAttr) {
                       easymedia::TwoImageRectToString(rect_vect).c_str());
   PARAM_STRING_APPEND_TO(filter_param, KEY_BUFFER_ROTATE, u16Rotaion);
   flow_param = easymedia::JoinFlowParam(flow_param, 1, filter_param);
-  LOG("\n#Rkrga Filter flow param:\n%s\n", flow_param.c_str());
+  LOGD("\n#Rkrga Filter flow param:\n%s\n", flow_param.c_str());
   g_rga_chns[RgaChn].rkmedia_flow = easymedia::REFLECTOR(
       Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
+  if (!g_rga_chns[RgaChn].rkmedia_flow) {
+    g_rga_mtx.unlock();
+    return -RK_ERR_RGA_BUSY;
+  }
   g_rga_chns[RgaChn].rkmedia_flow->SetOutputCallBack(&g_rga_chns[RgaChn],
                                                      FlowOutputCallback);
   g_rga_chns[RgaChn].status = CHN_STATUS_OPEN;
@@ -2972,7 +2986,13 @@ RK_S32 RK_MPI_ADEC_CreateChn(ADEC_CHN AdecChn, const ADEC_CHN_ATTR_S *pstAttr) {
   flow_param = easymedia::JoinFlowParam(flow_param, 1, dec_param);
   g_adec_chns[AdecChn].rkmedia_flow = easymedia::REFLECTOR(
       Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
+  if (!g_adec_chns[AdecChn].rkmedia_flow) {
+    g_adec_mtx.unlock();
+    return -RK_ERR_ADEC_BUSY;
+  }
 
+  g_adec_chns[AdecChn].rkmedia_flow->SetOutputCallBack(&g_adec_chns[AdecChn],
+                                                       FlowOutputCallback);
   g_adec_chns[AdecChn].status = CHN_STATUS_OPEN;
   g_adec_mtx.unlock();
   return RK_ERR_SYS_OK;
@@ -3034,12 +3054,12 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
   PARAM_STRING_APPEND(stream_param, KEY_OUTPUTDATATYPE,
                       ImageTypeToString(pstAttr->enImgType));
   flow_param = easymedia::JoinFlowParam(flow_param, 1, stream_param);
-  printf("\n#DrmDisplay:\n%s\n", flow_param.c_str());
+  LOGD("\n#DrmDisplay flow params:\n%s\n", flow_param.c_str());
   g_vo_chns[VoChn].rkmedia_flow = easymedia::REFLECTOR(
       Flow)::Create<easymedia::Flow>(flow_name.c_str(), flow_param.c_str());
   if (!g_vo_chns[VoChn].rkmedia_flow) {
-    LOG("ERROR: VO: Create flow %s failed\n", flow_name.c_str());
-    ret = -RK_ERR_VO_ILLEGAL_PARAM;
+    g_vo_mtx.unlock();
+    return -RK_ERR_VO_BUSY;
   }
   g_vo_chns[VoChn].status = CHN_STATUS_OPEN;
   g_vo_mtx.unlock();
