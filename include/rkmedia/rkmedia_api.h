@@ -22,8 +22,7 @@ extern "C" {
 #include "rkmedia_vo.h"
 
 // Platform resource number configuration
-#define VI_MAX_DEV_NUM 4
-#define VI_MAX_CHN_NUM VI_MAX_DEV_NUM
+#define VI_MAX_CHN_NUM 8
 #define VENC_MAX_CHN_NUM 16
 #define AI_MAX_CHN_NUM 1
 #define AO_MAX_CHN_NUM 1

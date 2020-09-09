@@ -186,6 +186,15 @@ target_include_directories(rkmedia_isp_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_isp_test RUNTIME DESTINATION "bin")
 endif()
 
+#--------------------------
+#  rkmedia_vi_double_cameras_test
+#--------------------------
+add_executable(rkmedia_vi_double_cameras_test rkmedia_vi_double_cameras_test.c)
+add_dependencies(rkmedia_vi_double_cameras_test easymedia)
+target_link_libraries(rkmedia_vi_double_cameras_test easymedia)
+target_include_directories(rkmedia_vi_double_cameras_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_vi_double_cameras_test RUNTIME DESTINATION "bin")
+
 option(COMPILES_UINT_TEST "Enable unit tests" OFF)
 if(COMPILES_UINT_TEST)
   add_subdirectory(uintTest)
