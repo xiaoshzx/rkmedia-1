@@ -393,7 +393,7 @@ MPP_RET mpi_enc_gen_ref_cfg(MppEncRefCfg ref, RK_S32 gop_mode,
     // P0-------------------> P1                         /
     //  |---------------------------------------------> P2
     //  |------------------------------------------------------------------------> PN
-
+    int pos = 0;
     lt_cnt = 1;
     st_cnt = 3;
     /* set gop_len frame lt-ref gap */
@@ -405,24 +405,29 @@ MPP_RET mpi_enc_gen_ref_cfg(MppEncRefCfg ref, RK_S32 gop_mode,
 
     /* set smartp st-ref struct */
     /* st 0 layer 0 - ref */
-    st_ref[0].is_non_ref    = 0;
-    st_ref[0].temporal_id   = 0;
-    st_ref[0].ref_mode      = REF_TO_PREV_INTRA;
-    st_ref[0].ref_arg       = 0;
-    st_ref[0].repeat        = 0;
+    st_ref[pos].is_non_ref    = 0;
+    st_ref[pos].temporal_id   = 0;
+    st_ref[pos].ref_mode      = REF_TO_PREV_INTRA;
+    st_ref[pos].ref_arg       = 0;
+    st_ref[pos].repeat        = 0;
+    pos++;
 
     /* st 1 layer 1 - non-ref */
-    st_ref[1].is_non_ref    = 0;
-    st_ref[1].temporal_id   = 1;
-    st_ref[1].ref_mode      = REF_TO_PREV_REF_FRM;
-    st_ref[1].ref_arg       = 0;
-    st_ref[1].repeat        = vi_len - 2;
+    if (vi_len > 1) {
+      st_ref[pos].is_non_ref    = 0;
+      st_ref[pos].temporal_id   = 1;
+      st_ref[pos].ref_mode      = REF_TO_PREV_REF_FRM;
+      st_ref[pos].ref_arg       = 0;
+      st_ref[pos].repeat        = (vi_len > 2) ? (vi_len - 2) : 0;
+      pos++;
+    }
+
     /* st 2 layer 0 - ref */
-    st_ref[2].is_non_ref    = 0;
-    st_ref[2].temporal_id   = 0;
-    st_ref[2].ref_mode      = REF_TO_PREV_INTRA;
-    st_ref[2].ref_arg       = 0;
-    st_ref[2].repeat        = 0;
+    st_ref[pos].is_non_ref    = 0;
+    st_ref[pos].temporal_id   = 0;
+    st_ref[pos].ref_mode      = REF_TO_PREV_INTRA;
+    st_ref[pos].ref_arg       = 0;
+    st_ref[pos].repeat        = 0;
   } break;
   default : {
     LOG("ERROR: MPP: unsupport gop mode %d\n", gop_mode);
