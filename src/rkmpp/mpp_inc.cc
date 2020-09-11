@@ -132,7 +132,8 @@ MppEncRcQuality GetMPPRCQuality(const char *quality) {
 
 static const MppEncRcMode mpp_rc_modes[] = {MPP_ENC_RC_MODE_VBR,
                                             MPP_ENC_RC_MODE_CBR,
-                                            MPP_ENC_RC_MODE_FIXQP};
+                                            MPP_ENC_RC_MODE_FIXQP,
+                                            MPP_ENC_RC_MODE_AVBR};
 
 MppEncRcMode GetMPPRCMode(const char *rc_mode) {
   static_assert(ARRAY_ELEMS(rc_mode_strings) == ARRAY_ELEMS(mpp_rc_modes),

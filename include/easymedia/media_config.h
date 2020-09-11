@@ -142,7 +142,7 @@ typedef struct {
 
 namespace easymedia {
 extern const char *rc_quality_strings[7];
-extern const char *rc_mode_strings[3];
+extern const char *rc_mode_strings[4];
 const char *ConvertRcQuality(const std::string &s);
 const char *ConvertRcMode(const std::string &s);
 bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
@@ -162,7 +162,7 @@ _API int video_encoder_set_bps (std::shared_ptr<Flow> &enc_flow,
 //   KEY_WORST/KEY_WORSE/KEY_MEDIUM/KEY_BETTER/KEY_BEST
 _API int video_encoder_set_rc_quality(std::shared_ptr<Flow> &enc_flow,
   const char *rc_quality);
-// rc_mode Ranges:KEY_VBR/KEY_CBR
+// rc_mode Ranges:KEY_VBR/KEY_CBR/KEY_AVBR
 _API int video_encoder_set_rc_mode(std::shared_ptr<Flow> &enc_flow,
   const char *rc_mode);
 _API int video_encoder_set_qp(std::shared_ptr<Flow> &enc_flow,

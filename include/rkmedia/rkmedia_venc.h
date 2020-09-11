@@ -27,12 +27,14 @@ typedef enum rkVENC_RC_MODE_E {
   // H264
   VENC_RC_MODE_H264CBR = 1,
   VENC_RC_MODE_H264VBR,
+  VENC_RC_MODE_H264AVBR,
   // MJPEG
   VENC_RC_MODE_MJPEGCBR,
   VENC_RC_MODE_MJPEGVBR,
   // H265
   VENC_RC_MODE_H265CBR,
   VENC_RC_MODE_H265VBR,
+  VENC_RC_MODE_H265AVBR,
   VENC_RC_MODE_BUTT,
 } VENC_RC_MODE_E;
 
@@ -69,6 +71,16 @@ typedef struct rkVENC_H264_VBR_S {
   RK_U32 u32MaxBitRate; // RW; Range:[2, 614400];the max bitrate
 } VENC_H264_VBR_S;
 
+/* the attribute of h264e vbr*/
+typedef struct rkVENC_H264_AVBR_S {
+  RK_U32 u32Gop; // RW; Range:[1, 65536]; the interval of ISLICE.
+  RK_U32 u32SrcFrameRateNum;
+  RK_U32 u32SrcFrameRateDen;
+  RK_FR32 fr32DstFrameRateNum;
+  RK_FR32 fr32DstFrameRateDen;
+  RK_U32 u32MaxBitRate; // RW; Range:[2, 614400];the max bitrate
+} VENC_H264_AVBR_S;
+
 /* the attribute of mjpege cbr*/
 typedef struct hiVENC_MJPEG_CBR_S {
   RK_U32 u32SrcFrameRateNum;
@@ -89,6 +101,7 @@ typedef struct hiVENC_MJPEG_VBR_S {
 
 typedef struct rkVENC_H264_CBR_S VENC_H265_CBR_S;
 typedef struct rkVENC_H264_VBR_S VENC_H265_VBR_S;
+typedef struct rkVENC_H264_AVBR_S VENC_H265_AVBR_S;
 
 /* the attribute of rc*/
 typedef struct rkVENC_RC_ATTR_S {
@@ -97,12 +110,14 @@ typedef struct rkVENC_RC_ATTR_S {
   union {
     VENC_H264_CBR_S stH264Cbr;
     VENC_H264_VBR_S stH264Vbr;
+    VENC_H264_AVBR_S stH264Avbr;
 
     VENC_MJPEG_CBR_S stMjpegCbr;
     VENC_MJPEG_VBR_S stMjpegVbr;
 
     VENC_H265_CBR_S stH265Cbr;
     VENC_H265_VBR_S stH265Vbr;
+    VENC_H265_AVBR_S stH265Avbr;
   };
 } VENC_RC_ATTR_S;
 

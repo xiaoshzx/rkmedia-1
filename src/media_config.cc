@@ -17,7 +17,7 @@ namespace easymedia {
 const char *rc_quality_strings[7] = {KEY_LOWEST,  KEY_LOWER, KEY_LOW,
   KEY_MEDIUM, KEY_HIGH, KEY_HIGHER, KEY_HIGHEST};
 
-const char *rc_mode_strings[3] = {KEY_VBR, KEY_CBR, KEY_FIXQP};
+const char *rc_mode_strings[4] = {KEY_VBR, KEY_CBR, KEY_FIXQP, KEY_AVBR};
 
 static const char *convert2constchar(const std::string &s, const char *array[],
                                      size_t array_len) {
@@ -334,9 +334,10 @@ std::string get_video_encoder_config_string (
   }
 
   if (cfg.rc_mode && strcmp(cfg.rc_mode, KEY_VBR) &&
-    strcmp(cfg.rc_mode, KEY_CBR)) {
-    LOG("ERROR: %s rc_mode is invalid! should be KEY_VBR/KEY_VBR\n",
-      __func__);
+    strcmp(cfg.rc_mode, KEY_CBR) &&
+    strcmp(cfg.rc_mode, KEY_AVBR) &&
+    strcmp(cfg.rc_mode, KEY_FIXQP)) {
+    LOG("ERROR: %s rc_mode(%s) is invalid!\n", __func__, cfg.rc_mode);
     return NULL;
   }
 
@@ -433,9 +434,9 @@ int video_encoder_set_rc_mode(
   if (!enc_flow || !rc_mode)
     return -EINVAL;
 
-  if (strcmp(rc_mode, KEY_VBR) && strcmp(rc_mode, KEY_CBR)) {
-    LOG("ERROR: %s rc_mode is invalid! should be KEY_VBR/KEY_VBR\n",
-      __func__);
+  if (strcmp(rc_mode, KEY_VBR) && strcmp(rc_mode, KEY_CBR) &&
+      strcmp(rc_mode, KEY_AVBR) && strcmp(rc_mode, KEY_FIXQP)) {
+    LOG("ERROR: %s rc_mode(%s) is invalid!\n", __func__, rc_mode);
     return -EINVAL;
   }
 

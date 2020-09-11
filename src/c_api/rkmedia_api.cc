@@ -1417,6 +1417,28 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
             stVencChnAttr->stRcAttr.stH264Vbr.fr32DstFrameRateDen));
     PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
     break;
+  case VENC_RC_MODE_H264AVBR:
+    PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_AVBR);
+    PARAM_STRING_APPEND_TO(enc_param, KEY_VIDEO_GOP,
+                           stVencChnAttr->stRcAttr.stH264Avbr.u32Gop);
+    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX,
+                           stVencChnAttr->stRcAttr.stH264Avbr.u32MaxBitRate);
+    str_fps_in
+        .append(std::to_string(
+            stVencChnAttr->stRcAttr.stH264Avbr.u32SrcFrameRateNum))
+        .append("/")
+        .append(std::to_string(
+            stVencChnAttr->stRcAttr.stH264Avbr.u32SrcFrameRateDen));
+    PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps_in);
+
+    str_fps
+        .append(std::to_string(
+            stVencChnAttr->stRcAttr.stH264Vbr.fr32DstFrameRateNum))
+        .append("/")
+        .append(std::to_string(
+            stVencChnAttr->stRcAttr.stH264Vbr.fr32DstFrameRateDen));
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
+    break;
   case VENC_RC_MODE_H265CBR:
     PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_CBR);
     PARAM_STRING_APPEND_TO(enc_param, KEY_VIDEO_GOP,
@@ -1462,6 +1484,29 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
             stVencChnAttr->stRcAttr.stH265Vbr.fr32DstFrameRateDen));
     PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
     break;
+  case VENC_RC_MODE_H265AVBR:
+    PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_AVBR);
+    PARAM_STRING_APPEND_TO(enc_param, KEY_VIDEO_GOP,
+                           stVencChnAttr->stRcAttr.stH265Avbr.u32Gop);
+    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX,
+                           stVencChnAttr->stRcAttr.stH265Avbr.u32MaxBitRate);
+
+    str_fps_in
+        .append(std::to_string(
+            stVencChnAttr->stRcAttr.stH265Avbr.u32SrcFrameRateNum))
+        .append("/")
+        .append(std::to_string(
+            stVencChnAttr->stRcAttr.stH265Avbr.u32SrcFrameRateDen));
+    PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps_in);
+
+    str_fps
+        .append(std::to_string(
+            stVencChnAttr->stRcAttr.stH265Avbr.fr32DstFrameRateNum))
+        .append("/")
+        .append(std::to_string(
+            stVencChnAttr->stRcAttr.stH265Avbr.fr32DstFrameRateDen));
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
+    break;
   case VENC_RC_MODE_MJPEGCBR:
     PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_CBR);
     PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE,
@@ -1497,6 +1542,8 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
     g_venc_mtx.unlock();
     return -RK_ERR_VENC_BUSY;
   }
+  // easymedia::video_encoder_enable_statistics(g_venc_chns[VeChn].rkmedia_flow,
+  // 1);
   g_venc_chns[VeChn].rkmedia_flow->SetOutputCallBack(&g_venc_chns[VeChn],
                                                      FlowOutputCallback);
   g_venc_chns[VeChn].status = CHN_STATUS_OPEN;

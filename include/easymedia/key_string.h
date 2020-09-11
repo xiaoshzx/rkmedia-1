@@ -74,6 +74,7 @@
 #define KEY_FIXQP "fixqp"
 #define KEY_VBR "vbr"
 #define KEY_CBR "cbr"
+#define KEY_AVBR "avbr"
 
 #define KEY_REF_FRM_CFG "reference_frame_config"
 

@@ -63,18 +63,21 @@ static int CalcMppBpsWithMax(MppEncRcMode rc_mode,
   LOG("MPP Encoder: automatically calculate bsp with bps_max\n");
   switch (rc_mode) {
   case MPP_ENC_RC_MODE_CBR:
-    // constant bitrate has very small bps range of 1/16 bps
-    bps_target = bps_max * 16 / 17;
-    bps_min = bps_max * 15 / 17;
+    bps_target = bps_max * 9 / 10;
+    bps_min = bps_max * 8 / 10;
     break;
   case MPP_ENC_RC_MODE_VBR:
     // variable bitrate has large bps range
-    bps_target = bps_max * 16 / 17;
-    bps_min = bps_max * 1 / 17;
+    bps_target = bps_max * 9 / 10;
+    bps_min = bps_max * 1 / 4;
     break;
   case MPP_ENC_RC_MODE_FIXQP:
     bps_target = bps_min = bps_max;
     return 0; // FIXQP mode bps is invalid!
+  case MPP_ENC_RC_MODE_AVBR:
+    bps_target = bps_max * 9 / 10;
+    bps_min = bps_max * 1 / 4;
+    break;
   default:
     LOG("ERROR: MPP Encoder: rc_mode=%d is invalid!\n", rc_mode);
     return -1;
@@ -101,17 +104,22 @@ static int CalcMppBpsWithTarget(MppEncRcMode rc_mode,
   switch (rc_mode) {
   case MPP_ENC_RC_MODE_CBR:
     // constant bitrate has very small bps range of 1/16 bps
-    bps_max = bps_target * 17 / 16;
-    bps_min = bps_target * 15 / 16;
+    bps_max = bps_target * 10 / 9;
+    bps_min = bps_target * 10 / 8;
     break;
   case MPP_ENC_RC_MODE_VBR:
     // variable bitrate has large bps range
-    bps_max = bps_target * 17 / 16;
-    bps_min = bps_target * 1 / 16;
+    bps_max = bps_target * 10 / 9;
+    bps_min = bps_target * 10 / 36; // bsp_max * 1/4
     break;
   case MPP_ENC_RC_MODE_FIXQP:
     bps_target = bps_min = bps_max;
     return 0; // FIXQP mode bps is invalid!
+  case MPP_ENC_RC_MODE_AVBR:
+    // variable bitrate has large bps range
+    bps_max = bps_target * 10 / 9;
+    bps_min = bps_target * 10 / 36; // bsp_max * 1/4
+    break;
   default:
     LOG("ERROR: MPP Encoder: rc_mode=%d is invalid!\n", rc_mode);
     return -1;
@@ -925,7 +933,7 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
     LOG("MPP Encoder: new rc_mode:%s\n", new_mode);
     MppEncRcMode rc_mode = GetMPPRCMode(new_mode);
     if (rc_mode == MPP_ENC_RC_MODE_BUTT) {
-      LOG("ERROR: MPP Encoder: rc_mode is invalid! should be cbr/vbr.\n");
+      LOG("ERROR: MPP Encoder: rc_mode is invalid! should be cbr/vbr/avbr.\n");
       return false;
     }
 
