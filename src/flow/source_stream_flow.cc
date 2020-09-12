@@ -72,7 +72,7 @@ SourceStreamFlow::~SourceStreamFlow() {
   int stop = 1;
   if (stream && Control(S_STREAM_OFF, &stop))
     LOG("Fail to stop source stream\n");
-  LOGD("\nSourceStreamFlow[%s]: stream off....\n", GetFlowTag());
+  LOG("\n#SourceStreamFlow[%s]: stream off....\n", GetFlowTag());
   if (read_thread) {
     source_start_cond_mtx->lock();
     loop = false;
@@ -81,8 +81,9 @@ SourceStreamFlow::~SourceStreamFlow() {
     read_thread->join();
     delete read_thread;
   }
-  LOGD("\nSourceStreamFlow[%s]: read thread exit sucessfully!\n", GetFlowTag());
+  LOG("\n#SourceStreamFlow[%s]: read thread exit sucessfully!\n", GetFlowTag());
   stream.reset();
+  LOG("\n#SourceStreamFlow[%s]: stream reset sucessfully!\n", GetFlowTag());
 }
 
 void SourceStreamFlow::ReadThreadRun() {

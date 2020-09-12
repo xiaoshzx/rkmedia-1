@@ -25,15 +25,16 @@ V4L2Context::V4L2Context(enum v4l2_buf_type cap_type, v4l2_io io_func,
   const char *dev = device.c_str();
   fd = v4l2_open(dev, O_RDWR | O_CLOEXEC, 0);
   if (fd < 0)
-    LOG("open %s failed %m\n", dev);
-  LOG("open %s, fd %d\n", dev, fd);
+    LOG("ERROR: V4L2-CTX: open %s failed %m\n", dev);
+  else
+    LOG("#V4L2Ctx: open %s, fd %d\n", dev, fd);
 }
 
 V4L2Context::~V4L2Context() {
   if (fd >= 0) {
     SetStarted(false);
     v4l2_close(fd);
-    LOGD("close %s, fd %d\n", path.c_str(), fd);
+    LOG("#V4L2Ctx: close %s, fd %d\n", path.c_str(), fd);
   }
 }
 
@@ -253,6 +254,7 @@ int V4L2Stream::Close() {
   if (v4l2_ctx) {
     v4l2_ctx->SetStarted(false);
     v4l2_ctx = nullptr; // release reference
+    LOG("\n#V4L2Stream: v4l2 ctx reset to nullptr!\n");
   }
   fd = -1;
   return 0;

@@ -24,6 +24,8 @@
 
 using namespace easymedia;
 
+#define LOG_TAG "RKMEDIA:"
+
 typedef enum rkCHN_STATUS {
   CHN_STATUS_CLOSED,
   CHN_STATUS_READY, // params is confirmed.
@@ -249,6 +251,13 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
   RkmediaChannel *src_chn = NULL;
   RkmediaChannel *dst_chn = NULL;
 
+  if (!pstSrcChn || !pstDestChn)
+    return -RK_ERR_SYS_ILLEGAL_PARAM;
+
+  LOG("\n%s %s: Bind Mode[%d]:Chn[%d] to Mode[%d]:Chn[%d]...\n",
+      LOG_TAG, __func__, pstSrcChn->enModId, pstSrcChn->s32ChnId,
+      pstDestChn->enModId, pstDestChn->s32ChnId);
+
   switch (pstSrcChn->enModId) {
   case RK_ID_VI:
     src = g_vi_chns[pstSrcChn->s32ChnId].rkmedia_flow;
@@ -351,6 +360,10 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
   std::shared_ptr<easymedia::Flow> sink;
   RkmediaChannel *src_chn = NULL;
   RkmediaChannel *dst_chn = NULL;
+
+  LOG("\n%s %s: UnBind Mode[%d]:Chn[%d] to Mode[%d]:Chn[%d]...\n",
+      LOG_TAG, __func__, pstSrcChn->enModId, pstSrcChn->s32ChnId,
+      pstDestChn->enModId, pstDestChn->s32ChnId);
 
   switch (pstSrcChn->enModId) {
   case RK_ID_VI:
@@ -849,6 +862,12 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
                                                         : -RK_ERR_VI_NOT_CONFIG;
   }
 
+  LOG("\n%s %s: Enable VI[%d:%d]:%s, %dx%d Start...\n",
+      LOG_TAG, __func__, ViPipe, ViChn,
+      g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
+      g_vi_chns[ViChn].vi_attr.attr.u32Width,
+      g_vi_chns[ViChn].vi_attr.attr.u32Height);
+
   // Reading yuv from camera
   std::string flow_name = "source_stream";
   std::string flow_param;
@@ -893,8 +912,13 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   g_vi_chns[ViChn].rkmedia_flow->SetOutputCallBack(&g_vi_chns[ViChn],
                                                    FlowOutputCallback);
   g_vi_chns[ViChn].status = CHN_STATUS_OPEN;
-
   g_vi_mtx.unlock();
+  LOG("\n%s %s: Enable VI[%d:%d]:%s, %dx%d End...\n",
+      LOG_TAG, __func__, ViPipe, ViChn,
+      g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
+      g_vi_chns[ViChn].vi_attr.attr.u32Width,
+      g_vi_chns[ViChn].vi_attr.attr.u32Height);
+
   return RK_ERR_SYS_OK;
 }
 
@@ -908,6 +932,11 @@ RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
     return -RK_ERR_SYS_NOT_PERM;
   }
 
+  LOG("\n%s %s: Disable VI[%d:%d]:%s, %dx%d Start...\n",
+      LOG_TAG, __func__, ViPipe, ViChn,
+      g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
+      g_vi_chns[ViChn].vi_attr.attr.u32Width,
+      g_vi_chns[ViChn].vi_attr.attr.u32Height);
   RkmediaChnClearBuffer(&g_vi_chns[ViChn]);
   g_vi_chns[ViChn].status = CHN_STATUS_CLOSED;
   g_vi_chns[ViChn].luma_buf_mtx.lock();
@@ -916,7 +945,18 @@ RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   g_vi_chns[ViChn].luma_buf_mtx.unlock();
   // VI flow Should be released last
   g_vi_chns[ViChn].rkmedia_flow.reset();
+  if (!g_vi_chns[ViChn].buffer_list.empty()) {
+    LOG("\n%s %s: clear buffer list again...\n",
+        LOG_TAG, __func__);
+    RkmediaChnClearBuffer(&g_vi_chns[ViChn]);
+  }
   g_vi_mtx.unlock();
+
+  LOG("\n%s %s: Disable VI[%d:%d]:%s, %dx%d End...\n",
+      LOG_TAG, __func__, ViPipe, ViChn,
+      g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
+      g_vi_chns[ViChn].vi_attr.attr.u32Width,
+      g_vi_chns[ViChn].vi_attr.attr.u32Height);
 
   return RK_ERR_SYS_OK;
 }
@@ -1333,6 +1373,9 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
     stVencChnAttr->stVencAttr.enRotation = VENC_ROTATION_0;
   }
 
+  LOG("\n%s %s: Enable VENC[%d], Type:%d Start...\n",
+      LOG_TAG, __func__, VeChn, stVencChnAttr->stVencAttr.enType);
+
   // save venc_attr to venc chn.
   memcpy(&g_venc_chns[VeChn].venc_attr, stVencChnAttr, sizeof(RkmediaVencAttr));
 
@@ -1340,6 +1383,8 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
       (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG)) {
     RK_S32 ret = RkmediaCreateJpegSnapPipeline(&g_venc_chns[VeChn]);
     g_venc_mtx.unlock();
+    LOG("\n%s %s: Enable VENC[%d], Type:%d End...\n",
+        LOG_TAG, __func__, VeChn, stVencChnAttr->stVencAttr.enType);
     return ret;
   }
 
@@ -1547,8 +1592,10 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   g_venc_chns[VeChn].rkmedia_flow->SetOutputCallBack(&g_venc_chns[VeChn],
                                                      FlowOutputCallback);
   g_venc_chns[VeChn].status = CHN_STATUS_OPEN;
-
   g_venc_mtx.unlock();
+  LOG("\n%s %s: Enable VENC[%d], Type:%d End...\n",
+      LOG_TAG, __func__, VeChn, stVencChnAttr->stVencAttr.enType);
+
   return RK_ERR_SYS_OK;
 }
 
@@ -1813,9 +1860,7 @@ RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn) {
     g_venc_mtx.unlock();
     return -RK_ERR_VENC_BUSY;
   }
-
-  RkmediaChnClearBuffer(&g_venc_chns[VeChn]);
-
+  LOG("\n%s %s: Disable VENC[%d] Start...\n", LOG_TAG, __func__, VeChn);
   if (g_venc_chns[VeChn].rkmedia_flow) {
     if (!g_venc_chns[VeChn].rkmedia_flow_list.empty()) {
       auto ptrRkmediaFlow = g_venc_chns[VeChn].rkmedia_flow_list.front();
@@ -1833,9 +1878,10 @@ RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn) {
     }
     ptrRkmediaFlow0.reset();
   }
-
+  RkmediaChnClearBuffer(&g_venc_chns[VeChn]);
   g_venc_chns[VeChn].status = CHN_STATUS_CLOSED;
   g_venc_mtx.unlock();
+  LOG("\n%s %s: Disable VENC[%d] End...\n", LOG_TAG, __func__, VeChn);
 
   return RK_ERR_SYS_OK;
 }
@@ -2274,8 +2320,8 @@ RK_S32 RK_MPI_AI_DisableChn(AI_CHN AiChn) {
     return -RK_ERR_AI_BUSY;
   }
 
-  RkmediaChnClearBuffer(&g_ai_chns[AiChn]);
   g_ai_chns[AiChn].rkmedia_flow.reset();
+  RkmediaChnClearBuffer(&g_ai_chns[AiChn]);
   g_ai_chns[AiChn].status = CHN_STATUS_CLOSED;
   g_ai_mtx.unlock();
 
@@ -2480,8 +2526,8 @@ RK_S32 RK_MPI_AO_DisableChn(AO_CHN AoChn) {
     g_ao_mtx.unlock();
     return -RK_ERR_AI_BUSY;
   }
-  RkmediaChnClearBuffer(&g_ao_chns[AoChn]);
   g_ao_chns[AoChn].rkmedia_flow.reset();
+  RkmediaChnClearBuffer(&g_ao_chns[AoChn]);
   g_ao_chns[AoChn].status = CHN_STATUS_CLOSED;
   g_ao_mtx.unlock();
 
@@ -2684,9 +2730,8 @@ RK_S32 RK_MPI_AENC_DestroyChn(AENC_CHN AencChn) {
     return -RK_ERR_AENC_BUSY;
   }
 
-  RkmediaChnClearBuffer(&g_aenc_chns[AencChn]);
-
   g_aenc_chns[AencChn].rkmedia_flow.reset();
+  RkmediaChnClearBuffer(&g_aenc_chns[AencChn]);
   g_aenc_chns[AencChn].status = CHN_STATUS_CLOSED;
   g_aenc_mtx.unlock();
 
@@ -2883,6 +2928,11 @@ RK_S32 RK_MPI_RGA_CreateChn(RGA_CHN RgaChn, RGA_ATTR_S *pstRgaAttr) {
   if (!pstRgaAttr)
     return -RK_ERR_RGA_ILLEGAL_PARAM;
 
+  LOG("\n%s %s: Enable RGA[%d], Rect<%d,%d,%d,%d> Start...\n",
+      LOG_TAG, __func__, RgaChn, pstRgaAttr->stImgIn.u32X,
+      pstRgaAttr->stImgIn.u32Y, pstRgaAttr->stImgIn.u32Width,
+      pstRgaAttr->stImgIn.u32Height);
+
   RK_U32 u32InX = pstRgaAttr->stImgIn.u32X;
   RK_U32 u32InY = pstRgaAttr->stImgIn.u32Y;
   RK_U32 u32InWidth = pstRgaAttr->stImgIn.u32Width;
@@ -2952,8 +3002,12 @@ RK_S32 RK_MPI_RGA_CreateChn(RGA_CHN RgaChn, RGA_ATTR_S *pstRgaAttr) {
   g_rga_chns[RgaChn].rkmedia_flow->SetOutputCallBack(&g_rga_chns[RgaChn],
                                                      FlowOutputCallback);
   g_rga_chns[RgaChn].status = CHN_STATUS_OPEN;
-
   g_rga_mtx.unlock();
+  LOG("\n%s %s: Enable RGA[%d], Rect<%d,%d,%d,%d> End...\n",
+      LOG_TAG, __func__, RgaChn, pstRgaAttr->stImgIn.u32X,
+      pstRgaAttr->stImgIn.u32Y, pstRgaAttr->stImgIn.u32Width,
+      pstRgaAttr->stImgIn.u32Height);
+
   return RK_ERR_SYS_OK;
 }
 
@@ -2966,10 +3020,11 @@ RK_S32 RK_MPI_RGA_DestroyChn(RGA_CHN RgaChn) {
     g_rga_mtx.unlock();
     return -RK_ERR_RGA_BUSY;
   }
-
+  LOG("\n%s %s: Disable RGA[%d] Start...\n", LOG_TAG, __func__, RgaChn);
   g_rga_chns[RgaChn].rkmedia_flow.reset();
   g_rga_chns[RgaChn].status = CHN_STATUS_CLOSED;
   g_rga_mtx.unlock();
+  LOG("\n%s %s: Disable RGA[%d] End...\n", LOG_TAG, __func__, RgaChn);
 
   return RK_ERR_SYS_OK;
 }
@@ -3055,9 +3110,8 @@ RK_S32 RK_MPI_ADEC_DestroyChn(ADEC_CHN AdecChn) {
     return -RK_ERR_ADEC_BUSY;
   }
 
-  RkmediaChnClearBuffer(&g_adec_chns[AdecChn]);
-
   g_adec_chns[AdecChn].rkmedia_flow.reset();
+  RkmediaChnClearBuffer(&g_adec_chns[AdecChn]);
   g_adec_chns[AdecChn].status = CHN_STATUS_CLOSED;
   g_adec_mtx.unlock();
 
