@@ -164,7 +164,7 @@ _CAPI RK_S32 RK_MPI_AENC_DestroyChn(AENC_CHN AencChn);
 _CAPI RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn,
                                       const ALGO_MD_ATTR_S *pstChnAttr);
 _CAPI RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn);
-
+_CAPI RK_S32 RK_MPI_ALGO_MD_EnableSwitch(ALGO_MD_CHN MdChn, RK_BOOL bEnable);
 /********************************************************************
  * Algorithm::Occlusion Detection api
  ********************************************************************/

@@ -2820,6 +2820,24 @@ RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn) {
   return RK_ERR_SYS_OK;
 }
 
+RK_S32 RK_MPI_ALGO_MD_EnableSwitch(ALGO_MD_CHN MdChn, RK_BOOL bEnable) {
+  if ((MdChn < 0) || (MdChn > ALGO_MD_MAX_CHN_NUM))
+    return -RK_ERR_ALGO_MD_INVALID_CHNID;
+
+  g_algo_md_mtx.lock();
+  if (g_algo_md_chns[MdChn].status < CHN_STATUS_OPEN) {
+    g_algo_md_mtx.unlock();
+    return -RK_ERR_ALGO_MD_INVALID_CHNID;
+  }
+  RK_S32 s32Enable = bEnable ? 1 : 0;
+  LOG("\n%s %s: MoveDetection[%d]:set status to %s.\n",
+    LOG_TAG, __func__, MdChn, s32Enable ? "Enable" : "Disable");
+  if (g_algo_md_chns[MdChn].rkmedia_flow)
+    g_algo_md_chns[MdChn].rkmedia_flow->Control(easymedia::S_MD_ROI_ENABLE, s32Enable);
+  g_algo_md_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
 /********************************************************************
  * Algorithm::Occlusion Detection api
  ********************************************************************/

@@ -104,6 +104,22 @@ int main() {
   printf("%s initial finish\n", __func__);
   signal(SIGINT, sigterm_handler);
 
+  printf("Keep MoveDetection enable for 5s...\n");
+  sleep(5);
+  printf("Keep MoveDetection disable for 5s...\n");
+  ret = RK_MPI_ALGO_MD_EnableSwitch(0, RK_FALSE);
+  if (ret) {
+    printf("ERROR: Disable MD failed!\n");
+    exit(0);
+  }
+  sleep(5);
+  printf("Reset MoveDetection to enable...\n");
+  ret = RK_MPI_ALGO_MD_EnableSwitch(0, RK_TRUE);
+  if (ret) {
+    printf("ERROR: Enable MD failed!\n");
+    exit(0);
+  }
+
   while (!quit) {
     usleep(100);
   }

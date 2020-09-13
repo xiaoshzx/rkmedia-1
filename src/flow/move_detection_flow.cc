@@ -377,7 +377,7 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
     if (move_detection_set_sensitivity(md_ctx, Sensitivity))
       LOG("ERROR: MD: cfg sensitivity(%d) failed!\n", Sensitivity);
     else
-      LOG("OD: init ctx with sensitivity(%d)...\n", Sensitivity);
+      LOG("MD: init ctx with sensitivity(%d)...\n", Sensitivity);
   }
 
   SlotMap sm;
