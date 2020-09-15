@@ -810,10 +810,19 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
     mpp_enc_ref_cfg_deinit(&ref);
   }
 
+  // ALL IDR whith (VPS)/SPS/PPS
   int header_mode = MPP_ENC_HEADER_MODE_EACH_IDR;
   ret = mpp_enc.EncodeControl(MPP_ENC_SET_HEADER_MODE, &header_mode);
   if (ret) {
     LOG("ERROR: MPP Encoder: set heder mode failed ret %d\n", ret);
+    return false;
+  }
+
+  // Disable RockChip self sei info
+  MppEncSeiMode sei_mode = MPP_ENC_SEI_MODE_DISABLE;
+  ret = mpp_enc.EncodeControl(MPP_ENC_SET_SEI_CFG, &sei_mode);
+  if (ret) {
+    LOG("ERROR: MPP Encoder: set sei cfg failed ret %d\n", ret);
     return false;
   }
 
