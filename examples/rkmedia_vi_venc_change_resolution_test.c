@@ -204,10 +204,10 @@ int StreamOn(int width, int height, IMAGE_TYPE_E img_type,
 
     ret = RK_MPI_VI_GetChnRegionLuma(0, luma_chn, &stVideoRgn, u64LumaData, 100);
     if (ret) {
-      printf("ERROR: Venc[%d]:RK_MPI_VI_GetChnRegionLuma ret = %d\n", luma_chn, ret);
+      printf("ERROR: VI[%d]:RK_MPI_VI_GetChnRegionLuma ret = %d\n", luma_chn, ret);
     } else {
-      printf("Venc[%d]:Rect[0] {0, 0, 256, 256} -> luma:%llu\n", luma_chn, u64LumaData[0]);
-      printf("Venc[%d]:Rect[1] {256, 256, 256, 256} -> luma:%llu\n", luma_chn, u64LumaData[1]);
+      printf("VI[%d]:Rect[0] {0, 0, 256, 256} -> luma:%llu\n", luma_chn, u64LumaData[0]);
+      printf("VI[%d]:Rect[1] {256, 256, 256, 256} -> luma:%llu\n", luma_chn, u64LumaData[1]);
     }
     if (loop_cnt < 0)
       break;

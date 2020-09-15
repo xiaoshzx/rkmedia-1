@@ -204,6 +204,15 @@ target_link_libraries(rkmedia_venc_avbr_test easymedia)
 target_include_directories(rkmedia_venc_avbr_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_venc_avbr_test RUNTIME DESTINATION "bin")
 
+#--------------------------
+#  rkmedia_stream_stress_test
+#--------------------------
+add_executable(rkmedia_stream_stress_test rkmedia_stream_stress_test.c ${COMMON_SRC})
+add_dependencies(rkmedia_stream_stress_test easymedia)
+target_link_libraries(rkmedia_stream_stress_test easymedia)
+target_include_directories(rkmedia_stream_stress_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_stream_stress_test RUNTIME DESTINATION "bin")
+
 option(COMPILES_UINT_TEST "Enable unit tests" OFF)
 if(COMPILES_UINT_TEST)
   add_subdirectory(uintTest)
