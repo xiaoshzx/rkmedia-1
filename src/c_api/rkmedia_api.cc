@@ -620,7 +620,8 @@ RK_S32 RK_MPI_SYS_RegisterOutCb(const MPP_CHN_S *pstChn, OutCbFunc cb) {
 
   if (!flow) {
     LOG("ERROR: <ModeID:%d ChnID:%d> fatal error!"
-        "Status does not match the resource\n");
+        "Status does not match the resource\n",
+        pstChn->enModId, pstChn->s32ChnId);
     return -RK_ERR_SYS_NOT_PERM;
   }
 
@@ -1732,6 +1733,7 @@ RK_S32 RK_MPI_VENC_SetRcQuality(VENC_CHN VeChn, VENC_RC_QUALITY_E RcQuality) {
   g_venc_mtx.unlock();
   return RK_ERR_SYS_OK;
 }
+
 RK_S32 RK_MPI_VENC_SetBitrate(VENC_CHN VeChn, RK_U32 u32BitRate,
                               RK_U32 u32MinBitRate, RK_U32 u32MaxBitRate) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
@@ -1740,11 +1742,16 @@ RK_S32 RK_MPI_VENC_SetBitrate(VENC_CHN VeChn, RK_U32 u32BitRate,
     return -RK_ERR_VENC_NOTREADY;
 
   g_venc_mtx.lock();
-  video_encoder_set_bps(g_venc_chns[VeChn].rkmedia_flow, u32BitRate,
-                        u32MinBitRate, u32MaxBitRate);
+  std::shared_ptr<easymedia::Flow> target_flow;
+  if (!g_venc_chns[VeChn].rkmedia_flow_list.empty())
+    target_flow = g_venc_chns[VeChn].rkmedia_flow_list.back();
+  else if (g_venc_chns[VeChn].rkmedia_flow)
+    target_flow = g_venc_chns[VeChn].rkmedia_flow;
+  video_encoder_set_bps(target_flow, u32BitRate, u32MinBitRate, u32MaxBitRate);
   g_venc_mtx.unlock();
   return RK_ERR_SYS_OK;
 }
+
 RK_S32 RK_MPI_VENC_RequestIDR(VENC_CHN VeChn, RK_BOOL bInstant _UNUSED) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
