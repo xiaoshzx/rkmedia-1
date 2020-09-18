@@ -15,6 +15,10 @@ typedef enum rkVI_CHN_WORK_MODE {
   // In this mode, vi has no output,
   // and data cannot be obtained from vi.
   VI_WORK_MODE_LUMA_ONLY,
+  // In this mode, data can still be obtained
+  // through the RK_MPI_SYS_GetMediaBuffer interface
+  // after the VI is bound.
+  VI_WORK_MODE_GOD_MODE,
 } VI_CHN_WORK_MODE;
 
 typedef struct rkVI_CHN_ATTR_S {

@@ -21,6 +21,43 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
+static void *GetMediaBuffer(void *arg) {
+  printf("#Start %s thread, arg:%p\n", __func__, arg);
+  const char *save_path = "/userdata/output.nv12";
+  FILE *save_file = fopen(save_path, "w");
+  if (!save_file)
+    printf("ERROR: Open %s failed!\n", save_path);
+
+  MEDIA_BUFFER mb = NULL;
+  int save_cnt = 0;
+  while (!quit) {
+    mb = RK_MPI_SYS_GetMediaBuffer(RK_ID_VI, 0, -1);
+    if (!mb) {
+      printf("RK_MPI_SYS_GetMediaBuffer get null buffer!\n");
+      break;
+    }
+
+    printf("Get Frame:ptr:%p, fd:%d, size:%zu, mode:%d, channel:%d, "
+           "timestamp:%lld\n",
+           RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb), RK_MPI_MB_GetSize(mb),
+           RK_MPI_MB_GetModeID(mb), RK_MPI_MB_GetChannelID(mb),
+           RK_MPI_MB_GetTimestamp(mb));
+
+    if (save_file && (save_cnt < 3)) {
+      fwrite(RK_MPI_MB_GetPtr(mb), 1, RK_MPI_MB_GetSize(mb), save_file);
+      printf("#Save frame-%d to %s\n", save_cnt, save_path);
+      save_cnt++;
+    }
+
+    RK_MPI_MB_ReleaseBuffer(mb);
+  }
+
+  if (save_file)
+    fclose(save_file);
+
+  return NULL;
+}
+
 void video_packet_cb(MEDIA_BUFFER mb) {
   const char *nalu_type = "Unknow";
   switch (RK_MPI_MB_GetFlag(mb)) {
@@ -43,13 +80,15 @@ int main() {
   int ret = 0;
   RK_MPI_SYS_Init();
 
+  // In VI_WORK_MODE_GOD_MODE mode, data can still be obtained
+  // through the RK_MPI_SYS_GetMediaBuffer interface after the VI is bound.
   VI_CHN_ATTR_S vi_chn_attr;
   vi_chn_attr.pcVideoNode = "rkispp_scale0";
-  vi_chn_attr.u32BufCnt = 4; // should be >= 4
+  vi_chn_attr.u32BufCnt = 5; // should be >= 4
   vi_chn_attr.u32Width = 1920;
   vi_chn_attr.u32Height = 1080;
   vi_chn_attr.enPixFmt = IMAGE_TYPE_NV12;
-  vi_chn_attr.enWorkMode = VI_WORK_MODE_NORMAL;
+  vi_chn_attr.enWorkMode = VI_WORK_MODE_GOD_MODE;
   ret = RK_MPI_VI_SetChnAttr(0, 0, &vi_chn_attr);
   ret |= RK_MPI_VI_EnableChn(0, 0);
   if (ret) {
@@ -77,6 +116,9 @@ int main() {
     printf("ERROR: create VENC[0] error! ret=%d\n", ret);
     return 0;
   }
+
+  pthread_t read_thread;
+  pthread_create(&read_thread, NULL, GetMediaBuffer, NULL);
 
   MPP_CHN_S stEncChn;
   stEncChn.enModId = RK_ID_VENC;

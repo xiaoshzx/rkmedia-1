@@ -50,6 +50,7 @@ typedef ALGO_MD_ATTR_S RkmediaMDAttr;
 typedef ALGO_OD_ATTR_S RkmediaODAttr;
 
 #define RKMEDIA_CHNNAL_BUFFER_LIMIT 3
+#define RKMEDIA_CHNNAL_BUFFER_GOD_MODE_LIMIT 1
 
 typedef struct _RkmediaChannel {
   MOD_ID_E mode_id;
@@ -122,7 +123,15 @@ static int RkmediaChnPushBuffer(RkmediaChannel *ptrChn, MEDIA_BUFFER buffer) {
     return -1;
 
   ptrChn->buffer_mtx.lock();
-  if (ptrChn->buffer_list.size() >= RKMEDIA_CHNNAL_BUFFER_LIMIT) {
+  if ((ptrChn->mode_id == RK_ID_VI) &&
+      (ptrChn->vi_attr.attr.enWorkMode == VI_WORK_MODE_GOD_MODE) &&
+      (ptrChn->buffer_list.size() >= RKMEDIA_CHNNAL_BUFFER_GOD_MODE_LIMIT)) {
+    LOGD("WARN: Mode[%d]:Chn[%d] drop buffer, Please get buffer in time!\n",
+         ptrChn->mode_id, ptrChn->chn_id);
+    MEDIA_BUFFER mb = ptrChn->buffer_list.front();
+    ptrChn->buffer_list.pop_front();
+    RK_MPI_MB_ReleaseBuffer(mb);
+  } else if (ptrChn->buffer_list.size() >= RKMEDIA_CHNNAL_BUFFER_LIMIT) {
     LOG("WARN: Mode[%d]:Chn[%d] drop buffer, Please get buffer in time!\n",
         ptrChn->mode_id, ptrChn->chn_id);
     MEDIA_BUFFER mb = ptrChn->buffer_list.front();
@@ -542,9 +551,9 @@ FlowOutputCallback(void *handle,
     // Generally, after the previous Chn is bound to the next stage,
     // FlowOutputCallback will be disabled. Because the VI needs to
     // calculate the brightness, the VI still retains the FlowOutputCallback
-    // after binding the lower-level Chn. It is judged here that if Chn is VI,
-    // and the VI status is BIND, return immediately.
-    if ((target_chn->status == CHN_STATUS_BIND) ||
+    // after binding the lower-level Chn.
+    if (((target_chn->status == CHN_STATUS_BIND) &&
+         (target_chn->vi_attr.attr.enWorkMode != VI_WORK_MODE_GOD_MODE)) ||
         (target_chn->vi_attr.attr.enWorkMode == VI_WORK_MODE_LUMA_ONLY))
       return;
   }
