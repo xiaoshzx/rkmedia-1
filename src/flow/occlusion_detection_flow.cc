@@ -104,6 +104,19 @@ bool od_process(Flow *f, MediaBufferVector &input_vector) {
   }
 
   for (int i = 0; i < odf->roi_cnt; i++) {
+    if ((odf->roi_in[i].up_left[1] >= odf->roi_in[i].down_right[1]) ||
+        (odf->roi_in[i].up_left[0] >= odf->roi_in[i].down_right[0]) ||
+        (odf->roi_in[i].down_right[1] > odf->img_width) ||
+        (odf->roi_in[i].down_right[0] > odf->img_height)) {
+      LOG("ERROR: OD: invalid roi rect: <%d, %d, %d, %d> from Img(%dx%d)\n",
+          odf->roi_in[i].up_left[1], odf->roi_in[i].up_left[0],
+          odf->roi_in[i].down_right[1], odf->roi_in[i].down_right[0],
+          odf->img_width, odf->img_height);
+      // disable this rect.
+      odf->roi_in[i].flag = 0;
+      odf->roi_in[i].occlusion = 0;
+      continue;
+    }
     odf->roi_in[i].flag = odf->roi_enable ? 1 : 0;
     odf->roi_in[i].occlusion = 0;
   }
