@@ -285,12 +285,12 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
     src_chn = &g_aenc_chns[pstSrcChn->s32ChnId];
     break;
   case RK_ID_RGA:
-    src = g_rga_chns[pstDestChn->s32ChnId].rkmedia_flow;
-    src_chn = &g_rga_chns[pstDestChn->s32ChnId];
+    src = g_rga_chns[pstSrcChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_rga_chns[pstSrcChn->s32ChnId];
     break;
   case RK_ID_ADEC:
-    src = g_adec_chns[pstDestChn->s32ChnId].rkmedia_flow;
-    src_chn = &g_adec_chns[pstDestChn->s32ChnId];
+    src = g_adec_chns[pstSrcChn->s32ChnId].rkmedia_flow;
+    src_chn = &g_adec_chns[pstSrcChn->s32ChnId];
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
