@@ -63,6 +63,7 @@ static int CalcMppBpsWithMax(MppEncRcMode rc_mode,
   LOG("MPP Encoder: automatically calculate bsp with bps_max\n");
   switch (rc_mode) {
   case MPP_ENC_RC_MODE_CBR:
+    // constant bitrate has very small bps range of 1/10 bps
     bps_target = bps_max * 9 / 10;
     bps_min = bps_max * 8 / 10;
     break;
@@ -103,9 +104,9 @@ static int CalcMppBpsWithTarget(MppEncRcMode rc_mode,
   LOG("MPP Encoder: automatically calculate bsp with bps_target\n");
   switch (rc_mode) {
   case MPP_ENC_RC_MODE_CBR:
-    // constant bitrate has very small bps range of 1/16 bps
+    // constant bitrate has very small bps range of 1/10 bps
     bps_max = bps_target * 10 / 9;
-    bps_min = bps_target * 10 / 8;
+    bps_min = bps_target * 8 / 9;
     break;
   case MPP_ENC_RC_MODE_VBR:
     // variable bitrate has large bps range
