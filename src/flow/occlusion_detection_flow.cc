@@ -23,6 +23,7 @@ enum {
   OD_UPDATE_NONE = 0x00,
   OD_UPDATE_ROI_RECTS = 0x01,
   OD_UPDATE_SENSITIVITY = 0x02,
+  OD_UPDATE_ENABLE = 0x04,
 };
 
 namespace easymedia {
@@ -101,6 +102,13 @@ bool od_process(Flow *f, MediaBufferVector &input_vector) {
     if (occlusion_set_sensitivity(odf->detection_ctx, odf->sensitivity))
       LOG("ERROR: OD: update sensitivity(%d) failed!\n", odf->sensitivity);
     odf->update_mask &= (~OD_UPDATE_SENSITIVITY);
+  } else if (odf->update_mask & OD_UPDATE_ENABLE) {
+    LOG("OD: Applying new enable flag(%d)\n", odf->roi_enable);
+    if (occlusion_detection_enable_switch(odf->detection_ctx,
+          odf->roi_enable, odf->sensitivity)) {
+      LOG("ERROR: OD: update enable flag(%d) failed!\n", odf->roi_enable);
+    }
+    odf->update_mask &= (~OD_UPDATE_ENABLE);
   }
 
   for (int i = 0; i < odf->roi_cnt; i++) {
@@ -117,7 +125,7 @@ bool od_process(Flow *f, MediaBufferVector &input_vector) {
       odf->roi_in[i].occlusion = 0;
       continue;
     }
-    odf->roi_in[i].flag = odf->roi_enable ? 1 : 0;
+    odf->roi_in[i].flag = 1;
     odf->roi_in[i].occlusion = 0;
   }
 
@@ -360,7 +368,7 @@ int OcclusionDetectionFlow::Control(unsigned long int request, ...) {
   case S_OD_ROI_ENABLE: {
     auto value = va_arg(ap, int);
     roi_enable = value ? 1 : 0;
-    LOG("OD: %s roi function!\n", roi_enable ? "Enable" : "Disable");
+    update_mask |= OD_UPDATE_ENABLE;
     break;
   }
   case S_OD_ROI_RECTS: {

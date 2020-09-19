@@ -2963,6 +2963,24 @@ RK_S32 RK_MPI_ALGO_OD_DestroyChn(ALGO_OD_CHN OdChn) {
   return RK_ERR_SYS_OK;
 }
 
+RK_S32 RK_MPI_ALGO_OD_EnableSwitch(ALGO_OD_CHN OdChn, RK_BOOL bEnable) {
+  if ((OdChn < 0) || (OdChn > ALGO_OD_MAX_CHN_NUM))
+    return -RK_ERR_ALGO_OD_INVALID_CHNID;
+
+  g_algo_od_mtx.lock();
+  if (g_algo_od_chns[OdChn].status < CHN_STATUS_OPEN) {
+    g_algo_od_mtx.unlock();
+    return -RK_ERR_ALGO_OD_INVALID_CHNID;
+  }
+  RK_S32 s32Enable = bEnable ? 1 : 0;
+  LOG("\n%s %s: OcclusionDetection[%d]:set status to %s.\n",
+    LOG_TAG, __func__, OdChn, s32Enable ? "Enable" : "Disable");
+  if (g_algo_od_chns[OdChn].rkmedia_flow)
+    g_algo_od_chns[OdChn].rkmedia_flow->Control(easymedia::S_OD_ROI_ENABLE, s32Enable);
+  g_algo_od_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
 /********************************************************************
  * Rga api
  ********************************************************************/
