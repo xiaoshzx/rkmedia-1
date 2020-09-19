@@ -1175,17 +1175,17 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MIN, pre_enc_bps);
   PARAM_STRING_APPEND(enc_param, KEY_VIDEO_GOP, "1");
   // set input fps
-  std::string str_fps;
-  str_fps.append(std::to_string(u32InFpsNum))
+  std::string str_fps_in;
+  str_fps_in.append(std::to_string(u32InFpsNum))
       .append("/")
       .append(std::to_string(u32InFpsDen));
-  PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps);
+  PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps_in);
   // set output fps
-  str_fps = "";
-  str_fps.append(std::to_string(u32OutFpsNum))
+  std::string str_fps_out;
+  str_fps_out.append(std::to_string(u32OutFpsNum))
       .append("/")
       .append(std::to_string(u32OutFpsDen));
-  PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps);
+  PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps_out);
   // jpeg pre encoder work in fixqp mode
   PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_FIXQP);
   PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_QP_INIT, "20");
@@ -1301,8 +1301,8 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG) {
     // MJPEG
     PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, mjpeg_bps);
-    PARAM_STRING_APPEND(enc_param, KEY_FPS, "1/1");
-    PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, "1/1");
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps_out);
+    PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps_out);
     PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, pcRkmediaRcMode);
   } else {
     // JPEG
