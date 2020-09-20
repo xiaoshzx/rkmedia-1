@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include <string.h>
 
+#include "alsa/alsa_utils.h"
 #include "rk_audio.h"
 #include "sound.h"
 
@@ -29,6 +30,7 @@ struct rkAUDIO_VQE_S {
   VQE_CONFIG_S stVqeConfig;
   SampleInfo sample_info;
   RKAP_Handle ap_handle;
+  AI_LAYOUT_E layout;
 };
 
 static AUDIO_QUEUE_S *queue_create(int buf_size) {
@@ -100,6 +102,11 @@ int AI_TALKVQE_Init(AUDIO_VQE_S *handle, VQE_CONFIG_S *config) {
     LOG("check failed: aec channels must equal 2");
     return -1;
   }
+  if (handle->layout != AI_LAYOUT_MIC_REF &&
+      handle->layout != AI_LAYOUT_REF_MIC) {
+    LOG("check failed: enAiLayout must be AI_LAYOUT_MIC_REF or AI_LAYOUT_REF_MIC\n");
+    return -1;
+  }
 
   RKAP_AEC_State state;
   state.swSampleRate = sample_info.sample_rate; // 8k|16k
@@ -135,9 +142,16 @@ static int AI_TALKVQE_Process(AUDIO_VQE_S *handle, unsigned char *in,
 
   sigin = (int16_t *)prebuf;
   sigref = (int16_t *)prebuf + nb_samples;
-  for (int i = 0; i < nb_samples; i++) {
-    sigin[i] = *((int16_t *)in + i * 2);
-    sigref[i] = *((int16_t *)in + i * 2 + 1);
+  if (handle->layout == AI_LAYOUT_MIC_REF) {
+    for (int i = 0; i < nb_samples; i++) {
+      sigin[i] = *((int16_t *)in + i * 2);
+      sigref[i] = *((int16_t *)in + i * 2 + 1);
+    }
+  } else if (handle->layout == AI_LAYOUT_REF_MIC) {
+    for (int i = 0; i < nb_samples; i++) {
+      sigref[i] = *((int16_t *)in + i * 2);
+      sigin[i] = *((int16_t *)in + i * 2 + 1);
+    }
   }
   AEC_Process(handle->ap_handle, sigin, sigref, (int16_t *)sigout);
 
@@ -273,6 +287,7 @@ static int VQE_Process(AUDIO_VQE_S *handle, unsigned char *in,
 bool RK_AUDIO_VQE_Support() { return true; }
 
 AUDIO_VQE_S *RK_AUDIO_VQE_Init(const SampleInfo &sample_info,
+                               AI_LAYOUT_E layout,
                                VQE_CONFIG_S *config) {
   int ret = -1;
   AUDIO_VQE_S *handle = (AUDIO_VQE_S *)calloc(sizeof(AUDIO_VQE_S), 1);
@@ -283,6 +298,7 @@ AUDIO_VQE_S *RK_AUDIO_VQE_Init(const SampleInfo &sample_info,
   handle->out_queue = queue_create(RK_AUDIO_BUFFER_MAX_SIZE);
 
   handle->sample_info = sample_info;
+  handle->layout = layout;
   handle->stVqeConfig = *config;
 
   switch (config->u32VQEMode) {

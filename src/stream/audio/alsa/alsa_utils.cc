@@ -46,7 +46,8 @@ void ShowAlsaAvailableFormats(snd_pcm_t *handle, snd_pcm_hw_params_t *params) {
 
 int ParseAlsaParams(const char *param,
                     std::map<std::string, std::string> &params,
-                    std::string &device, SampleInfo &sample_info) {
+                    std::string &device, SampleInfo &sample_info,
+                    AI_LAYOUT_E &layout) {
   int ret = 0;
   if (!easymedia::parse_media_param_map(param, params))
     return 0;
@@ -71,6 +72,9 @@ int ParseAlsaParams(const char *param,
       ret++;
     } else if (key == KEY_FRAMES) {
       sample_info.nb_samples = stoi(p.second);
+      ret++;
+    } else if (key == KEY_LAYOUT) {
+      layout = (AI_LAYOUT_E)stoi(p.second);
       ret++;
     }
   }

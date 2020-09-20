@@ -14,6 +14,7 @@ typedef struct rkAUDIO_VQE_S AUDIO_VQE_S;
 
 bool RK_AUDIO_VQE_Support();
 AUDIO_VQE_S *RK_AUDIO_VQE_Init(const SampleInfo &sample_info,
+                                       AI_LAYOUT_E layout,
                                        VQE_CONFIG_S *config);
 void RK_AUDIO_VQE_Deinit(AUDIO_VQE_S *handle);
 int RK_AUDIO_VQE_Handle(AUDIO_VQE_S *handle, void *buffer, int bytes);

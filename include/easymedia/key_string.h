@@ -106,6 +106,7 @@
 #define KEY_SAMPLE_RATE "sample_rate"
 #define KEY_FRAMES "frame_num"
 #define KEY_FLOAT_QUALITY "compress_quality"
+#define KEY_LAYOUT "layout"
 
 // v4l2 info
 #define KEY_USE_LIBV4L2 "use_libv4l2"

@@ -7,8 +7,8 @@
 #include <assert.h>
 #include <errno.h>
 
-#include "../rk_audio.h"
 #include "alsa_utils.h"
+#include "../rk_audio.h"
 #include "alsa_volume.h"
 #include "buffer.h"
 #include "media_type.h"
@@ -49,13 +49,14 @@ private:
   snd_pcm_t *alsa_handle;
   size_t frame_size;
   int interleaved;
+  AI_LAYOUT_E layout;
 
   bool bVqeEnable;
   VQE_CONFIG_S stVqeConfig;
   AUDIO_VQE_S *pstVqeHandle;
 };
 
-const int AlsaPlayBackStream::kStartDelays = 2; // number delays of periods
+const int AlsaPlayBackStream::kStartDelays = 4; // number delays of periods
 const int AlsaPlayBackStream::kPresetFrames = 1024;
 const int AlsaPlayBackStream::kPresetSampleRate =
     48000; // the same to asound.conf
@@ -65,7 +66,7 @@ AlsaPlayBackStream::AlsaPlayBackStream(const char *param)
   memset(&sample_info, 0, sizeof(sample_info));
   sample_info.fmt = SAMPLE_FMT_NONE;
   std::map<std::string, std::string> params;
-  int ret = ParseAlsaParams(param, params, device, sample_info);
+  int ret = ParseAlsaParams(param, params, device, sample_info, layout);
   UNUSED(ret);
   if (device.empty())
     device = "default";
@@ -422,7 +423,7 @@ int AlsaPlayBackStream::IoCtrl(unsigned long int request, ...) {
         LOG("wrong u32VQEMode\n");
         return -1;
       }
-      pstVqeHandle = RK_AUDIO_VQE_Init(sample_info, &stVqeConfig);
+      pstVqeHandle = RK_AUDIO_VQE_Init(sample_info, layout, &stVqeConfig);
       if (!pstVqeHandle)
         return -1;
     }

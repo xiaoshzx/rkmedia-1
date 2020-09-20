@@ -177,6 +177,10 @@ public:
     SetValidSize(num * GetSampleSize());
   }
   int GetSamples() const { return sample_info.nb_samples; }
+  void SetChannels(int num) {
+    sample_info.channels = num;
+  }
+  int GetChannels() { return sample_info.channels; }
 
 private:
   void ResetValues() {

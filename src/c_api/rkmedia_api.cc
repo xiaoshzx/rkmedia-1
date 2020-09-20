@@ -2261,7 +2261,7 @@ create_flow(const std::string &flow_name, const std::string &flow_param,
 }
 
 static std::shared_ptr<easymedia::Flow>
-create_alsa_flow(std::string aud_in_path, SampleInfo &info, bool capture) {
+create_alsa_flow(std::string aud_in_path, SampleInfo &info, bool capture, AI_LAYOUT_E enAiLayout) {
   std::string flow_name;
   std::string flow_param;
   std::string sub_param;
@@ -2285,6 +2285,7 @@ create_alsa_flow(std::string aud_in_path, SampleInfo &info, bool capture) {
   PARAM_STRING_APPEND_TO(sub_param, KEY_CHANNELS, info.channels);
   PARAM_STRING_APPEND_TO(sub_param, KEY_FRAMES, info.nb_samples);
   PARAM_STRING_APPEND_TO(sub_param, KEY_SAMPLE_RATE, info.sample_rate);
+  PARAM_STRING_APPEND_TO(sub_param, KEY_LAYOUT, enAiLayout);
 
   auto audio_source_flow = create_flow(flow_name, flow_param, sub_param);
   return audio_source_flow;
@@ -2325,7 +2326,8 @@ RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn) {
   info.nb_samples = g_ai_chns[AiChn].ai_attr.attr.u32NbSamples;
   info.sample_rate = g_ai_chns[AiChn].ai_attr.attr.u32SampleRate;
   g_ai_chns[AiChn].rkmedia_flow = create_alsa_flow(
-      g_ai_chns[AiChn].ai_attr.attr.pcAudioNode, info, RK_TRUE);
+      g_ai_chns[AiChn].ai_attr.attr.pcAudioNode, info, RK_TRUE,
+      g_ai_chns[AiChn].ai_attr.attr.enAiLayout);
   if (!g_ai_chns[AiChn].rkmedia_flow) {
     g_ai_mtx.unlock();
     return -RK_ERR_AI_BUSY;
@@ -2534,7 +2536,7 @@ RK_S32 RK_MPI_AO_EnableChn(AO_CHN AoChn) {
   info.nb_samples = g_ao_chns[AoChn].ao_attr.attr.u32NbSamples;
   info.sample_rate = g_ao_chns[AoChn].ao_attr.attr.u32SampleRate;
   g_ao_chns[AoChn].rkmedia_flow = create_alsa_flow(
-      g_ao_chns[AoChn].ao_attr.attr.pcAudioNode, info, RK_FALSE);
+      g_ao_chns[AoChn].ao_attr.attr.pcAudioNode, info, RK_FALSE, AI_LAYOUT_NORMAL);
   if (!g_ao_chns[AoChn].rkmedia_flow) {
     g_ao_mtx.unlock();
     return -RK_ERR_AO_BUSY;

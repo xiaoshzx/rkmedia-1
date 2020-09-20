@@ -15,8 +15,8 @@
 #include "rkmedia_api.h"
 #define AAC_NB_SAMPLES 1024
 #define MP2_NB_SAMPLES 1152
-#define ALSA_PATH "default:CARD=rockchiprk809co" // get from "arecord -L"
-//#define ALSA_PATH "default" // get from "arecord -L"
+//#define ALSA_PATH "default:CARD=rockchiprk809co" // get from "arecord -L"
+#define ALSA_PATH "default" // get from "arecord -L"
 #define VQEFILE "./vqefiles/16k/RKAP_AecPara.bin"
 
 static bool quit = false;
@@ -50,7 +50,8 @@ static RK_VOID AI_AO() {
   ai_attr.enSampleFormat = RK_SAMPLE_FMT_S16;
   ai_attr.u32NbSamples = 1152;
   ai_attr.u32SampleRate = g_enWorkSampleRate;
-  ai_attr.u32Channels = 1;
+  ai_attr.u32Channels = 2;
+  ai_attr.enAiLayout = AI_LAYOUT_MIC_REF;//chanel layout: [ref:mic]; remove ref, output mic mono
 
   AO_CHN_ATTR_S ao_attr;
   ao_attr.pcAudioNode = ALSA_PATH;
@@ -274,13 +275,14 @@ RK_S32 AI_VqeProcess_AO(RK_VOID) {
   ai_attr.u32NbSamples = 1024;
   ai_attr.u32SampleRate = g_enWorkSampleRate;
   ai_attr.u32Channels = 2;
+  ai_attr.enAiLayout = AI_LAYOUT_MIC_REF;//remove ref channel, and output mic mono
 
   AO_CHN_ATTR_S ao_attr;
   ao_attr.pcAudioNode = ALSA_PATH;
   ao_attr.enSampleFormat = RK_SAMPLE_FMT_S16;
   ao_attr.u32NbSamples = 1024;
   ao_attr.u32SampleRate = g_enWorkSampleRate;
-  ao_attr.u32Channels = 2;
+  ao_attr.u32Channels = 1;
 
   // 1. create AI
   RK_MPI_AI_SetChnAttr(mpp_chn_ai.s32ChnId, &ai_attr);
