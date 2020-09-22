@@ -1847,12 +1847,22 @@ RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn, const VENC_ROI_ATTR_S *pstRoiAttr,
   if (pstRoiAttr == nullptr && region_cnt > 0)
     return -RK_ERR_VENC_ILLEGAL_PARAM;
 
-  int img_width = g_venc_chns[VeChn].venc_attr.attr.stVencAttr.u32PicWidth;
-  int img_height = g_venc_chns[VeChn].venc_attr.attr.stVencAttr.u32PicHeight;
+  int img_width;
+  int img_height;
   int x_offset = 0;
   int y_offset = 0;
   int valid_rgn_cnt = 0;
   EncROIRegion regions[region_cnt];
+
+  if ((g_venc_chns[VeChn].venc_attr.attr.stVencAttr.enRotation == VENC_ROTATION_90) ||
+      (g_venc_chns[VeChn].venc_attr.attr.stVencAttr.enRotation == VENC_ROTATION_270)) {
+    img_width = g_venc_chns[VeChn].venc_attr.attr.stVencAttr.u32PicHeight;
+    img_height = g_venc_chns[VeChn].venc_attr.attr.stVencAttr.u32PicWidth;
+  } else {
+    img_width = g_venc_chns[VeChn].venc_attr.attr.stVencAttr.u32PicWidth;
+    img_height = g_venc_chns[VeChn].venc_attr.attr.stVencAttr.u32PicHeight;
+  }
+
   // cfg regions with args
   memset(regions, 0, sizeof(EncROIRegion) * region_cnt);
   for (int i = 0; i < region_cnt; i++) {
