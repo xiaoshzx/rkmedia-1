@@ -56,7 +56,7 @@ private:
   AUDIO_VQE_S *pstVqeHandle;
 };
 
-const int AlsaPlayBackStream::kStartDelays = 4; // number delays of periods
+const int AlsaPlayBackStream::kStartDelays = 2; // number delays of periods
 const int AlsaPlayBackStream::kPresetFrames = 1024;
 const int AlsaPlayBackStream::kPresetSampleRate =
     48000; // the same to asound.conf
