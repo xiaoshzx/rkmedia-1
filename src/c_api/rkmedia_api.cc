@@ -812,40 +812,53 @@ MEDIA_BUFFER RK_MPI_SYS_GetMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
 RK_S32 RK_MPI_SYS_SendMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
                                   MEDIA_BUFFER buffer) {
   RkmediaChannel *target_chn = NULL;
+  std::mutex *target_mutex = NULL;
 
   switch (enModID) {
   case RK_ID_VENC:
     if (s32ChnID < 0 || s32ChnID >= VENC_MAX_CHN_NUM)
       return -RK_ERR_SYS_ILLEGAL_PARAM;
     target_chn = &g_venc_chns[s32ChnID];
+    target_mutex = &g_venc_mtx;
     break;
   case RK_ID_AENC:
     if (s32ChnID < 0 || s32ChnID > AENC_MAX_CHN_NUM)
       return -RK_ERR_SYS_ILLEGAL_PARAM;
     target_chn = &g_aenc_chns[s32ChnID];
+    target_mutex = &g_aenc_mtx;
     break;
   case RK_ID_ALGO_MD:
     if (s32ChnID < 0 || s32ChnID > ALGO_MD_MAX_CHN_NUM)
       return -RK_ERR_SYS_ILLEGAL_PARAM;
     target_chn = &g_algo_md_chns[s32ChnID];
+    target_mutex = &g_algo_md_mtx;
     break;
   case RK_ID_ALGO_OD:
     if (s32ChnID < 0 || s32ChnID > ALGO_OD_MAX_CHN_NUM)
       return -RK_ERR_SYS_ILLEGAL_PARAM;
     target_chn = &g_algo_od_chns[s32ChnID];
+    target_mutex = &g_algo_od_mtx;
     break;
   case RK_ID_ADEC:
     if (s32ChnID < 0 || s32ChnID > ADEC_MAX_CHN_NUM)
       return -RK_ERR_SYS_ILLEGAL_PARAM;
     target_chn = &g_adec_chns[s32ChnID];
+    target_mutex = &g_adec_mtx;
     break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
 
   MEDIA_BUFFER_IMPLE *mb = (MEDIA_BUFFER_IMPLE *)buffer;
-  target_chn->rkmedia_flow->SendInput(mb->rkmedia_mb, 0);
+  target_mutex->lock();
+  if (target_chn->rkmedia_flow) {
+    target_chn->rkmedia_flow->SendInput(mb->rkmedia_mb, 0);
+  } else {
+    target_mutex->unlock();
+    return -RK_ERR_SYS_NOT_PERM;
+  }
 
+  target_mutex->unlock();
   return RK_ERR_SYS_OK;
 }
 
