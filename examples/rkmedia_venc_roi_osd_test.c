@@ -115,12 +115,14 @@ static int EnableRoi(RK_U16 u16VencChn, RECT_S stRect) {
   return RK_MPI_VENC_SetRoiAttr(u16VencChn, &stRoiAttr, 1);
 }
 
-int StreamOn(int width, int height, const char* video_node, int vi_chn, int venc_chn) {
+int StreamOn(int width, int height, const char *video_node, int vi_chn,
+             int venc_chn) {
   static int stream_cnt = 0;
   int ret = 0;
 
-  printf("*** StreamOn[%d]: VideoNode:%s, wxh:%dx%d, vi:%d, venc:%d START....\n",
-    stream_cnt, video_node, width, height, vi_chn, venc_chn);
+  printf(
+      "*** StreamOn[%d]: VideoNode:%s, wxh:%dx%d, vi:%d, venc:%d START....\n",
+      stream_cnt, video_node, width, height, vi_chn, venc_chn);
 
   CODEC_TYPE_E codec_type = RK_CODEC_TYPE_H264;
   VI_CHN_ATTR_S vi_chn_attr;
@@ -169,7 +171,7 @@ int StreamOn(int width, int height, const char* video_node, int vi_chn, int venc
   else
     RK_MPI_SYS_RegisterOutCb(&stEncChn, video_packet_cb_sub1);
 
-  RK_MPI_VENC_RGN_Init(venc_chn);
+  RK_MPI_VENC_RGN_Init(venc_chn, NULL);
 
   MPP_CHN_S stSrcChn;
   stSrcChn.enModId = RK_ID_VI;
@@ -220,8 +222,10 @@ int StreamOff(int vi_chn, int venc_chn) {
 static char optstr[] = "?:";
 static void print_usage(char *name) {
   printf("#Function description:\n");
-  printf("In the case of multiple streams, verify the effect of roi and osd at the same time.\n");
-  printf("  MainStream: rkispp_scale0: 1920x1080 NV12 -> /userdata/main.h264\n");
+  printf("In the case of multiple streams, verify the effect of roi and osd at "
+         "the same time.\n");
+  printf(
+      "  MainStream: rkispp_scale0: 1920x1080 NV12 -> /userdata/main.h264\n");
   printf("  SubStream0: rkispp_scale1: 720x480 NV12 -> /userdata/sub0.h264\n");
   printf("  SubStream1: rkispp_scale2: 1280x720 NV12 -> /userdata/sub1.h264\n");
   printf("#Usage Example: \n");

@@ -82,7 +82,7 @@ typedef struct rkVENC_H264_AVBR_S {
 } VENC_H264_AVBR_S;
 
 /* the attribute of mjpege cbr*/
-typedef struct hiVENC_MJPEG_CBR_S {
+typedef struct rkVENC_MJPEG_CBR_S {
   RK_U32 u32SrcFrameRateNum;
   RK_U32 u32SrcFrameRateDen;
   RK_FR32 fr32DstFrameRateNum;
@@ -91,7 +91,7 @@ typedef struct hiVENC_MJPEG_CBR_S {
 } VENC_MJPEG_CBR_S;
 
 /* the attribute of mjpege vbr*/
-typedef struct hiVENC_MJPEG_VBR_S {
+typedef struct rkVENC_MJPEG_VBR_S {
   RK_U32 u32SrcFrameRateNum;
   RK_U32 u32SrcFrameRateDen;
   RK_FR32 fr32DstFrameRateNum;
@@ -251,20 +251,26 @@ typedef struct rkVENC_RC_PARAM_S {
 } VENC_RC_PARAM_S;
 
 /* the attribute of the roi */
-typedef struct hiVENC_ROI_ATTR_S {
+typedef struct rkVENC_ROI_ATTR_S {
   RK_U32 u32Index; // RW; Range:[0, 7]; Index of an ROI. The system supports
                    // indexes ranging from 0 to 7
   RK_BOOL bEnable; // RW; Range:[0, 1]; Whether to enable this ROI
-  RK_BOOL bAbsQp;  // RW; Range:[0, 1]; QP mode of an ROI.HI_FALSE: relative
-                   // QP.HI_TURE: absolute QP.
+  RK_BOOL bAbsQp;  // RW; Range:[0, 1]; QP mode of an ROI.RK_FALSE: relative
+                   // QP.RK_TURE: absolute QP.
   RK_S32 s32Qp; // RW; Range:[-51, 51]; QP value,only relative mode can QP value
                 // less than 0.
   RK_BOOL bIntra; // flag of forced intra macroblock
   RECT_S stRect;  // RW; Region of an ROI
 } VENC_ROI_ATTR_S;
 
-// Maximum number of pixels for osd
-#define OSD_PIX_NUM_MAX 65536
+#define VENC_RGN_COLOR_NUM 256
+typedef struct rkVENC_COLOR_TBL {
+  // PixFormat: ARGB => A:bit31~bit24 R:bit23~bit16 G:bit15~bit8 B:bit7~bit0
+  RK_U32 u32ArgbTbl[VENC_RGN_COLOR_NUM];
+  // Enabling dichotomy will speed up the search for the color table,
+  // but will sort the color table set by the user in ascending order.
+  RK_BOOL bColorDichotomyEnable;
+} VENC_COLOR_TBL_S;
 
 typedef enum rkOSD_REGION_ID_E {
   REGION_ID_0 = 0,
@@ -293,6 +299,12 @@ typedef struct rkCOVER_INFO_S {
   OSD_PIXEL_FORMAT_E enPixelFormat; /* Bitmap's pixel format */
   RK_U32 u32Color;                  /* Covered area color */
 } COVER_INFO_S;
+
+typedef struct rkOSD_COLOR_PALETTE_BUF_S {
+  RK_U32 u32Width;  /* buffer's width */
+  RK_U32 u32Height; /* buffer's height */
+  RK_VOID *pIdBuf;  /* buffer of the color palette id */
+} OSD_COLOR_PALETTE_BUF_S;
 
 typedef struct rkOSD_REGION_INFO_S {
   OSD_REGION_ID_E enRegionId;

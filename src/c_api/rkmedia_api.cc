@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <condition_variable>
 #include <mutex>
 #include <string>
@@ -81,6 +82,14 @@ typedef struct _RkmediaChannel {
   std::mutex buffer_mtx;
   std::condition_variable buffer_cond;
   std::list<MEDIA_BUFFER> buffer_list;
+
+  // used for venc osd.
+  RK_BOOL bColorTblInit;
+  // Enabling dichotomy will speed up the search for the color table,
+  // but will sort the color table set by the user in ascending order.
+  RK_BOOL bColorDichotomyEnable;
+  // 256 color table
+  RK_U32 u32ArgbColorTbl[256];
 
   // used for region luma.
   std::mutex luma_buf_mtx;
@@ -207,6 +216,9 @@ static void Reset_Channel_Table(RkmediaChannel *tbl, int cnt, MOD_ID_E mid) {
     tbl[i].cb = nullptr;
     tbl[i].event_cb = nullptr;
     tbl[i].bind_ref = 0;
+    tbl[i].bColorTblInit = RK_FALSE;
+    tbl[i].bColorDichotomyEnable = RK_FALSE;
+    memset(tbl[i].u32ArgbColorTbl, 0, 0);
   }
 }
 
@@ -263,9 +275,9 @@ RK_S32 RK_MPI_SYS_Bind(const MPP_CHN_S *pstSrcChn,
   if (!pstSrcChn || !pstDestChn)
     return -RK_ERR_SYS_ILLEGAL_PARAM;
 
-  LOG("\n%s %s: Bind Mode[%d]:Chn[%d] to Mode[%d]:Chn[%d]...\n",
-      LOG_TAG, __func__, pstSrcChn->enModId, pstSrcChn->s32ChnId,
-      pstDestChn->enModId, pstDestChn->s32ChnId);
+  LOG("\n%s %s: Bind Mode[%d]:Chn[%d] to Mode[%d]:Chn[%d]...\n", LOG_TAG,
+      __func__, pstSrcChn->enModId, pstSrcChn->s32ChnId, pstDestChn->enModId,
+      pstDestChn->s32ChnId);
 
   switch (pstSrcChn->enModId) {
   case RK_ID_VI:
@@ -370,9 +382,9 @@ RK_S32 RK_MPI_SYS_UnBind(const MPP_CHN_S *pstSrcChn,
   RkmediaChannel *src_chn = NULL;
   RkmediaChannel *dst_chn = NULL;
 
-  LOG("\n%s %s: UnBind Mode[%d]:Chn[%d] to Mode[%d]:Chn[%d]...\n",
-      LOG_TAG, __func__, pstSrcChn->enModId, pstSrcChn->s32ChnId,
-      pstDestChn->enModId, pstDestChn->s32ChnId);
+  LOG("\n%s %s: UnBind Mode[%d]:Chn[%d] to Mode[%d]:Chn[%d]...\n", LOG_TAG,
+      __func__, pstSrcChn->enModId, pstSrcChn->s32ChnId, pstDestChn->enModId,
+      pstDestChn->s32ChnId);
 
   switch (pstSrcChn->enModId) {
   case RK_ID_VI:
@@ -872,9 +884,8 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
                                                         : -RK_ERR_VI_NOT_CONFIG;
   }
 
-  LOG("\n%s %s: Enable VI[%d:%d]:%s, %dx%d Start...\n",
-      LOG_TAG, __func__, ViPipe, ViChn,
-      g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
+  LOG("\n%s %s: Enable VI[%d:%d]:%s, %dx%d Start...\n", LOG_TAG, __func__,
+      ViPipe, ViChn, g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
       g_vi_chns[ViChn].vi_attr.attr.u32Width,
       g_vi_chns[ViChn].vi_attr.attr.u32Height);
 
@@ -923,9 +934,8 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
                                                    FlowOutputCallback);
   g_vi_chns[ViChn].status = CHN_STATUS_OPEN;
   g_vi_mtx.unlock();
-  LOG("\n%s %s: Enable VI[%d:%d]:%s, %dx%d End...\n",
-      LOG_TAG, __func__, ViPipe, ViChn,
-      g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
+  LOG("\n%s %s: Enable VI[%d:%d]:%s, %dx%d End...\n", LOG_TAG, __func__, ViPipe,
+      ViChn, g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
       g_vi_chns[ViChn].vi_attr.attr.u32Width,
       g_vi_chns[ViChn].vi_attr.attr.u32Height);
 
@@ -942,9 +952,8 @@ RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
     return -RK_ERR_SYS_NOT_PERM;
   }
 
-  LOG("\n%s %s: Disable VI[%d:%d]:%s, %dx%d Start...\n",
-      LOG_TAG, __func__, ViPipe, ViChn,
-      g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
+  LOG("\n%s %s: Disable VI[%d:%d]:%s, %dx%d Start...\n", LOG_TAG, __func__,
+      ViPipe, ViChn, g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
       g_vi_chns[ViChn].vi_attr.attr.u32Width,
       g_vi_chns[ViChn].vi_attr.attr.u32Height);
   RkmediaChnClearBuffer(&g_vi_chns[ViChn]);
@@ -956,15 +965,13 @@ RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   // VI flow Should be released last
   g_vi_chns[ViChn].rkmedia_flow.reset();
   if (!g_vi_chns[ViChn].buffer_list.empty()) {
-    LOG("\n%s %s: clear buffer list again...\n",
-        LOG_TAG, __func__);
+    LOG("\n%s %s: clear buffer list again...\n", LOG_TAG, __func__);
     RkmediaChnClearBuffer(&g_vi_chns[ViChn]);
   }
   g_vi_mtx.unlock();
 
-  LOG("\n%s %s: Disable VI[%d:%d]:%s, %dx%d End...\n",
-      LOG_TAG, __func__, ViPipe, ViChn,
-      g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
+  LOG("\n%s %s: Disable VI[%d:%d]:%s, %dx%d End...\n", LOG_TAG, __func__,
+      ViPipe, ViChn, g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
       g_vi_chns[ViChn].vi_attr.attr.u32Width,
       g_vi_chns[ViChn].vi_attr.attr.u32Height);
 
@@ -1383,8 +1390,8 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
     stVencChnAttr->stVencAttr.enRotation = VENC_ROTATION_0;
   }
 
-  LOG("\n%s %s: Enable VENC[%d], Type:%d Start...\n",
-      LOG_TAG, __func__, VeChn, stVencChnAttr->stVencAttr.enType);
+  LOG("\n%s %s: Enable VENC[%d], Type:%d Start...\n", LOG_TAG, __func__, VeChn,
+      stVencChnAttr->stVencAttr.enType);
 
   // save venc_attr to venc chn.
   memcpy(&g_venc_chns[VeChn].venc_attr, stVencChnAttr, sizeof(RkmediaVencAttr));
@@ -1393,8 +1400,8 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
       (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG)) {
     RK_S32 ret = RkmediaCreateJpegSnapPipeline(&g_venc_chns[VeChn]);
     g_venc_mtx.unlock();
-    LOG("\n%s %s: Enable VENC[%d], Type:%d End...\n",
-        LOG_TAG, __func__, VeChn, stVencChnAttr->stVencAttr.enType);
+    LOG("\n%s %s: Enable VENC[%d], Type:%d End...\n", LOG_TAG, __func__, VeChn,
+        stVencChnAttr->stVencAttr.enType);
     return ret;
   }
 
@@ -1603,8 +1610,8 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
                                                      FlowOutputCallback);
   g_venc_chns[VeChn].status = CHN_STATUS_OPEN;
   g_venc_mtx.unlock();
-  LOG("\n%s %s: Enable VENC[%d], Type:%d End...\n",
-      LOG_TAG, __func__, VeChn, stVencChnAttr->stVencAttr.enType);
+  LOG("\n%s %s: Enable VENC[%d], Type:%d End...\n", LOG_TAG, __func__, VeChn,
+      stVencChnAttr->stVencAttr.enType);
 
   return RK_ERR_SYS_OK;
 }
@@ -1951,7 +1958,7 @@ RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn, VENC_GOP_ATTR_S *pstGopModeAttr) {
   return RK_ERR_SYS_OK;
 }
 
-RK_S32 RK_MPI_VENC_RGN_Init(VENC_CHN VeChn) {
+RK_S32 RK_MPI_VENC_RGN_Init(VENC_CHN VeChn, VENC_COLOR_TBL_S *stColorTbl) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
 
@@ -1960,56 +1967,49 @@ RK_S32 RK_MPI_VENC_RGN_Init(VENC_CHN VeChn) {
     return -RK_ERR_VENC_NOTREADY;
   }
 
-  return easymedia::video_encoder_set_osd_plt(g_venc_chns[VeChn].rkmedia_flow,
-                                              yuv444_palette_table);
-}
-
-static RK_VOID Argb1555_To_Region_Data(const BITMAP_S *pstBitmap, RK_U8 *data,
-                                       RK_U32 canvasWidth,
-                                       RK_U32 canvasHeight) {
-  RK_U8 value_r, value_g, value_b, value_a;
-  RK_U32 TargetWidth, TargetHeight;
-  RK_U32 ColorValue;
-  RK_U32 *BitmapLineStart;
-  RK_U8 *CanvasLineStart;
-
-  TargetWidth =
-      (pstBitmap->u32Width > canvasWidth) ? canvasWidth : pstBitmap->u32Width;
-  TargetHeight = (pstBitmap->u32Height > canvasHeight) ? canvasHeight
-                                                       : pstBitmap->u32Height;
-
-  LOGD("%s Bitmap[%d, %d] -> Canvas[%d, %d], target=<%d, %d>\n", __func__,
-       pstBitmap->u32Width, pstBitmap->u32Height, canvasWidth, canvasHeight,
-       TargetWidth, TargetHeight);
-
-  // Initialize all pixels to transparent color
-  if ((canvasWidth > pstBitmap->u32Width) ||
-      (canvasHeight > pstBitmap->u32Height))
-    memset(data, 0xFF, canvasWidth * canvasHeight);
-
-  for (RK_U32 i = 0; i < TargetHeight; i++) {
-    BitmapLineStart = (RK_U32 *)pstBitmap->pData + i * pstBitmap->u32Width;
-    CanvasLineStart = data + i * canvasWidth;
-    for (RK_U32 j = 0; j < TargetWidth; j++) {
-      ColorValue = *(BitmapLineStart + j);
-      value_a = (ColorValue & 0x8000) >> 15;
-      value_r = (ColorValue & 0x7C00) >> 10;
-      value_g = (ColorValue & 0x03E0) >> 5;
-      value_b = (ColorValue & 0x001F);
-      if (value_a == 0)
-        *(CanvasLineStart + j) = PALETTE_TABLE_LEN - 1; // Transparent
-      else
-        *(CanvasLineStart + j) =
-            find_color(bgra8888_palette_table, PALETTE_TABLE_LEN, value_r,
-                       value_g, value_b);
+  int ret = 0;
+  const RK_U32 *pu32ArgbColorTbl = NULL;
+  RK_U32 u32AVUYColorTbl[VENC_RGN_COLOR_NUM] = {0};
+  if (stColorTbl) {
+    if (stColorTbl->bColorDichotomyEnable) {
+      LOG("\n%s %s: User define color tbl(Dichotomy:True)...\n", LOG_TAG,
+          __func__, VeChn);
+      std::sort(stColorTbl->u32ArgbTbl,
+                stColorTbl->u32ArgbTbl + VENC_RGN_COLOR_NUM);
+      g_venc_chns[VeChn].bColorDichotomyEnable = RK_TRUE;
+    } else {
+      LOG("\n%s %s: User define color tbl(Dichotomy:False)...\n", LOG_TAG,
+          __func__, VeChn);
+      g_venc_chns[VeChn].bColorDichotomyEnable = RK_FALSE;
     }
+    pu32ArgbColorTbl = stColorTbl->u32ArgbTbl;
+  } else {
+    LOG("\n%s %s: Default color tbl(Dichotomy:True)...\n", LOG_TAG, __func__,
+        VeChn);
+    g_venc_chns[VeChn].bColorDichotomyEnable = RK_TRUE;
+    pu32ArgbColorTbl = u32DftARGB8888ColorTbl;
   }
+
+  color_tbl_argb_to_avuy(pu32ArgbColorTbl, u32AVUYColorTbl);
+  g_venc_mtx.lock();
+  ret = easymedia::video_encoder_set_osd_plt(g_venc_chns[VeChn].rkmedia_flow,
+                                             u32AVUYColorTbl);
+  if (ret) {
+    g_venc_mtx.unlock();
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+  memcpy(g_venc_chns[VeChn].u32ArgbColorTbl, pu32ArgbColorTbl,
+         VENC_RGN_COLOR_NUM * 4);
+  g_venc_chns[VeChn].bColorTblInit = RK_TRUE;
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
 }
 
-static RK_VOID Argb8888_To_Region_Data(const BITMAP_S *pstBitmap, RK_U8 *data,
+static RK_VOID Argb8888_To_Region_Data(VENC_CHN VeChn,
+                                       const BITMAP_S *pstBitmap, RK_U8 *data,
                                        RK_U32 canvasWidth,
                                        RK_U32 canvasHeight) {
-  RK_U8 value_r, value_g, value_b, value_a;
   RK_U32 TargetWidth, TargetHeight;
   RK_U32 ColorValue;
   RK_U32 *BitmapLineStart;
@@ -2026,24 +2026,25 @@ static RK_VOID Argb8888_To_Region_Data(const BITMAP_S *pstBitmap, RK_U8 *data,
 
   // Initialize all pixels to transparent color
   if ((canvasWidth > pstBitmap->u32Width) ||
-      (canvasHeight > pstBitmap->u32Height))
-    memset(data, 0xFF, canvasWidth * canvasHeight);
+      (canvasHeight > pstBitmap->u32Height)) {
+    RK_U8 TransColorId = find_argb_color_tbl_by_order(
+        g_venc_chns[VeChn].u32ArgbColorTbl, PALETTE_TABLE_LEN, 0x00000000);
+    memset(data, TransColorId, canvasWidth * canvasHeight);
+  }
 
   for (RK_U32 i = 0; i < TargetHeight; i++) {
     BitmapLineStart = (RK_U32 *)pstBitmap->pData + i * pstBitmap->u32Width;
     CanvasLineStart = data + i * canvasWidth;
     for (RK_U32 j = 0; j < TargetWidth; j++) {
       ColorValue = *(BitmapLineStart + j);
-      value_a = (ColorValue & 0xF0000000) >> 24;
-      value_r = (ColorValue & 0x00FF0000) >> 16;
-      value_g = (ColorValue & 0x0000FF00) >> 8;
-      value_b = (ColorValue & 0x000000FF);
-      if (value_a == 0)
-        *(CanvasLineStart + j) = PALETTE_TABLE_LEN - 1; // Transparent
-      else
-        *(CanvasLineStart + j) =
-            find_color(bgra8888_palette_table, PALETTE_TABLE_LEN, value_r,
-                       value_g, value_b);
+
+      if (g_venc_chns[VeChn].bColorDichotomyEnable) {
+        *(CanvasLineStart + j) = find_argb_color_tbl_by_dichotomy(
+            g_venc_chns[VeChn].u32ArgbColorTbl, PALETTE_TABLE_LEN, ColorValue);
+      } else {
+        *(CanvasLineStart + j) = find_argb_color_tbl_by_order(
+            g_venc_chns[VeChn].u32ArgbColorTbl, PALETTE_TABLE_LEN, ColorValue);
+      }
     }
   }
 }
@@ -2058,10 +2059,9 @@ RK_S32 RK_MPI_VENC_RGN_SetBitMap(VENC_CHN VeChn,
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
 
-  if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN) {
-    LOG("ERROR: Venc[%d] should be opened before set bitmap!\n");
+  if ((g_venc_chns[VeChn].status < CHN_STATUS_OPEN) ||
+      (g_venc_chns[VeChn].bColorTblInit == RK_FALSE))
     return -RK_ERR_VENC_NOTREADY;
-  }
 
   if (pstRgnInfo && !pstRgnInfo->u8Enable) {
     OsdRegionData rkmedia_osd_rgn;
@@ -2098,13 +2098,9 @@ RK_S32 RK_MPI_VENC_RGN_SetBitMap(VENC_CHN VeChn,
   }
 
   switch (pstBitmap->enPixelFormat) {
-  case PIXEL_FORMAT_ARGB_1555:
-    Argb1555_To_Region_Data(pstBitmap, rkmedia_osd_data, pstRgnInfo->u32Width,
-                            pstRgnInfo->u32Height);
-    break;
   case PIXEL_FORMAT_ARGB_8888:
-    Argb8888_To_Region_Data(pstBitmap, rkmedia_osd_data, pstRgnInfo->u32Width,
-                            pstRgnInfo->u32Height);
+    Argb8888_To_Region_Data(VeChn, pstBitmap, rkmedia_osd_data,
+                            pstRgnInfo->u32Width, pstRgnInfo->u32Height);
     break;
   default:
     LOG("ERROR: Not support bitmap pixel format:%d\n",
@@ -2144,10 +2140,9 @@ RK_S32 RK_MPI_VENC_RGN_SetCover(VENC_CHN VeChn,
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
 
-  if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN) {
-    LOG("ERROR: Venc[%d] should be opened before set cover!\n");
+  if ((g_venc_chns[VeChn].status < CHN_STATUS_OPEN) ||
+      (g_venc_chns[VeChn].bColorTblInit == RK_FALSE))
     return -RK_ERR_VENC_NOTREADY;
-  }
 
   if (pstRgnInfo && !pstRgnInfo->u8Enable) {
     OsdRegionData rkmedia_osd_rgn;
@@ -2182,32 +2177,16 @@ RK_S32 RK_MPI_VENC_RGN_SetCover(VENC_CHN VeChn,
     return -RK_ERR_VENC_NOMEM;
   }
 
-  RK_U8 value_r, value_g, value_b, value_a;
-  switch (pstCoverInfo->enPixelFormat) {
-  case PIXEL_FORMAT_ARGB_1555:
-    value_a = (RK_U8)((pstCoverInfo->u32Color & 0x00008000) >> 15);
-    value_r = (RK_U8)((pstCoverInfo->u32Color & 0x00007C00) >> 10);
-    value_g = (RK_U8)((pstCoverInfo->u32Color & 0x000003E0) >> 5);
-    value_b = (RK_U8)((pstCoverInfo->u32Color & 0x0000001F));
-    break;
-  case PIXEL_FORMAT_ARGB_8888:
-    value_a = (RK_U8)((pstCoverInfo->u32Color & 0xF0000000) >> 24);
-    value_r = (RK_U8)((pstCoverInfo->u32Color & 0x00FF0000) >> 16);
-    value_g = (RK_U8)((pstCoverInfo->u32Color & 0x0000FF00) >> 8);
-    value_b = (RK_U8)((pstCoverInfo->u32Color & 0x000000FF));
-    break;
-  default:
+  if (pstCoverInfo->enPixelFormat != PIXEL_FORMAT_ARGB_8888) {
     LOG("ERROR: Not support cover pixel format:%d\n",
         pstCoverInfo->enPixelFormat);
     return -RK_ERR_VENC_NOT_SUPPORT;
   }
 
   // find and fill color
-  if (value_a == 0x00)
-    color_id = PALETTE_TABLE_LEN - 1;
-  else
-    color_id = find_color(bgra8888_palette_table, PALETTE_TABLE_LEN, value_r,
-                          value_g, value_b);
+  color_id =
+      find_argb_color_tbl_by_order(g_venc_chns[VeChn].u32ArgbColorTbl,
+                                   PALETTE_TABLE_LEN, pstCoverInfo->u32Color);
   memset(rkmedia_cover_data, color_id, total_pix_num);
 
   OsdRegionData rkmedia_osd_rgn;
@@ -2226,6 +2205,70 @@ RK_S32 RK_MPI_VENC_RGN_SetCover(VENC_CHN VeChn,
 
   if (rkmedia_cover_data)
     free(rkmedia_cover_data);
+
+  return ret;
+}
+
+RK_S32
+RK_MPI_VENC_RGN_SetPaletteId(VENC_CHN VeChn,
+                             const OSD_REGION_INFO_S *pstRgnInfo,
+                             const OSD_COLOR_PALETTE_BUF_S *pstColPalBuf) {
+  RK_S32 ret = RK_ERR_SYS_OK;
+
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return -RK_ERR_VENC_INVALID_CHNID;
+
+  if ((g_venc_chns[VeChn].status < CHN_STATUS_OPEN) ||
+      (g_venc_chns[VeChn].bColorTblInit == RK_FALSE))
+    return -RK_ERR_VENC_NOTREADY;
+
+  if (pstRgnInfo && !pstRgnInfo->u8Enable) {
+    OsdRegionData rkmedia_osd_rgn;
+    memset(&rkmedia_osd_rgn, 0, sizeof(rkmedia_osd_rgn));
+    rkmedia_osd_rgn.region_id = pstRgnInfo->enRegionId;
+    rkmedia_osd_rgn.enable = pstRgnInfo->u8Enable;
+    ret = easymedia::video_encoder_set_osd_region(
+        g_venc_chns[VeChn].rkmedia_flow, &rkmedia_osd_rgn);
+    if (ret)
+      ret = -RK_ERR_VENC_NOT_PERM;
+    return ret;
+  }
+
+  if (!pstColPalBuf || !pstColPalBuf->pIdBuf)
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+
+  if (!pstRgnInfo || !pstRgnInfo->u32Width || !pstRgnInfo->u32Height)
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+
+  if ((pstRgnInfo->u32PosX % 16) || (pstRgnInfo->u32PosY % 16) ||
+      (pstRgnInfo->u32Width % 16) || (pstRgnInfo->u32Height % 16)) {
+    LOG("ERROR: <x, y, w, h> = <%d, %d, %d, %d> must be 16 aligned!\n",
+        pstRgnInfo->u32PosX, pstRgnInfo->u32PosY, pstRgnInfo->u32Width,
+        pstRgnInfo->u32Height);
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+  if ((pstRgnInfo->u32Width != pstColPalBuf->u32Width) ||
+      (pstRgnInfo->u32Height != pstColPalBuf->u32Height)) {
+    LOG("ERROR: RgnInfo:%dx%d and ColorPaletteBuf:%dx%d not equal!\n",
+        pstRgnInfo->u32Width, pstRgnInfo->u32Height, pstColPalBuf->u32Width,
+        pstColPalBuf->u32Height);
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+  OsdRegionData rkmedia_osd_rgn;
+  rkmedia_osd_rgn.buffer = (RK_U8 *)pstColPalBuf->pIdBuf;
+  rkmedia_osd_rgn.region_id = pstRgnInfo->enRegionId;
+  rkmedia_osd_rgn.pos_x = pstRgnInfo->u32PosX;
+  rkmedia_osd_rgn.pos_y = pstRgnInfo->u32PosY;
+  rkmedia_osd_rgn.width = pstRgnInfo->u32Width;
+  rkmedia_osd_rgn.height = pstRgnInfo->u32Height;
+  rkmedia_osd_rgn.inverse = pstRgnInfo->u8Inverse;
+  rkmedia_osd_rgn.enable = pstRgnInfo->u8Enable;
+  ret = easymedia::video_encoder_set_osd_region(g_venc_chns[VeChn].rkmedia_flow,
+                                                &rkmedia_osd_rgn);
+  if (ret)
+    ret = -RK_ERR_VENC_NOT_PERM;
 
   return ret;
 }
@@ -2261,7 +2304,8 @@ create_flow(const std::string &flow_name, const std::string &flow_param,
 }
 
 static std::shared_ptr<easymedia::Flow>
-create_alsa_flow(std::string aud_in_path, SampleInfo &info, bool capture, AI_LAYOUT_E enAiLayout) {
+create_alsa_flow(std::string aud_in_path, SampleInfo &info, bool capture,
+                 AI_LAYOUT_E enAiLayout) {
   std::string flow_name;
   std::string flow_param;
   std::string sub_param;
@@ -2325,9 +2369,9 @@ RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn) {
   info.fmt = (SampleFormat)g_ai_chns[AiChn].ai_attr.attr.enSampleFormat;
   info.nb_samples = g_ai_chns[AiChn].ai_attr.attr.u32NbSamples;
   info.sample_rate = g_ai_chns[AiChn].ai_attr.attr.u32SampleRate;
-  g_ai_chns[AiChn].rkmedia_flow = create_alsa_flow(
-      g_ai_chns[AiChn].ai_attr.attr.pcAudioNode, info, RK_TRUE,
-      g_ai_chns[AiChn].ai_attr.attr.enAiLayout);
+  g_ai_chns[AiChn].rkmedia_flow =
+      create_alsa_flow(g_ai_chns[AiChn].ai_attr.attr.pcAudioNode, info, RK_TRUE,
+                       g_ai_chns[AiChn].ai_attr.attr.enAiLayout);
   if (!g_ai_chns[AiChn].rkmedia_flow) {
     g_ai_mtx.unlock();
     return -RK_ERR_AI_BUSY;
@@ -2535,8 +2579,9 @@ RK_S32 RK_MPI_AO_EnableChn(AO_CHN AoChn) {
   info.fmt = (SampleFormat)g_ao_chns[AoChn].ao_attr.attr.enSampleFormat;
   info.nb_samples = g_ao_chns[AoChn].ao_attr.attr.u32NbSamples;
   info.sample_rate = g_ao_chns[AoChn].ao_attr.attr.u32SampleRate;
-  g_ao_chns[AoChn].rkmedia_flow = create_alsa_flow(
-      g_ao_chns[AoChn].ao_attr.attr.pcAudioNode, info, RK_FALSE, AI_LAYOUT_NORMAL);
+  g_ao_chns[AoChn].rkmedia_flow =
+      create_alsa_flow(g_ao_chns[AoChn].ao_attr.attr.pcAudioNode, info,
+                       RK_FALSE, AI_LAYOUT_NORMAL);
   if (!g_ao_chns[AoChn].rkmedia_flow) {
     g_ao_mtx.unlock();
     return -RK_ERR_AO_BUSY;
@@ -2859,10 +2904,11 @@ RK_S32 RK_MPI_ALGO_MD_EnableSwitch(ALGO_MD_CHN MdChn, RK_BOOL bEnable) {
     return -RK_ERR_ALGO_MD_INVALID_CHNID;
   }
   RK_S32 s32Enable = bEnable ? 1 : 0;
-  LOG("\n%s %s: MoveDetection[%d]:set status to %s.\n",
-    LOG_TAG, __func__, MdChn, s32Enable ? "Enable" : "Disable");
+  LOG("\n%s %s: MoveDetection[%d]:set status to %s.\n", LOG_TAG, __func__,
+      MdChn, s32Enable ? "Enable" : "Disable");
   if (g_algo_md_chns[MdChn].rkmedia_flow)
-    g_algo_md_chns[MdChn].rkmedia_flow->Control(easymedia::S_MD_ROI_ENABLE, s32Enable);
+    g_algo_md_chns[MdChn].rkmedia_flow->Control(easymedia::S_MD_ROI_ENABLE,
+                                                s32Enable);
   g_algo_md_mtx.unlock();
   return RK_ERR_SYS_OK;
 }
@@ -2975,10 +3021,11 @@ RK_S32 RK_MPI_ALGO_OD_EnableSwitch(ALGO_OD_CHN OdChn, RK_BOOL bEnable) {
     return -RK_ERR_ALGO_OD_INVALID_CHNID;
   }
   RK_S32 s32Enable = bEnable ? 1 : 0;
-  LOG("\n%s %s: OcclusionDetection[%d]:set status to %s.\n",
-    LOG_TAG, __func__, OdChn, s32Enable ? "Enable" : "Disable");
+  LOG("\n%s %s: OcclusionDetection[%d]:set status to %s.\n", LOG_TAG, __func__,
+      OdChn, s32Enable ? "Enable" : "Disable");
   if (g_algo_od_chns[OdChn].rkmedia_flow)
-    g_algo_od_chns[OdChn].rkmedia_flow->Control(easymedia::S_OD_ROI_ENABLE, s32Enable);
+    g_algo_od_chns[OdChn].rkmedia_flow->Control(easymedia::S_OD_ROI_ENABLE,
+                                                s32Enable);
   g_algo_od_mtx.unlock();
   return RK_ERR_SYS_OK;
 }
@@ -2993,10 +3040,9 @@ RK_S32 RK_MPI_RGA_CreateChn(RGA_CHN RgaChn, RGA_ATTR_S *pstRgaAttr) {
   if (!pstRgaAttr)
     return -RK_ERR_RGA_ILLEGAL_PARAM;
 
-  LOG("\n%s %s: Enable RGA[%d], Rect<%d,%d,%d,%d> Start...\n",
-      LOG_TAG, __func__, RgaChn, pstRgaAttr->stImgIn.u32X,
-      pstRgaAttr->stImgIn.u32Y, pstRgaAttr->stImgIn.u32Width,
-      pstRgaAttr->stImgIn.u32Height);
+  LOG("\n%s %s: Enable RGA[%d], Rect<%d,%d,%d,%d> Start...\n", LOG_TAG,
+      __func__, RgaChn, pstRgaAttr->stImgIn.u32X, pstRgaAttr->stImgIn.u32Y,
+      pstRgaAttr->stImgIn.u32Width, pstRgaAttr->stImgIn.u32Height);
 
   RK_U32 u32InX = pstRgaAttr->stImgIn.u32X;
   RK_U32 u32InY = pstRgaAttr->stImgIn.u32Y;
@@ -3068,10 +3114,9 @@ RK_S32 RK_MPI_RGA_CreateChn(RGA_CHN RgaChn, RGA_ATTR_S *pstRgaAttr) {
                                                      FlowOutputCallback);
   g_rga_chns[RgaChn].status = CHN_STATUS_OPEN;
   g_rga_mtx.unlock();
-  LOG("\n%s %s: Enable RGA[%d], Rect<%d,%d,%d,%d> End...\n",
-      LOG_TAG, __func__, RgaChn, pstRgaAttr->stImgIn.u32X,
-      pstRgaAttr->stImgIn.u32Y, pstRgaAttr->stImgIn.u32Width,
-      pstRgaAttr->stImgIn.u32Height);
+  LOG("\n%s %s: Enable RGA[%d], Rect<%d,%d,%d,%d> End...\n", LOG_TAG, __func__,
+      RgaChn, pstRgaAttr->stImgIn.u32X, pstRgaAttr->stImgIn.u32Y,
+      pstRgaAttr->stImgIn.u32Width, pstRgaAttr->stImgIn.u32Height);
 
   return RK_ERR_SYS_OK;
 }

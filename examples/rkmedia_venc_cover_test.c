@@ -88,7 +88,7 @@ int main() {
     return -1;
   }
 
-  ret = RK_MPI_VENC_RGN_Init(0);
+  ret = RK_MPI_VENC_RGN_Init(0, NULL);
   if (ret) {
     printf("TEST: ERROR: venc[0] rgn init error! code:%d\n", ret);
     return -1;

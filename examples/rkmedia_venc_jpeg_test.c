@@ -92,7 +92,7 @@ int main() {
   venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomHeight = u32DstHeight;
   venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomVirWidth = u32DstWidth;
   venc_chn_attr.stVencAttr.stAttrJpege.u32ZoomVirHeight = u32DstHeight;
-  //venc_chn_attr.stVencAttr.enRotation = VENC_ROTATION_90;
+  // venc_chn_attr.stVencAttr.enRotation = VENC_ROTATION_90;
   ret = RK_MPI_VENC_CreateChn(0, &venc_chn_attr);
   if (ret) {
     printf("Create Venc failed! ret=%d\n", ret);
@@ -127,7 +127,7 @@ int main() {
     return -1;
   }
 
-  RK_MPI_VENC_RGN_Init(0);
+  RK_MPI_VENC_RGN_Init(0, NULL);
 
   BITMAP_S BitMap;
   BitMap.enPixelFormat = PIXEL_FORMAT_ARGB_8888;

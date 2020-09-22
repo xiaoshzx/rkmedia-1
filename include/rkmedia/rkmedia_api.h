@@ -111,7 +111,7 @@ _CAPI RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
 _CAPI RK_S32 RK_MPI_VENC_SetGopMode(VENC_CHN VeChn,
                                     VENC_GOP_ATTR_S *pstGopModeAttr);
 
-_CAPI RK_S32 RK_MPI_VENC_RGN_Init(VENC_CHN VeChn);
+_CAPI RK_S32 RK_MPI_VENC_RGN_Init(VENC_CHN VeChn, VENC_COLOR_TBL_S *stColorTbl);
 
 _CAPI RK_S32 RK_MPI_VENC_RGN_SetBitMap(VENC_CHN VeChn,
                                        const OSD_REGION_INFO_S *pstRgnInfo,
@@ -119,6 +119,9 @@ _CAPI RK_S32 RK_MPI_VENC_RGN_SetBitMap(VENC_CHN VeChn,
 _CAPI RK_S32 RK_MPI_VENC_RGN_SetCover(VENC_CHN VeChn,
                                       const OSD_REGION_INFO_S *pstRgnInfo,
                                       const COVER_INFO_S *pstCoverInfo);
+_CAPI RK_S32 RK_MPI_VENC_RGN_SetPaletteId(
+    VENC_CHN VeChn, const OSD_REGION_INFO_S *pstRgnInfo,
+    const OSD_COLOR_PALETTE_BUF_S *pstColPalBuf);
 _CAPI RK_S32 RK_MPI_VENC_StartRecvFrame(
     VENC_CHN VeChn, const VENC_RECV_PIC_PARAM_S *pstRecvParam);
 _CAPI RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn);
@@ -131,10 +134,14 @@ _CAPI RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn);
 _CAPI RK_S32 RK_MPI_AI_DisableChn(AI_CHN AiChn);
 _CAPI RK_S32 RK_MPI_AI_SetVolume(AI_CHN AiChn, RK_S32 s32Volume);
 _CAPI RK_S32 RK_MPI_AI_GetVolume(AI_CHN AiChn, RK_S32 *ps32Volume);
-_CAPI RK_S32 RK_MPI_AI_SetTalkVqeAttr(AI_CHN AiChn, AI_TALKVQE_CONFIG_S*pstVqeConfig);
-_CAPI RK_S32 RK_MPI_AI_GetTalkVqeAttr(AI_CHN AiChn, AI_TALKVQE_CONFIG_S*pstVqeConfig);
-_CAPI RK_S32 RK_MPI_AI_SetRecordVqeAttr(AI_CHN AiChn, AI_RECORDVQE_CONFIG_S*pstVqeConfig);
-_CAPI RK_S32 RK_MPI_AI_GetRecordVqeAttr(AI_CHN AiChn, AI_RECORDVQE_CONFIG_S*pstVqeConfig);
+_CAPI RK_S32 RK_MPI_AI_SetTalkVqeAttr(AI_CHN AiChn,
+                                      AI_TALKVQE_CONFIG_S *pstVqeConfig);
+_CAPI RK_S32 RK_MPI_AI_GetTalkVqeAttr(AI_CHN AiChn,
+                                      AI_TALKVQE_CONFIG_S *pstVqeConfig);
+_CAPI RK_S32 RK_MPI_AI_SetRecordVqeAttr(AI_CHN AiChn,
+                                        AI_RECORDVQE_CONFIG_S *pstVqeConfig);
+_CAPI RK_S32 RK_MPI_AI_GetRecordVqeAttr(AI_CHN AiChn,
+                                        AI_RECORDVQE_CONFIG_S *pstVqeConfig);
 _CAPI RK_S32 RK_MPI_AI_EnableVqe(AI_CHN AiChn);
 _CAPI RK_S32 RK_MPI_AI_DisableVqe(AI_CHN AiChn);
 
@@ -168,7 +175,8 @@ _CAPI RK_S32 RK_MPI_ALGO_MD_EnableSwitch(ALGO_MD_CHN MdChn, RK_BOOL bEnable);
 /********************************************************************
  * Algorithm::Occlusion Detection api
  ********************************************************************/
-_CAPI RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn, const ALGO_OD_ATTR_S *pstChnAttr);
+_CAPI RK_S32 RK_MPI_ALGO_OD_CreateChn(ALGO_OD_CHN OdChn,
+                                      const ALGO_OD_ATTR_S *pstChnAttr);
 _CAPI RK_S32 RK_MPI_ALGO_OD_DestroyChn(ALGO_OD_CHN OdChn);
 _CAPI RK_S32 RK_MPI_ALGO_OD_EnableSwitch(ALGO_OD_CHN OdChn, RK_BOOL bEnable);
 /********************************************************************
