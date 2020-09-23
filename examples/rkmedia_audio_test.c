@@ -50,7 +50,7 @@ static RK_VOID AI_AO() {
   ai_attr.enSampleFormat = RK_SAMPLE_FMT_S16;
   ai_attr.u32NbSamples = 1152;
   ai_attr.u32SampleRate = g_enWorkSampleRate;
-  ai_attr.u32Channels = 2;
+  ai_attr.u32Channels = 1;
   ai_attr.enAiLayout = AI_LAYOUT_MIC_REF;//chanel layout: [ref:mic]; remove ref, output mic mono
 
   AO_CHN_ATTR_S ao_attr;
@@ -97,13 +97,14 @@ static RK_VOID AI_AENC_FILE(char *file_path) {
   ai_attr.enSampleFormat = RK_SAMPLE_FMT_S16;
   ai_attr.u32NbSamples = AAC_NB_SAMPLES;
   ai_attr.u32SampleRate = g_enWorkSampleRate;
-  ai_attr.u32Channels = 2;
+  ai_attr.u32Channels = 1;
+  ai_attr.enAiLayout = AI_LAYOUT_MIC_REF;//chanel layout: [ref:mic]; remove ref, output mic mono
 
   AENC_CHN_ATTR_S aenc_attr;
   aenc_attr.enCodecType = RK_CODEC_TYPE_AAC;
   aenc_attr.u32Bitrate = 64000;
   aenc_attr.u32Quality = 1;
-  aenc_attr.stAencAAC.u32Channels = 2;
+  aenc_attr.stAencAAC.u32Channels = 1;
   aenc_attr.stAencAAC.u32SampleRate = g_enWorkSampleRate;
 
   // 1. create AI
@@ -274,7 +275,7 @@ RK_S32 AI_VqeProcess_AO(RK_VOID) {
   ai_attr.enSampleFormat = RK_SAMPLE_FMT_S16;
   ai_attr.u32NbSamples = 1024;
   ai_attr.u32SampleRate = g_enWorkSampleRate;
-  ai_attr.u32Channels = 2;
+  ai_attr.u32Channels = 1;
   ai_attr.enAiLayout = AI_LAYOUT_MIC_REF;//remove ref channel, and output mic mono
 
   AO_CHN_ATTR_S ao_attr;

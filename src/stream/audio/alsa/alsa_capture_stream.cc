@@ -47,7 +47,8 @@ private:
   size_t Readn(void *ptr, size_t size, size_t nmemb);
 
 private:
-  SampleInfo sample_info;
+  SampleInfo alsa_sample_info;  // for capture
+  SampleInfo output_sample_info; // for output
   std::string device;
   snd_pcm_t *alsa_handle;
   size_t frame_size;
@@ -65,22 +66,27 @@ private:
 AlsaCaptureStream::AlsaCaptureStream(const char *param)
     : alsa_handle(NULL), frame_size(0), buffer_time(-1), buffer_duration(-1),
     layout(AI_LAYOUT_NORMAL), bVqeEnable(false), pstVqeHandle(NULL) {
-  memset(&sample_info, 0, sizeof(sample_info));
-  sample_info.fmt = SAMPLE_FMT_NONE;
+  memset(&output_sample_info, 0, sizeof(output_sample_info));
+  output_sample_info.fmt = SAMPLE_FMT_NONE;
   std::map<std::string, std::string> params;
-  int ret = ParseAlsaParams(param, params, device, sample_info, layout);
+  int ret = ParseAlsaParams(param, params, device, output_sample_info, layout);
   UNUSED(ret);
   if (device.empty())
     device = "default";
-  if (SampleInfoIsValid(sample_info))
+  if (SampleInfoIsValid(output_sample_info))
     SetReadable(true);
   else
     LOG("missing some necessary param\n");
-  interleaved = SampleFormatToInterleaved(sample_info.fmt);
+  interleaved = SampleFormatToInterleaved(output_sample_info.fmt);
 
   memset(&stVqeConfig, 0, sizeof(stVqeConfig));
   stVqeConfig.u32VQEMode = VQE_MODE_BUTT;
-  LOG("%s: Layout %d\n", __func__, layout);
+
+  alsa_sample_info = output_sample_info;
+  if (layout == AI_LAYOUT_MIC_REF || layout == AI_LAYOUT_REF_MIC) {
+    alsa_sample_info.channels = 2;
+  }
+  LOG("%s: Layout %d, output chan %d, alsa chan %d\n", __func__, layout, output_sample_info.channels, alsa_sample_info.channels);
 }
 
 AlsaCaptureStream::~AlsaCaptureStream() {
@@ -133,7 +139,7 @@ size_t AlsaCaptureStream::Readi(void *vptr, size_t size, size_t nmemb) {
 
 size_t AlsaCaptureStream::Readn(void *ptr, size_t size, size_t nmemb) {
   uint8_t *bufs[32];
-  int channels = sample_info.channels;
+  int channels = alsa_sample_info.channels;
   size_t sample_size = frame_size / channels;
   size_t buffer_len = size * nmemb;
   snd_pcm_sframes_t gotten = 0;
@@ -173,12 +179,12 @@ size_t AlsaCaptureStream::Readn(void *ptr, size_t size, size_t nmemb) {
 }
 
 std::shared_ptr<MediaBuffer> AlsaCaptureStream::Read() {
-  int buffer_size = frame_size * sample_info.nb_samples;
+  int buffer_size = frame_size * alsa_sample_info.nb_samples;
   int read_cnt = -1;
   int output_frame_size = frame_size;
 
   auto sample_buffer = std::make_shared<easymedia::SampleBuffer>(
-      MediaBuffer::Alloc2(buffer_size), sample_info);
+      MediaBuffer::Alloc2(buffer_size), alsa_sample_info);
 
   if (!sample_buffer) {
     LOG("Alloc audio frame buffer failed:%d,%d!\n", buffer_size, frame_size);
@@ -188,12 +194,12 @@ std::shared_ptr<MediaBuffer> AlsaCaptureStream::Read() {
     struct timespec crt_tm = {0, 0};
     clock_gettime(CLOCK_MONOTONIC, &crt_tm);
     buffer_time = crt_tm.tv_sec * 1000000LL + crt_tm.tv_nsec / 1000;
-    buffer_duration = av_rescale(sample_info.nb_samples, AV_TIME_BASE,
-                                 sample_info.sample_rate);
+    buffer_duration = av_rescale(alsa_sample_info.nb_samples, AV_TIME_BASE,
+                                 alsa_sample_info.sample_rate);
   }
 
 read_one_frame:
-  read_cnt = Read(sample_buffer->GetPtr(), frame_size, sample_info.nb_samples);
+  read_cnt = Read(sample_buffer->GetPtr(), frame_size, alsa_sample_info.nb_samples);
   // dynamic close audio vqe
   if (pstVqeHandle && !bVqeEnable) {
     RK_AUDIO_VQE_Deinit(pstVqeHandle);
@@ -206,7 +212,7 @@ read_one_frame:
       goto read_one_frame;
   }
 
-  if (read_cnt > 0 && (layout == AI_LAYOUT_MIC_REF && sample_info.channels == 2)) {
+  if (read_cnt > 0 && (layout == AI_LAYOUT_MIC_REF && output_sample_info.channels == 1)) {
     int16_t *in = (int16_t *)sample_buffer->GetPtr();
     int16_t *out = in;
     for (int j = 0; j < read_cnt; j++) {
@@ -215,7 +221,8 @@ read_one_frame:
     }
     sample_buffer->SetChannels(1);
     output_frame_size = frame_size / 2;
-  } else if (read_cnt > 0 && (layout == AI_LAYOUT_REF_MIC && sample_info.channels == 2)) {
+    sample_buffer->SetSize(buffer_size / 2);  // fix for AAC
+  } else if (read_cnt > 0 && (layout == AI_LAYOUT_REF_MIC && output_sample_info.channels == 1)) {
     int16_t *in = (int16_t *)sample_buffer->GetPtr();
     int16_t *out = in;
     for (int j = 0; j < read_cnt; j++) {
@@ -224,6 +231,7 @@ read_one_frame:
     }
     sample_buffer->SetChannels(1);
     output_frame_size = frame_size / 2;
+    sample_buffer->SetSize(buffer_size / 2); // fix for AAC
   }
 
   sample_buffer->SetValidSize(read_cnt * output_frame_size);
@@ -245,7 +253,7 @@ int AlsaCaptureStream::Open() {
     return -1;
   }
   pcm_handle = AlsaCommonOpenSetHwParams(device.c_str(), SND_PCM_STREAM_CAPTURE,
-                                         0, sample_info, hwparams);
+                                         0, alsa_sample_info, hwparams);
   if (!pcm_handle)
     goto err;
   if ((status = snd_pcm_hw_params(pcm_handle, hwparams)) < 0) {
@@ -330,7 +338,7 @@ int AlsaCaptureStream::IoCtrl(unsigned long int request, ...) {
         LOG("wrong u32VQEMode\n");
         return -1;
       }
-      pstVqeHandle = RK_AUDIO_VQE_Init(sample_info, layout, &stVqeConfig);
+      pstVqeHandle = RK_AUDIO_VQE_Init(alsa_sample_info, layout, &stVqeConfig);
       if (!pstVqeHandle)
         return -1;
     }
