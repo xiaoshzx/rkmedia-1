@@ -32,29 +32,26 @@ RK_S32 color_tbl_argb_to_avuy(const RK_U32 *pu32RgbaTbl, RK_U32 *pu32AvuyTbl) {
 /* Match an RGB value to a particular palette index */
 RK_U8 find_argb_color_tbl_by_order(const RK_U32 *pal, RK_U32 len,
                                    RK_U32 u32ArgbColor) {
-  RK_U8 r, g, b;
+  RK_U8 a, r, g, b;
   RK_U32 i = 0;
   RK_U8 pixel = 0;
   RK_U32 smallest = 0;
   RK_U32 distance = 0;
-  RK_S32 rd, gd, bd;
-  RK_U8 rp, gp, bp;
+  RK_U8 ap, rp, gp, bp;
 
+  a = (u32ArgbColor & 0xFF000000) >> 24;
   r = (u32ArgbColor & 0x00FF0000) >> 16;
   g = (u32ArgbColor & 0x0000FF00) >> 8;
   b = (u32ArgbColor & 0x000000FF);
 
   smallest = ~0;
   for (i = 0; i < len; ++i) {
+    ap = (pal[i] & 0xFF000000) >> 24;
     rp = (pal[i] & 0x00FF0000) >> 16;
     gp = (pal[i] & 0x0000FF00) >> 8;
     bp = (pal[i] & 0x000000FF);
 
-    rd = rp - r;
-    gd = gp - g;
-    bd = bp - b;
-
-    distance = (rd * rd) + (gd * gd) + (bd * bd);
+    distance = abs(ap - a) + abs(rp - r) + abs(gp - g) + abs(bp - b);
     if (distance < smallest) {
       pixel = i;
 
