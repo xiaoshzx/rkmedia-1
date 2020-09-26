@@ -1029,6 +1029,11 @@ rkmediaCalculateRegionLuma(std::shared_ptr<easymedia::ImageBuffer> &rkmedia_mb,
 RK_S32 RK_MPI_VI_GetChnRegionLuma(VI_PIPE ViPipe, VI_CHN ViChn,
                                   const VIDEO_REGION_INFO_S *pstRegionInfo,
                                   RK_U64 *pu64LumaData, RK_S32 s32MilliSec) {
+  RK_U32 u32ImgWidth = 0;
+  RK_U32 u32ImgHeight = 0;
+  RK_U32 u32XOffset = 0;
+  RK_U32 u32YOffset = 0;
+
   if ((ViPipe < 0) || (ViChn < 0) || (ViChn > VI_MAX_CHN_NUM))
     return -RK_ERR_VI_INVALID_CHNID;
 
@@ -1040,6 +1045,21 @@ RK_S32 RK_MPI_VI_GetChnRegionLuma(VI_PIPE ViPipe, VI_CHN ViChn,
 
   if (target_chn->status < CHN_STATUS_OPEN)
     return -RK_ERR_VI_NOTREADY;
+
+  // input rgn check.
+  u32ImgWidth = g_vi_chns[ViChn].vi_attr.attr.u32Width;
+  u32ImgHeight = g_vi_chns[ViChn].vi_attr.attr.u32Height;
+  for (RK_U32 i = 0; i < pstRegionInfo->u32RegionNum; i++) {
+    u32XOffset = pstRegionInfo->pstRegion[i].s32X + pstRegionInfo->pstRegion[i].u32Width;
+    u32YOffset = pstRegionInfo->pstRegion[i].s32Y + pstRegionInfo->pstRegion[i].u32Height;
+    if ((u32XOffset > u32ImgWidth) || (u32YOffset > u32ImgHeight)) {
+      LOG("ERROR: [%s]: LumaRgn[%d]:<%d, %d, %d, %d> is invalid for VI[%d]:%dx%d\n",
+          __func__, i, pstRegionInfo->pstRegion[i].s32X,
+          pstRegionInfo->pstRegion[i].s32Y, pstRegionInfo->pstRegion[i].u32Width,
+          pstRegionInfo->pstRegion[i].u32Height, ViChn, u32ImgWidth, u32ImgHeight);
+      return -RK_ERR_VI_ILLEGAL_PARAM;
+    }
+  }
 
   {
     // The {} here is to limit the scope of locking. The lock is only
