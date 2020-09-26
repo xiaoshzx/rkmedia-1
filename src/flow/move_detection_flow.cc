@@ -44,8 +44,23 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
   if (!src)
     return false;
 
+  if (src->GetType() != Type::Image) {
+    LOG("ERROR: MD: invalid buffer type:%d\n", src->GetType());
+    return false;
+  }
+
   if (!mdf->roi_in) {
     LOG("ERROR: MD: process invalid arguments\n");
+    return false;
+  }
+
+  ImageBuffer *img_buffer = static_cast<ImageBuffer *>(src.get());
+  ImageInfo &image_info = img_buffer->GetImageInfo();
+  if ((image_info.width != mdf->ds_width) ||
+      (image_info.height != mdf->ds_height)) {
+    LOG("ERROR: MD: input buffer:%dx%d not match mdCtx:%dx%d...\n",
+        image_info.width, image_info.height,
+        mdf->ds_width, mdf->ds_height);
     return false;
   }
 
@@ -60,10 +75,7 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
       free(mdf->roi_in);
     }
 
-    for (int i = 0; i < (int)mdf->new_roi.size(); i++) {
-      LOG("MD: New ROI RECT[%d]:(%d,%d,%d,%d)\n", i, mdf->new_roi[i].x,
-          mdf->new_roi[i].y, mdf->new_roi[i].w, mdf->new_roi[i].h);
-    }
+    mdf->md_roi_mtx.lock();
     mdf->roi_cnt = (int)mdf->new_roi.size();
     // We need to create roi_cnt + 1 ROI_IN, and the last one sets
     // the flag to 0 to tell the motion detection interface that
@@ -76,8 +88,9 @@ bool md_process(Flow *f, MediaBufferVector &input_vector) {
       mdf->roi_in[i].down_right[0] = mdf->new_roi[i].y + mdf->new_roi[i].h; // y
       mdf->roi_in[i].down_right[1] = mdf->new_roi[i].x + mdf->new_roi[i].w; // x
     }
-    mdf->update_mask &= (~MD_UPDATE_ROI_RECTS);
     mdf->new_roi.clear();
+    mdf->md_roi_mtx.unlock();
+    mdf->update_mask &= (~MD_UPDATE_ROI_RECTS);
   }
 
   for (int i = 0; i < mdf->roi_cnt; i++) {
@@ -344,13 +357,13 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
     }
   }
 
-  LOGD("MD: param: sensitivity=%d\n", Sensitivity);
-  LOGD("MD: param: is_single_ref=%d\n", is_single_ref);
-  LOGD("MD: param: orignale width=%d\n", ori_width);
-  LOGD("MD: param: orignale height=%d\n", ori_height);
-  LOGD("MD: param: down scale width=%d\n", ds_width);
-  LOGD("MD: param: down scale height=%d\n", ds_height);
-  LOGD("MD: param: roi_cnt=%d\n", roi_cnt);
+  LOG("MD: param: sensitivity=%d\n", Sensitivity);
+  LOG("MD: param: is_single_ref=%d\n", is_single_ref);
+  LOG("MD: param: orignale width=%d\n", ori_width);
+  LOG("MD: param: orignale height=%d\n", ori_height);
+  LOG("MD: param: down scale width=%d\n", ds_width);
+  LOG("MD: param: down scale height=%d\n", ds_height);
+  LOG("MD: param: roi_cnt=%d\n", roi_cnt);
 
   // We need to create roi_cnt + 1 ROI_IN, and the last one sets
   // the flag to 0 to tell the motion detection interface that
@@ -358,7 +371,16 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
   roi_in = (ROI_INFO *)malloc((roi_cnt + 1) * sizeof(ROI_INFO));
   memset(roi_in, 0, (roi_cnt + 1) * sizeof(ROI_INFO));
   for (int i = 0; i < roi_cnt; i++) {
-    LOGD("### ROI RECT[i]:(%d,%d,%d,%d)\n", rects[i].x, rects[i].y, rects[i].w,
+    if ((rects[i].x < 0) || (rects[i].x > ds_width) ||
+        (rects[i].y < 0) || (rects[i].y > ds_height) ||
+        ((rects[i].x + rects[i].w) > ds_width) ||
+        ((rects[i].y + rects[i].h) > ds_height)) {
+      LOG("ERROR: MD: Invalid new rect:<%d, %d, %d, %d> for Image:%dx%d...\n",
+        rects[i].x, rects[i].y, rects[i].w, rects[i].h, ds_width, ds_height);
+      SetError(-EINVAL);
+      return;
+    }
+    LOG("### ROI RECT[i]:(%d,%d,%d,%d)\n", rects[i].x, rects[i].y, rects[i].w,
          rects[i].h);
     roi_in[i].flag = 1;
     roi_in[i].up_left[0] = rects[i].y;                 // y
@@ -436,12 +458,29 @@ int MoveDetectionFlow::Control(unsigned long int request, ...) {
     int new_rects_cnt = va_arg(ap, int);
     assert(new_rects && (new_rects_cnt > 0));
     LOG("MD: new roi image rects cnt:%d\n", new_rects_cnt);
+    md_roi_mtx.lock();
+    if (new_roi.size() > 0) {
+      new_roi.clear();
+      LOG("WARN: MD: Over write last rects cfg!\n");
+    }
+
     for (int i = 0; i < new_rects_cnt; i++) {
+      if ((new_rects[i].x < 0) || (new_rects[i].x > ds_width) ||
+          (new_rects[i].y < 0) || (new_rects[i].y > ds_height) ||
+          ((new_rects[i].x + new_rects[i].w) > ds_width) ||
+          ((new_rects[i].y + new_rects[i].h) > ds_height)) {
+        LOG("ERROR: MD: Invalid new rect:<%d, %d, %d, %d> for Image:%dx%d...\n",
+          new_rects[i].x, new_rects[i].y,
+          new_rects[i].w, new_rects[i].h,
+          ds_width, ds_height);
+        ret = -1;
+        continue;
+      }
       LOG("MD: ROI RECT[%d]:(%d,%d,%d,%d)\n", i, new_rects[i].x, new_rects[i].y,
           new_rects[i].w, new_rects[i].h);
       new_roi.push_back(std::move(new_rects[i]));
     }
-
+    md_roi_mtx.unlock();
     update_mask |= MD_UPDATE_ROI_RECTS;
     break;
   }

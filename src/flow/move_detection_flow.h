@@ -31,10 +31,11 @@ public:
 protected:
   ROI_INFO *roi_in;
   int roi_cnt;
-  struct md_ctx  *md_ctx;
+  struct md_ctx *md_ctx;
   int roi_enable;
   int Sensitivity;
   int update_mask;
+  std::mutex md_roi_mtx;
   std::vector<ImageRect> new_roi;
   void InsertMdResult(std::shared_ptr<MediaBuffer> &buffer);
 
