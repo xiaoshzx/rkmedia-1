@@ -2878,6 +2878,8 @@ RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn,
     return -RK_ERR_ALGO_MD_EXIST;
   }
 
+  LOG("\n%s %s: Enable MD[%d] Start...\n", LOG_TAG, __func__, MdChn);
+
   std::string flow_name = "move_detec";
   std::string flow_param = "";
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "move_detec");
@@ -2917,6 +2919,8 @@ RK_S32 RK_MPI_ALGO_MD_CreateChn(ALGO_MD_CHN MdChn,
   g_algo_md_chns[MdChn].status = CHN_STATUS_OPEN;
 
   g_algo_md_mtx.unlock();
+  LOG("\n%s %s: Enable MD[%d] END...\n", LOG_TAG, __func__, MdChn);
+
   return RK_ERR_SYS_OK;
 }
 
@@ -2930,9 +2934,12 @@ RK_S32 RK_MPI_ALGO_MD_DestroyChn(ALGO_MD_CHN MdChn) {
     return -RK_ERR_ALGO_MD_BUSY;
   }
 
-  g_algo_md_chns[MdChn].rkmedia_flow.reset();
+  LOG("\n%s %s: Disable MD[%d] Start...\n", LOG_TAG, __func__, MdChn);
+  if (g_algo_md_chns[MdChn].rkmedia_flow)
+    g_algo_md_chns[MdChn].rkmedia_flow.reset();
   g_algo_md_chns[MdChn].status = CHN_STATUS_CLOSED;
   g_algo_md_mtx.unlock();
+  LOG("\n%s %s: Disable MD[%d] End...\n", LOG_TAG, __func__, MdChn);
 
   return RK_ERR_SYS_OK;
 }

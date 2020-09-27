@@ -291,6 +291,7 @@ void MoveDetectionFlow::InsertMdResult(std::shared_ptr<MediaBuffer> &buffer) {
 }
 
 MoveDetectionFlow::MoveDetectionFlow(const char *param) {
+  md_ctx = NULL;
   std::list<std::string> separate_list;
   std::map<std::string, std::string> params;
   if (!ParseWrapFlowParams(param, params, separate_list)) {
