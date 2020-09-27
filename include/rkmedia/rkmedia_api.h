@@ -143,6 +143,7 @@ _CAPI RK_S32 RK_MPI_AI_SetRecordVqeAttr(AI_CHN AiChn,
 _CAPI RK_S32 RK_MPI_AI_GetRecordVqeAttr(AI_CHN AiChn,
                                         AI_RECORDVQE_CONFIG_S *pstVqeConfig);
 _CAPI RK_S32 RK_MPI_AI_EnableVqe(AI_CHN AiChn);
+_CAPI RK_S32 RK_MPI_AI_StartStream(AI_CHN AiChn);
 _CAPI RK_S32 RK_MPI_AI_DisableVqe(AI_CHN AiChn);
 
 /********************************************************************

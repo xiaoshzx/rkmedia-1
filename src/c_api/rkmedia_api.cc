@@ -1867,8 +1867,10 @@ RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn, const VENC_ROI_ATTR_S *pstRoiAttr,
   int valid_rgn_cnt = 0;
   EncROIRegion regions[region_cnt];
 
-  if ((g_venc_chns[VeChn].venc_attr.attr.stVencAttr.enRotation == VENC_ROTATION_90) ||
-      (g_venc_chns[VeChn].venc_attr.attr.stVencAttr.enRotation == VENC_ROTATION_270)) {
+  if ((g_venc_chns[VeChn].venc_attr.attr.stVencAttr.enRotation ==
+       VENC_ROTATION_90) ||
+      (g_venc_chns[VeChn].venc_attr.attr.stVencAttr.enRotation ==
+       VENC_ROTATION_270)) {
     img_width = g_venc_chns[VeChn].venc_attr.attr.stVencAttr.u32PicHeight;
     img_height = g_venc_chns[VeChn].venc_attr.attr.stVencAttr.u32PicWidth;
   } else {
@@ -2447,6 +2449,27 @@ RK_S32 RK_MPI_AI_GetVolume(AI_CHN AiChn, RK_S32 *ps32Volume) {
   }
   g_ai_chns[AiChn].rkmedia_flow->Control(easymedia::G_ALSA_VOLUME, ps32Volume);
   g_ai_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AI_StartStream(AI_CHN AiChn) {
+  if ((AiChn < 0) || (AiChn > AI_MAX_CHN_NUM))
+    return -RK_ERR_AI_INVALID_DEVID;
+
+  g_ai_mtx.lock();
+  if (g_ai_chns[AiChn].status < CHN_STATUS_OPEN) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_BUSY;
+  }
+
+  if (!g_ai_chns[AiChn].rkmedia_flow) {
+    g_ai_mtx.unlock();
+    return -RK_ERR_AI_NOTOPEN;
+  }
+
+  g_ai_chns[AiChn].rkmedia_flow->StartStream();
+  g_ai_mtx.unlock();
+
   return RK_ERR_SYS_OK;
 }
 
