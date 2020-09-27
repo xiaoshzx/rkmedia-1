@@ -845,6 +845,12 @@ RK_S32 RK_MPI_SYS_SendMediaBuffer(MOD_ID_E enModID, RK_S32 s32ChnID,
     target_chn = &g_adec_chns[s32ChnID];
     target_mutex = &g_adec_mtx;
     break;
+  case RK_ID_AO:
+    if (s32ChnID < 0 || s32ChnID > AO_MAX_CHN_NUM)
+      return -RK_ERR_SYS_ILLEGAL_PARAM;
+    target_chn = &g_ao_chns[s32ChnID];
+    target_mutex = &g_ao_mtx;
+    break;
   default:
     return -RK_ERR_SYS_NOT_SUPPORT;
   }
