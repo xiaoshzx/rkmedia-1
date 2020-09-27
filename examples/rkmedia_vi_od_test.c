@@ -11,6 +11,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "common/sample_common.h"
 #include "rkmedia_api.h"
 
 static bool quit = false;
@@ -36,7 +37,7 @@ void occlusion_detection_cb(EVENT_S *pstEvent) {
   }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   RK_S32 ret = 0;
   RK_S32 video_width = 1920;
   RK_S32 video_height = 1080;
@@ -44,7 +45,28 @@ int main() {
   RK_S32 disp_height = 1280;
 
   RK_MPI_SYS_Init();
-
+#ifdef RKAIQ
+  rk_aiq_working_mode_t hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+  RK_BOOL fec_enable = RK_FALSE;
+  int fps = 30;
+  char *iq_file_dir = NULL;
+  if (strcmp(argv[1], "-h") == 0) {
+    printf("\n\n/Usage:./%s [--aiq iq_file_dir]\n", argv[0]);
+    printf("\t --aiq iq_file_dir : init isp\n");
+    return -1;
+  }
+  if (argc == 3) {
+    if (strcmp(argv[1], "--aiq") == 0) {
+      iq_file_dir = argv[2];
+    }
+  }
+  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable, iq_file_dir);
+  SAMPLE_COMM_ISP_Run();
+  SAMPLE_COMM_ISP_SetFrameRate(fps);
+#else
+  (void)argc;
+  (void)argv;
+#endif
   VI_CHN_ATTR_S vi_chn_attr;
   vi_chn_attr.pcVideoNode = "rkispp_scale0";
   vi_chn_attr.u32BufCnt = 4;
@@ -162,15 +184,15 @@ int main() {
   printf("%s initial finish\n", __func__);
   signal(SIGINT, sigterm_handler);
 
-  while(!quit) {
+  while (!quit) {
     printf("\n##Keep OD working on 10s...\n");
-    if(RK_MPI_ALGO_OD_EnableSwitch(0, RK_TRUE)) {
+    if (RK_MPI_ALGO_OD_EnableSwitch(0, RK_TRUE)) {
       printf("ERROR: Enable od error!\n");
       break;
     }
     sleep(20);
     printf("\n##Keep OD closing on 10s...\n");
-    if(RK_MPI_ALGO_OD_EnableSwitch(0, RK_FALSE)) {
+    if (RK_MPI_ALGO_OD_EnableSwitch(0, RK_FALSE)) {
       printf("ERROR: Disable od error!\n");
       break;
     }
@@ -207,7 +229,9 @@ int main() {
     printf("UnBind rga[0] to vo[0] failed! ret=%d\n", ret);
     return -1;
   }
-
+#ifdef RKAIQ
+  SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
+#endif
   RK_MPI_ALGO_OD_DestroyChn(0);
   RK_MPI_VO_DestroyChn(0);
   RK_MPI_RGA_DestroyChn(0);

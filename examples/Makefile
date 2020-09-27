@@ -23,12 +23,12 @@ SAMPLE_COMMON := common/sample_common_isp.c
 all:
 	$(GCC) rkmedia_audio_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_audio_test
 	$(GCC) rkmedia_vi_venc_test.c $(SAMPLE_COMMON) $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_vi_venc_test
-	$(GCC) rkmedia_venc_osd_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_venc_osd_test
-	$(GCC) rkmedia_venc_cover_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_venc_cover_test
-	$(GCC) rkmedia_venc_jpeg_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_venc_jpeg_test
-	$(GCC) rkmedia_vi_md_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_vi_md_test
-	$(GCC) rkmedia_isp_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_isp_test
-	$(GCC) rkmedia_vi_multi_bind_test.c $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_vi_multi_bind_test
+	$(GCC) rkmedia_venc_osd_test.c $(SAMPLE_COMMON) $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_venc_osd_test
+	$(GCC) rkmedia_venc_cover_test.c $(SAMPLE_COMMON) $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_venc_cover_test
+	$(GCC) rkmedia_venc_jpeg_test.c $(SAMPLE_COMMON) $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_venc_jpeg_test
+	$(GCC) rkmedia_vi_md_test.c $(SAMPLE_COMMON) $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_vi_md_test
+	$(GCC) rkmedia_isp_test.c $(SAMPLE_COMMON) $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_isp_test
+	$(GCC) rkmedia_vi_multi_bind_test.c $(SAMPLE_COMMON) $(CFLAGS) $(LIB_FILES) $(LD_FLAGS) -o rkmedia_vi_multi_bind_test
 
 	$(hide)$(ECHO) "Build Done ..."
 

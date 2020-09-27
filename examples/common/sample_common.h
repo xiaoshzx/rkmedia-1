@@ -30,7 +30,8 @@ typedef enum {
  //RK_AIQ_WORKING_MODE_SENSOR_HDR = 10, // sensor built-in hdr mode
 } rk_aiq_working_mode_t;
 */
-RK_S32 SAMPLE_COMM_ISP_Init(rk_aiq_working_mode_t WDRMode, RK_BOOL bFECEnable);
+RK_S32 SAMPLE_COMM_ISP_Init(rk_aiq_working_mode_t WDRMode, RK_BOOL bFECEnable,
+                            const char *iq_file_dir);
 RK_VOID SAMPLE_COMM_ISP_Stop(RK_VOID);
 RK_S32 SAMPLE_COMM_ISP_Run(RK_VOID); // isp stop before vi streamoff
 

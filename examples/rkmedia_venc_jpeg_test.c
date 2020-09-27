@@ -12,6 +12,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "common/sample_common.h"
 #include "rkmedia_api.h"
 #include "rkmedia_venc.h"
 
@@ -51,7 +52,7 @@ static void set_argb8888_buffer(RK_U32 *buf, RK_U32 size, RK_U32 color) {
     *(buf + i) = color;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   RK_S32 ret;
   RK_U32 u32SrcWidth = 1920;
   RK_U32 u32SrcHeight = 1080;
@@ -59,6 +60,29 @@ int main() {
   RK_U32 u32DstHeight = 480;
   IMAGE_TYPE_E enPixFmt = IMAGE_TYPE_NV12;
   const RK_CHAR *pcVideoNode = "rkispp_scale0";
+
+#ifdef RKAIQ
+  rk_aiq_working_mode_t hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+  RK_BOOL fec_enable = RK_FALSE;
+  int fps = 30;
+  char *iq_file_dir = NULL;
+  if (strcmp(argv[1], "-h") == 0) {
+    printf("\n\n/Usage:./%s [--aiq iq_file_dir]\n", argv[0]);
+    printf("\t --aiq iq_file_dir : init isp\n");
+    return -1;
+  }
+  if (argc == 3) {
+    if (strcmp(argv[1], "--aiq") == 0) {
+      iq_file_dir = argv[2];
+    }
+  }
+  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable, iq_file_dir);
+  SAMPLE_COMM_ISP_Run();
+  SAMPLE_COMM_ISP_SetFrameRate(fps);
+#else
+  (void)argc;
+  (void)argv;
+#endif
 
   ret = RK_MPI_SYS_Init();
   if (ret) {
@@ -187,6 +211,10 @@ int main() {
     }
     usleep(30000); // sleep 30 ms.
   }
+
+#ifdef RKAIQ
+  SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
+#endif
 
   printf("%s exit!\n", __func__);
   RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);

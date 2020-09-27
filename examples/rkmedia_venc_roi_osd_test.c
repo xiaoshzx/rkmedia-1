@@ -219,7 +219,7 @@ int StreamOff(int vi_chn, int venc_chn) {
   return 0;
 }
 
-static char optstr[] = "?:";
+static char optstr[] = "?:a:";
 static void print_usage(char *name) {
   printf("#Function description:\n");
   printf("In the case of multiple streams, verify the effect of roi and osd at "
@@ -229,6 +229,8 @@ static void print_usage(char *name) {
   printf("  SubStream0: rkispp_scale1: 720x480 NV12 -> /userdata/sub0.h264\n");
   printf("  SubStream1: rkispp_scale2: 1280x720 NV12 -> /userdata/sub1.h264\n");
   printf("#Usage Example: \n");
+  printf("  %s [-a /etc/iqfiles]\n", name);
+  printf("  @[-a] the path of iqfiles. default: NULL\n");
   printf("  %s [-?]\n", name);
 }
 
@@ -236,8 +238,13 @@ int main(int argc, char *argv[]) {
   int c = 0;
 
   opterr = 1;
+  const char *iq_file_dir = NULL;
   while ((c = getopt(argc, argv, optstr)) != -1) {
     switch (c) {
+    case 'a':
+      iq_file_dir = optarg;
+      printf("#IN ARGS: path of iqfiles: %s\n", iq_file_dir);
+      break;
     case '?':
     default:
       print_usage(argv[0]);
@@ -247,6 +254,14 @@ int main(int argc, char *argv[]) {
 
   printf(">>>>>>>>>>>>>>> Test START <<<<<<<<<<<<<<<<<<<<<<\n");
   RK_MPI_SYS_Init();
+#ifdef RKAIQ
+  rk_aiq_working_mode_t hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+  RK_BOOL fec_enable = RK_FALSE;
+  int fps = 30;
+  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable, iq_file_dir);
+  SAMPLE_COMM_ISP_Run();
+  SAMPLE_COMM_ISP_SetFrameRate(fps);
+#endif
 
   g_save_file = fopen("/data/main.h264", "w");
   if (StreamOn(1920, 1080, "rkispp_scale0", 0, 0)) {
@@ -318,6 +333,10 @@ int main(int argc, char *argv[]) {
   while (!quit) {
     usleep(100);
   }
+
+#ifdef RKAIQ
+  SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
+#endif
 
   StreamOff(0, 0);
   StreamOff(1, 1);

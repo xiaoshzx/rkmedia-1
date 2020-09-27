@@ -21,11 +21,32 @@ static void sigterm_handler(int sig) {
   quit = true;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   int ret = 0;
 
   RK_MPI_SYS_Init();
-
+#ifdef RKAIQ
+  rk_aiq_working_mode_t hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+  RK_BOOL fec_enable = RK_FALSE;
+  int fps = 30;
+  char *iq_file_dir = NULL;
+  if (strcmp(argv[1], "-h") == 0) {
+    printf("\n\n/Usage:./%s [--aiq iq_file_dir]\n", argv[0]);
+    printf("\t --aiq iq_file_dir : init isp\n");
+    return -1;
+  }
+  if (argc == 3) {
+    if (strcmp(argv[1], "--aiq") == 0) {
+      iq_file_dir = argv[2];
+    }
+  }
+  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable, iq_file_dir);
+  SAMPLE_COMM_ISP_Run();
+  SAMPLE_COMM_ISP_SetFrameRate(fps);
+#else
+  (void)argc;
+  (void)argv;
+#endif
   VI_CHN_ATTR_S vi_chn_attr;
   vi_chn_attr.pcVideoNode = "rkispp_scale0";
   vi_chn_attr.u32BufCnt = 4;
@@ -45,10 +66,7 @@ int main() {
   signal(SIGINT, sigterm_handler);
   sleep(3);
 
-  RECT_S stRects[2] = {
-    {0, 0, 256, 256},
-    {256, 256, 256, 256}
-  };
+  RECT_S stRects[2] = {{0, 0, 256, 256}, {256, 256, 256, 256}};
   VIDEO_REGION_INFO_S stVideoRgn;
   stVideoRgn.pstRegion = stRects;
   stVideoRgn.u32RegionNum = 2;
@@ -63,7 +81,9 @@ int main() {
     printf("Rect[1] {256, 256, 256, 256} -> luma:%lld\n", u64LumaData[1]);
     usleep(100000); // 100ms
   }
-
+#ifdef RKAIQ
+  SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
+#endif
   printf("%s exit!\n", __func__);
   RK_MPI_VI_DisableChn(0, 1);
 

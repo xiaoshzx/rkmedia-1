@@ -12,6 +12,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "common/sample_common.h"
 #include "rkmedia_api.h"
 #include "rkmedia_venc.h"
 
@@ -47,18 +48,20 @@ static void set_argb8888_buffer(RK_U32 *buf, RK_U32 size, RK_U32 color) {
     *(buf + i) = color;
 }
 
-static char optstr[] = "?:m:";
+static char optstr[] = "?:m:a:";
 
 static void print_usage(char *name) {
   printf("#Usage Example: \n");
-  printf("  %s [-m cbr]\n", name);
+  printf("  %s [-m cbr] [-m /oem/etc/iqfiles]\n", name);
   printf("  @[-m] Set RcMode:cbr/vbr. defalut:vbr\n");
+  printf("  @[-a] the path of iqfiles. defalut:NULL\n");
 }
 
 int main(int argc, char *argv[]) {
   RK_S32 ret;
   const RK_CHAR *pcRcMode = "vbr";
   int c = 0;
+  const char *iq_file_dir = NULL;
 
   opterr = 1;
   while ((c = getopt(argc, argv, optstr)) != -1) {
@@ -66,6 +69,10 @@ int main(int argc, char *argv[]) {
     case 'm':
       pcRcMode = optarg;
       printf("#IN ARGS: pcRcMode: %s\n", pcRcMode);
+      break;
+    case 'a':
+      iq_file_dir = optarg;
+      printf("#IN ARGS: the path of iqfiles: %s\n", iq_file_dir);
       break;
     case '?':
     default:
@@ -75,6 +82,14 @@ int main(int argc, char *argv[]) {
   }
 
   ret = RK_MPI_SYS_Init();
+#ifdef RKAIQ
+  rk_aiq_working_mode_t hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+  RK_BOOL fec_enable = RK_FALSE;
+  int fps = 30;
+  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable, iq_file_dir);
+  SAMPLE_COMM_ISP_Run();
+  SAMPLE_COMM_ISP_SetFrameRate(fps);
+#endif
   if (ret) {
     printf("Sys Init failed! ret=%d\n", ret);
     return -1;
@@ -184,7 +199,9 @@ int main(int argc, char *argv[]) {
   while (!quit) {
     usleep(100);
   }
-
+#ifdef RKAIQ
+  SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
+#endif
   printf("%s exit!\n", __func__);
   RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
   RK_MPI_VI_DisableChn(0, 1);

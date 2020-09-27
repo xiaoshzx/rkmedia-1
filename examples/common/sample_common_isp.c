@@ -16,9 +16,15 @@
 
 static rk_aiq_sys_ctx_t *g_aiq_ctx;
 
-RK_S32 SAMPLE_COMM_ISP_Init(rk_aiq_working_mode_t WDRMode, RK_BOOL bFECEnable) {
-  char *iq_file_dir = "iqfiles/";
+RK_S32 SAMPLE_COMM_ISP_Init(rk_aiq_working_mode_t WDRMode, RK_BOOL bFECEnable,
+                            const char *iq_file_dir) {
+  // char *iq_file_dir = "iqfiles/";
   setlinebuf(stdout);
+  if (iq_file_dir == NULL) {
+    printf("SAMPLE_COMM_ISP_Init : not start.\n");
+    g_aiq_ctx = NULL;
+    return 0;
+  }
 
   rk_aiq_sys_ctx_t *aiq_ctx;
   rk_aiq_static_info_t aiq_static_info;

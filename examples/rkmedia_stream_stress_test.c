@@ -37,7 +37,7 @@ typedef struct _streamInfo {
   int jpeg_chn;
   // for luma
   int luma_chn;
-  const char* luma_node;
+  const char *luma_node;
 } StreamInfo;
 
 static bool quit = false;
@@ -135,8 +135,8 @@ int StreamOn(StreamInfo *info) {
   ret = RK_MPI_VI_SetChnAttr(0, info->vi_chn, &vi_chn_attr);
   ret |= RK_MPI_VI_EnableChn(0, info->vi_chn);
   if (ret) {
-    printf("Create Vi[%d]:%s failed! ret=%d\n",
-      info->vi_chn, info->video_node, ret);
+    printf("Create Vi[%d]:%s failed! ret=%d\n", info->vi_chn, info->video_node,
+           ret);
     return -1;
   }
 
@@ -155,8 +155,8 @@ int StreamOn(StreamInfo *info) {
     ret = RK_MPI_VI_SetChnAttr(0, info->luma_chn, &vi_chn_attr);
     ret |= RK_MPI_VI_EnableChn(0, info->luma_chn);
     if (ret) {
-      printf("ERROR: Create Vi[%d] for luma failed! ret=%d\n",
-             info->luma_chn, ret);
+      printf("ERROR: Create Vi[%d] for luma failed! ret=%d\n", info->luma_chn,
+             ret);
       return -1;
     }
   }
@@ -205,8 +205,8 @@ int StreamOn(StreamInfo *info) {
 
   ret = RK_MPI_VENC_CreateChn(info->venc_chn, &venc_chn_attr);
   if (ret) {
-    printf("Create venc[%d]:%s failed! ret=%d\n",
-           info->venc_chn, GetCodecTypeName(info->codec_type), ret);
+    printf("Create venc[%d]:%s failed! ret=%d\n", info->venc_chn,
+           GetCodecTypeName(info->codec_type), ret);
     return -1;
   }
 
@@ -227,8 +227,8 @@ int StreamOn(StreamInfo *info) {
     // venc_chn_attr.stVencAttr.enRotation = VENC_ROTATION_90;
     ret = RK_MPI_VENC_CreateChn(info->jpeg_chn, &venc_chn_attr);
     if (ret) {
-      printf("ERROR: Create jpeg:VENC[%d] failed! ret=%d\n",
-              info->jpeg_chn, ret);
+      printf("ERROR: Create jpeg:VENC[%d] failed! ret=%d\n", info->jpeg_chn,
+             ret);
       return -1;
     }
 
@@ -251,9 +251,8 @@ int StreamOn(StreamInfo *info) {
   ret = RK_MPI_SYS_Bind(&stSrcChn, &stDestChn);
   if (ret) {
     printf("ERROR: Bind VI[%d]:%s --> Venc[%d]:%s failed! ret=%d\n",
-           info->vi_chn, info->video_node,
-           info->venc_chn, GetCodecTypeName(info->codec_type),
-           ret);
+           info->vi_chn, info->video_node, info->venc_chn,
+           GetCodecTypeName(info->codec_type), ret);
     return -1;
   }
 
@@ -262,9 +261,8 @@ int StreamOn(StreamInfo *info) {
     ret = RK_MPI_SYS_Bind(&stSrcChn, &stDestChn);
     if (ret) {
       printf("ERROR: Bind VI[%d]:%s --> Venc[%d]:%s failed! ret=%d\n",
-            info->vi_chn, info->video_node,
-            info->jpeg_chn, GetCodecTypeName(RK_CODEC_TYPE_JPEG),
-            ret);
+             info->vi_chn, info->video_node, info->jpeg_chn,
+             GetCodecTypeName(RK_CODEC_TYPE_JPEG), ret);
       return -1;
     }
   }
@@ -288,9 +286,8 @@ int StreamOff(StreamInfo *info) {
   ret = RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
   if (ret) {
     printf("ERROR: UnBind VI[%d]:%s --> Venc[%d]:%s failed! ret=%d\n",
-           info->vi_chn, info->video_node,
-           info->venc_chn, GetCodecTypeName(info->codec_type),
-           ret);
+           info->vi_chn, info->video_node, info->venc_chn,
+           GetCodecTypeName(info->codec_type), ret);
     return -1;
   }
 
@@ -299,9 +296,8 @@ int StreamOff(StreamInfo *info) {
     ret = RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
     if (ret) {
       printf("ERROR: UnBind VI[%d]:%s --> Venc[%d]:%s failed! ret=%d\n",
-            info->vi_chn, info->video_node,
-            info->jpeg_chn, GetCodecTypeName(RK_CODEC_TYPE_JPEG),
-            ret);
+             info->vi_chn, info->video_node, info->jpeg_chn,
+             GetCodecTypeName(RK_CODEC_TYPE_JPEG), ret);
       return -1;
     }
   }
@@ -309,30 +305,30 @@ int StreamOff(StreamInfo *info) {
   if (info->luma_chn >= 0) {
     ret = RK_MPI_VI_DisableChn(0, info->luma_chn);
     if (ret) {
-      printf("ERROR: VI[%d]:%s Destroy failed! ret=%d\n",
-            info->luma_chn, info->luma_node, ret);
+      printf("ERROR: VI[%d]:%s Destroy failed! ret=%d\n", info->luma_chn,
+             info->luma_node, ret);
       return -1;
     }
   }
 
   ret = RK_MPI_VI_DisableChn(0, info->vi_chn);
   if (ret) {
-    printf("ERROR: VI[%d]:%s Destroy failed! ret=%d\n",
-           info->vi_chn, info->video_node, ret);
+    printf("ERROR: VI[%d]:%s Destroy failed! ret=%d\n", info->vi_chn,
+           info->video_node, ret);
     return -1;
   }
   ret = RK_MPI_VENC_DestroyChn(info->venc_chn);
   if (ret) {
-    printf("ERROR: VENC[%d]:%s Destroy failed! ret=%d\n",
-      info->venc_chn, GetCodecTypeName(info->codec_type), ret);
+    printf("ERROR: VENC[%d]:%s Destroy failed! ret=%d\n", info->venc_chn,
+           GetCodecTypeName(info->codec_type), ret);
     return -1;
   }
 
   if (info->jpeg_chn >= 0) {
     ret = RK_MPI_VENC_DestroyChn(info->jpeg_chn);
     if (ret) {
-      printf("ERROR: VENC[%d]:%s Destroy failed! ret=%d\n",
-        info->jpeg_chn, GetCodecTypeName(RK_CODEC_TYPE_JPEG), ret);
+      printf("ERROR: VENC[%d]:%s Destroy failed! ret=%d\n", info->jpeg_chn,
+             GetCodecTypeName(RK_CODEC_TYPE_JPEG), ret);
       return -1;
     }
   }
@@ -341,7 +337,7 @@ int StreamOff(StreamInfo *info) {
   return 0;
 }
 
-static char optstr[] = "?:s:w:h:";
+static char optstr[] = "?:s:w:h:a:";
 
 static void print_usage(char *name) {
   printf("#Function description:\n");
@@ -353,14 +349,15 @@ static void print_usage(char *name) {
   printf("  SubStream0: VI[1]: NV12 480P  --> VENC[1]:H264 CBR\n\n");
   printf("  SubStream1: VI[2]: NV12 720P  --> VENC[2]:H265 VBR\n\n");
   printf("#Usage Example: \n");
-  printf("  %s [-s 5] [-w 3840] [-h 2160]\n", name);
+  printf("  %s [-s 5] [-w 3840] [-h 2160] [-a /etc/iqfiles]\n", name);
   printf("  @[-s] The duration of the stream on. default:5s\n");
   printf("  @[-w] img width for rkispp_m_bypass. default: 2688\n");
   printf("  @[-h] img height for rkispp_m_bypass. default: 1520\n");
+  printf("  @[-a] the path of iqfiles. default: NULL\n");
 }
 
 int main(int argc, char *argv[]) {
-  int loop_seconds = 5; //5s
+  int loop_seconds = 5; // 5s
   int main_width = 2688;
   int main_height = 1520;
   int ret = 0;
@@ -368,6 +365,7 @@ int main(int argc, char *argv[]) {
   RK_BOOL fec_enable;
   const char *cur_hdr_mode_name;
   const char *last_hdr_mode_name;
+  const char *iq_file_dir = NULL;
   int fps;
   int c = 0;
 
@@ -381,6 +379,10 @@ int main(int argc, char *argv[]) {
     case 'w':
       main_width = atoi(optarg);
       printf("#IN ARGS: bypass width: %d\n", main_width);
+      break;
+    case 'a':
+      iq_file_dir = optarg;
+      printf("#IN ARGS: path of iqfiles: %s\n", iq_file_dir);
       break;
     case 'h':
       main_height = atoi(optarg);
@@ -440,14 +442,15 @@ int main(int argc, char *argv[]) {
     printf("\n#Test Cnt: %d\n", test_cnt);
     if (last_hdr_mode_name) {
       printf("\n>>>>> HDR Mode: frome [%s] to [%s] fps:%d, fec:%s <<<<<\n",
-             last_hdr_mode_name, cur_hdr_mode_name, fps, fec_enable?"ON":"OFF");
+             last_hdr_mode_name, cur_hdr_mode_name, fps,
+             fec_enable ? "ON" : "OFF");
     } else {
-      printf("\n>>>>> HDR Mode:[%s] fps:%d, fec:%s <<<<<\n",
-             cur_hdr_mode_name, fps, fec_enable?"ON":"OFF");
+      printf("\n>>>>> HDR Mode:[%s] fps:%d, fec:%s <<<<<\n", cur_hdr_mode_name,
+             fps, fec_enable ? "ON" : "OFF");
     }
 
     printf("hdr mode %d, fec mode %d, fps %d\n", hdr_mode, fec_enable, fps);
-    SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable);
+    SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable, iq_file_dir);
     SAMPLE_COMM_ISP_Run();
     SAMPLE_COMM_ISP_SetFrameRate(fps);
 
@@ -470,8 +473,8 @@ int main(int argc, char *argv[]) {
     stream_info0.jpeg_chn = 3;
     ret = StreamOn(&stream_info0);
     if (ret) {
-      printf("ERROR: Main stream(%dx%d) error!\n",
-             stream_info0.width, stream_info0.height);
+      printf("ERROR: Main stream(%dx%d) error!\n", stream_info0.width,
+             stream_info0.height);
       return -1;
     }
 
@@ -488,11 +491,11 @@ int main(int argc, char *argv[]) {
     stream_info1.codec_mode = VENC_RC_MODE_H264CBR;
     stream_info1.fps_in = fps;
     stream_info1.fps_out = (fps < 25) ? fps : 25;
-    stream_info1.bps = 300000; //300kb
+    stream_info1.bps = 300000; // 300kb
     ret = StreamOn(&stream_info1);
     if (ret) {
-      printf("ERROR: Sub stream1(%dx%d) error!\n",
-             stream_info1.width, stream_info1.height);
+      printf("ERROR: Sub stream1(%dx%d) error!\n", stream_info1.width,
+             stream_info1.height);
       return -1;
     }
 
@@ -509,11 +512,11 @@ int main(int argc, char *argv[]) {
     stream_info2.codec_mode = VENC_RC_MODE_H265VBR;
     stream_info2.fps_in = fps;
     stream_info2.fps_out = (fps < 25) ? fps : 25;
-    stream_info2.bps = 1000000; //1Mb
+    stream_info2.bps = 1000000; // 1Mb
     ret = StreamOn(&stream_info2);
     if (ret) {
-      printf("ERROR: Sub stream1(%dx%d) error!\n",
-             stream_info2.width, stream_info2.height);
+      printf("ERROR: Sub stream1(%dx%d) error!\n", stream_info2.width,
+             stream_info2.height);
       return -1;
     }
 
@@ -534,8 +537,8 @@ int main(int argc, char *argv[]) {
     RK_U64 u64LumaData;
     while (!quit) {
       loop_cnt--;
-      ret = RK_MPI_VI_GetChnRegionLuma(0, stream_info0.luma_chn,
-                                       &stVideoRgn, &u64LumaData, 500);
+      ret = RK_MPI_VI_GetChnRegionLuma(0, stream_info0.luma_chn, &stVideoRgn,
+                                       &u64LumaData, 500);
       if (ret) {
         printf("ERROR: VI[%d]:RK_MPI_VI_GetChnRegionLuma ret = %d\n",
                stream_info0.luma_chn, ret);
@@ -550,7 +553,7 @@ int main(int argc, char *argv[]) {
 
     printf("INFO: Stop ISP...\n");
     // isp aiq stop before vi streamoff
-    SAMPLE_COMM_ISP_Stop(); 
+    SAMPLE_COMM_ISP_Stop();
     ret = StreamOff(&stream_info0);
     if (ret) {
       printf("ERROR: Main strem off failed!\n");

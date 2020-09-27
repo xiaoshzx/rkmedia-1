@@ -25,7 +25,7 @@ install(TARGETS rkmedia_vi_venc_test RUNTIME DESTINATION "bin")
 #--------------------------
 # rkmedia_venc_osd_test
 #--------------------------
-add_executable(rkmedia_venc_osd_test rkmedia_venc_osd_test.c)
+add_executable(rkmedia_venc_osd_test rkmedia_venc_osd_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_venc_osd_test easymedia)
 target_link_libraries(rkmedia_venc_osd_test easymedia)
 target_include_directories(rkmedia_venc_osd_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -43,7 +43,7 @@ install(TARGETS rkmedia_audio_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_vi_md_test
 #--------------------------
-add_executable(rkmedia_vi_md_test rkmedia_vi_md_test.c)
+add_executable(rkmedia_vi_md_test rkmedia_vi_md_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_vi_md_test easymedia)
 target_link_libraries(rkmedia_vi_md_test easymedia)
 target_include_directories(rkmedia_vi_md_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -52,7 +52,7 @@ install(TARGETS rkmedia_vi_md_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_vi_od_test
 #--------------------------
-add_executable(rkmedia_vi_od_test rkmedia_vi_od_test.c)
+add_executable(rkmedia_vi_od_test rkmedia_vi_od_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_vi_od_test easymedia)
 target_link_libraries(rkmedia_vi_od_test easymedia)
 target_include_directories(rkmedia_vi_od_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -61,7 +61,7 @@ install(TARGETS rkmedia_vi_od_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_venc_jpeg_test
 #--------------------------
-add_executable(rkmedia_venc_jpeg_test rkmedia_venc_jpeg_test.c)
+add_executable(rkmedia_venc_jpeg_test rkmedia_venc_jpeg_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_venc_jpeg_test easymedia)
 target_link_libraries(rkmedia_venc_jpeg_test easymedia)
 target_include_directories(rkmedia_venc_jpeg_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -70,7 +70,7 @@ install(TARGETS rkmedia_venc_jpeg_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_venc_mjpeg_test
 #--------------------------
-add_executable(rkmedia_venc_mjpeg_test rkmedia_venc_mjpeg_test.c)
+add_executable(rkmedia_venc_mjpeg_test rkmedia_venc_mjpeg_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_venc_mjpeg_test easymedia)
 target_link_libraries(rkmedia_venc_mjpeg_test easymedia)
 target_include_directories(rkmedia_venc_mjpeg_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -79,7 +79,7 @@ install(TARGETS rkmedia_venc_mjpeg_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_vi_multi_bind_test
 #--------------------------
-add_executable(rkmedia_vi_multi_bind_test rkmedia_vi_multi_bind_test.c)
+add_executable(rkmedia_vi_multi_bind_test rkmedia_vi_multi_bind_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_vi_multi_bind_test easymedia)
 target_link_libraries(rkmedia_vi_multi_bind_test easymedia)
 target_include_directories(rkmedia_vi_multi_bind_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -88,7 +88,7 @@ install(TARGETS rkmedia_vi_multi_bind_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_venc_cover_test
 #--------------------------
-add_executable(rkmedia_venc_cover_test rkmedia_venc_cover_test.c)
+add_executable(rkmedia_venc_cover_test rkmedia_venc_cover_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_venc_cover_test easymedia)
 target_link_libraries(rkmedia_venc_cover_test easymedia)
 target_include_directories(rkmedia_venc_cover_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -106,7 +106,7 @@ install(TARGETS rkmedia_venc_offline_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_venc_smartp_test
 #--------------------------
-add_executable(rkmedia_venc_smartp_test rkmedia_venc_smartp_test.c)
+add_executable(rkmedia_venc_smartp_test rkmedia_venc_smartp_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_venc_smartp_test easymedia)
 target_link_libraries(rkmedia_venc_smartp_test easymedia)
 target_include_directories(rkmedia_venc_smartp_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -115,7 +115,7 @@ install(TARGETS rkmedia_venc_smartp_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_vi_get_frame_test
 #--------------------------
-add_executable(rkmedia_vi_get_frame_test rkmedia_vi_get_frame_test.c)
+add_executable(rkmedia_vi_get_frame_test rkmedia_vi_get_frame_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_vi_get_frame_test easymedia)
 target_link_libraries(rkmedia_vi_get_frame_test easymedia)
 target_include_directories(rkmedia_vi_get_frame_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -124,7 +124,7 @@ install(TARGETS rkmedia_vi_get_frame_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_vi_rga_test
 #--------------------------
-add_executable(rkmedia_vi_rga_test rkmedia_vi_rga_test.c)
+add_executable(rkmedia_vi_rga_test rkmedia_vi_rga_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_vi_rga_test easymedia)
 target_link_libraries(rkmedia_vi_rga_test easymedia)
 target_include_directories(rkmedia_vi_rga_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -133,7 +133,7 @@ install(TARGETS rkmedia_vi_rga_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_vi_luma_only_mode_test
 #--------------------------
-add_executable(rkmedia_vi_luma_only_mode_test rkmedia_vi_luma_only_mode_test.c)
+add_executable(rkmedia_vi_luma_only_mode_test rkmedia_vi_luma_only_mode_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_vi_luma_only_mode_test easymedia)
 target_link_libraries(rkmedia_vi_luma_only_mode_test easymedia)
 target_include_directories(rkmedia_vi_luma_only_mode_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -142,7 +142,7 @@ install(TARGETS rkmedia_vi_luma_only_mode_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_vi_god_mode_test
 #--------------------------
-add_executable(rkmedia_vi_god_mode_test rkmedia_vi_god_mode_test.c)
+add_executable(rkmedia_vi_god_mode_test rkmedia_vi_god_mode_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_vi_god_mode_test easymedia)
 target_link_libraries(rkmedia_vi_god_mode_test easymedia)
 target_include_directories(rkmedia_vi_god_mode_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -151,7 +151,7 @@ install(TARGETS rkmedia_vi_god_mode_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_vi_venc_change_resolution_test
 #--------------------------
-add_executable(rkmedia_vi_venc_change_resolution_test rkmedia_vi_venc_change_resolution_test.c)
+add_executable(rkmedia_vi_venc_change_resolution_test rkmedia_vi_venc_change_resolution_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_vi_venc_change_resolution_test easymedia)
 target_link_libraries(rkmedia_vi_venc_change_resolution_test easymedia)
 target_include_directories(rkmedia_vi_venc_change_resolution_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -160,7 +160,7 @@ install(TARGETS rkmedia_vi_venc_change_resolution_test RUNTIME DESTINATION "bin"
 #--------------------------
 #  rkmedia_venc_roi_osd_test
 #--------------------------
-add_executable(rkmedia_venc_roi_osd_test rkmedia_venc_roi_osd_test.c)
+add_executable(rkmedia_venc_roi_osd_test rkmedia_venc_roi_osd_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_venc_roi_osd_test easymedia)
 target_link_libraries(rkmedia_venc_roi_osd_test easymedia)
 target_include_directories(rkmedia_venc_roi_osd_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -169,7 +169,7 @@ install(TARGETS rkmedia_venc_roi_osd_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_vi_vo_test
 #--------------------------
-add_executable(rkmedia_vi_vo_test rkmedia_vi_vo_test.c)
+add_executable(rkmedia_vi_vo_test rkmedia_vi_vo_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_vi_vo_test easymedia)
 target_link_libraries(rkmedia_vi_vo_test easymedia)
 target_include_directories(rkmedia_vi_vo_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -178,7 +178,7 @@ install(TARGETS rkmedia_vi_vo_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_main_stream_with_jpeg_test
 #--------------------------
-add_executable(rkmedia_main_stream_with_jpeg_test rkmedia_main_stream_with_jpeg_test.c)
+add_executable(rkmedia_main_stream_with_jpeg_test rkmedia_main_stream_with_jpeg_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_main_stream_with_jpeg_test easymedia)
 target_link_libraries(rkmedia_main_stream_with_jpeg_test easymedia)
 target_include_directories(rkmedia_main_stream_with_jpeg_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -207,7 +207,7 @@ install(TARGETS rkmedia_vi_double_cameras_test RUNTIME DESTINATION "bin")
 #--------------------------
 #  rkmedia_venc_avbr_test
 #--------------------------
-add_executable(rkmedia_venc_avbr_test rkmedia_venc_avbr_test.c)
+add_executable(rkmedia_venc_avbr_test rkmedia_venc_avbr_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_venc_avbr_test easymedia)
 target_link_libraries(rkmedia_venc_avbr_test easymedia)
 target_include_directories(rkmedia_venc_avbr_test PRIVATE ${CMAKE_SOURCE_DIR}/include)

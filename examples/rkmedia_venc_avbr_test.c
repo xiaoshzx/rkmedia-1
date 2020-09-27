@@ -12,6 +12,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "common/sample_common.h"
 #include "rkmedia_api.h"
 #include "rkmedia_venc.h"
 
@@ -166,10 +167,33 @@ static int avbrStreamOff(int vi_chn, int venc_chn) {
   return 0;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   RK_MPI_SYS_Init();
   g_save_file = fopen("/userdata/output.h265", "w");
   signal(SIGINT, sigterm_handler);
+
+#ifdef RKAIQ
+  rk_aiq_working_mode_t hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+  RK_BOOL fec_enable = RK_FALSE;
+  int fps = 30;
+  char *iq_file_dir = NULL;
+  if (strcmp(argv[1], "-h") == 0) {
+    printf("\n\n/Usage:./%s [--aiq iq_file_dir]\n", argv[0]);
+    printf("\t --aiq iq_file_dir : init isp\n");
+    return -1;
+  }
+  if (argc == 3) {
+    if (strcmp(argv[1], "--aiq") == 0) {
+      iq_file_dir = argv[2];
+    }
+  }
+  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable, iq_file_dir);
+  SAMPLE_COMM_ISP_Run();
+  SAMPLE_COMM_ISP_SetFrameRate(fps);
+#else
+  (void)argc;
+  (void)argv;
+#endif
 
   if (avbrStreamOn(1920, 1080, 0, 0))
     return -1;
@@ -177,6 +201,10 @@ int main() {
   while (!quit) {
     usleep(100);
   }
+
+#ifdef RKAIQ
+  SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
+#endif
 
   avbrStreamOff(0, 0);
   if (g_save_file) {

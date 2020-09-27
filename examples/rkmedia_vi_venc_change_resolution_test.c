@@ -202,12 +202,16 @@ int StreamOn(int width, int height, IMAGE_TYPE_E img_type,
     usleep(500000);
     loop_cnt--;
 
-    ret = RK_MPI_VI_GetChnRegionLuma(0, luma_chn, &stVideoRgn, u64LumaData, 100);
+    ret =
+        RK_MPI_VI_GetChnRegionLuma(0, luma_chn, &stVideoRgn, u64LumaData, 100);
     if (ret) {
-      printf("ERROR: VI[%d]:RK_MPI_VI_GetChnRegionLuma ret = %d\n", luma_chn, ret);
+      printf("ERROR: VI[%d]:RK_MPI_VI_GetChnRegionLuma ret = %d\n", luma_chn,
+             ret);
     } else {
-      printf("VI[%d]:Rect[0] {0, 0, 256, 256} -> luma:%llu\n", luma_chn, u64LumaData[0]);
-      printf("VI[%d]:Rect[1] {256, 256, 256, 256} -> luma:%llu\n", luma_chn, u64LumaData[1]);
+      printf("VI[%d]:Rect[0] {0, 0, 256, 256} -> luma:%llu\n", luma_chn,
+             u64LumaData[0]);
+      printf("VI[%d]:Rect[1] {256, 256, 256, 256} -> luma:%llu\n", luma_chn,
+             u64LumaData[1]);
     }
     if (loop_cnt < 0)
       break;
@@ -331,7 +335,7 @@ int SubStreamOff(int vi_chn, int venc_chn) {
   return 0;
 }
 
-static char optstr[] = "?:c:s:w:h:";
+static char optstr[] = "?:c:s:w:h:a:";
 
 static void print_usage(char *name) {
   printf("#Function description:\n");
@@ -346,11 +350,13 @@ static void print_usage(char *name) {
   printf("                     rkispp_scale0: 1280x720 for luma caculation.\n");
   printf("  MainStream: case2: rkispp_scale0: 1280x720 NV12\n");
   printf("#Usage Example: \n");
-  printf("  %s [-c 20] [-s 5] [-w 3840] [-h 2160]\n", name);
+  printf("  %s [-c 20] [-s 5] [-w 3840] [-h 2160] [-a the path of iqfiles]\n",
+         name);
   printf("  @[-c] Main stream switching times. defalut:20\n");
   printf("  @[-s] The duration of the main stream. default:5s\n");
   printf("  @[-w] img width for rkispp_m_bypass. default: 3840\n");
   printf("  @[-h] img height for rkispp_m_bypass. default: 2160\n");
+  printf("  @[-a] the path of iqfiles. default: NULL\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -358,6 +364,7 @@ int main(int argc, char *argv[]) {
   int loop_seconds = 5; // 5s
   int width = 3840;
   int height = 2160;
+  const char *iq_file_dir = NULL;
 
   int c = 0;
   opterr = 1;
@@ -381,6 +388,10 @@ int main(int argc, char *argv[]) {
       ;
       printf("#IN ARGS: bypass height: %d\n", height);
       break;
+    case 'a':
+      iq_file_dir = optarg;
+      printf("#IN ARGS: the path of iqfiles: %s\n", iq_file_dir);
+      break;
     case '?':
     default:
       print_usage(argv[0]);
@@ -395,7 +406,14 @@ int main(int argc, char *argv[]) {
   printf("-->BypassHeight:%d\n", height);
 
   RK_MPI_SYS_Init();
-
+#ifdef RKAIQ
+  rk_aiq_working_mode_t hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+  RK_BOOL fec_enable = RK_FALSE;
+  int fps = 30;
+  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable, iq_file_dir);
+  SAMPLE_COMM_ISP_Run();
+  SAMPLE_COMM_ISP_SetFrameRate(fps);
+#endif
   g_save_file_sub0 = fopen("/tmp/sub0.h264", "w");
   if (SubStreamOn(720, 480, "rkispp_scale1", 1, 1)) {
     printf("ERROR: SubStreamOn failed!\n");

@@ -78,13 +78,19 @@ int menu_ldch() {
   return menu;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
 
   signal(SIGINT, sigterm_handler);
 
   rk_aiq_working_mode_t hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
   RK_BOOL fec_enable = RK_FALSE;
   int fps = 30;
+  char *iq_file_dir = NULL;
+  if (argc == 3) {
+    if (strcmp(argv[1], "--aiq") == 0) {
+      iq_file_dir = argv[2];
+    }
+  }
   char *tmp = getenv("HDR_MODE");
   if (tmp) {
     if (strstr(tmp, "32")) {
@@ -119,7 +125,7 @@ restart:
   }
 
   printf("hdr mode %d, fec mode %d, fps %d\n", hdr_mode, fec_enable, fps);
-  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable);
+  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable, iq_file_dir);
   SAMPLE_COMM_ISP_Run();
   SAMPLE_COMM_ISP_SetFrameRate(fps);
 

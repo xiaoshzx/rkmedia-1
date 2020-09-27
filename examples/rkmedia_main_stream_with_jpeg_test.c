@@ -4,15 +4,16 @@
 
 #include <assert.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
+#include "common/sample_common.h"
 #include "rkmedia_api.h"
 
 static bool quit = false;
@@ -35,11 +36,12 @@ static void *GetMediaBuffer(void *arg) {
       break;
     }
 
-//    printf("Get packet:ptr:%p, fd:%d, size:%zu, mode:%d, channel:%d, "
-//           "timestamp:%lld\n",
-//           RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb), RK_MPI_MB_GetSize(mb),
-//           RK_MPI_MB_GetModeID(mb), RK_MPI_MB_GetChannelID(mb),
-//           RK_MPI_MB_GetTimestamp(mb));
+    //    printf("Get packet:ptr:%p, fd:%d, size:%zu, mode:%d, channel:%d, "
+    //           "timestamp:%lld\n",
+    //           RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb),
+    //           RK_MPI_MB_GetSize(mb),
+    //           RK_MPI_MB_GetModeID(mb), RK_MPI_MB_GetChannelID(mb),
+    //           RK_MPI_MB_GetTimestamp(mb));
 
     if (save_file)
       fwrite(RK_MPI_MB_GetPtr(mb), 1, RK_MPI_MB_GetSize(mb), save_file);
@@ -72,7 +74,7 @@ void take_pictures_cb(MEDIA_BUFFER mb) {
   jpeg_id++;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   RK_S32 ret;
   RK_U32 u32SrcWidth = 2688;
   RK_U32 u32SrcHeight = 1520;
@@ -80,6 +82,29 @@ int main() {
   RK_U32 u32DstHeight = 1080;
   IMAGE_TYPE_E enPixFmt = IMAGE_TYPE_FBC0;
   const RK_CHAR *pcVideoNode = "rkispp_m_bypass";
+
+#ifdef RKAIQ
+  rk_aiq_working_mode_t hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
+  RK_BOOL fec_enable = RK_FALSE;
+  int fps = 30;
+  char *iq_file_dir = NULL;
+  if (strcmp(argv[1], "-h") == 0) {
+    printf("\n\n/Usage:./%s [--aiq iq_file_dir]\n", argv[0]);
+    printf("\t --aiq iq_file_dir : init isp\n");
+    return -1;
+  }
+  if (argc == 3) {
+    if (strcmp(argv[1], "--aiq") == 0) {
+      iq_file_dir = argv[2];
+    }
+  }
+  SAMPLE_COMM_ISP_Init(hdr_mode, fec_enable, iq_file_dir);
+  SAMPLE_COMM_ISP_Run();
+  SAMPLE_COMM_ISP_SetFrameRate(fps);
+#else
+  (void)argc;
+  (void)argv;
+#endif
 
   ret = RK_MPI_SYS_Init();
   if (ret) {
@@ -112,7 +137,8 @@ int main() {
   venc_chn_attr.stVencAttr.u32Profile = 77;
   venc_chn_attr.stRcAttr.enRcMode = VENC_RC_MODE_H264CBR;
   venc_chn_attr.stRcAttr.stH264Cbr.u32Gop = 30;
-  venc_chn_attr.stRcAttr.stH264Cbr.u32BitRate = u32SrcWidth * u32SrcHeight * 30 / 14;
+  venc_chn_attr.stRcAttr.stH264Cbr.u32BitRate =
+      u32SrcWidth * u32SrcHeight * 30 / 14;
   venc_chn_attr.stRcAttr.stH264Cbr.fr32DstFrameRateDen = 0;
   venc_chn_attr.stRcAttr.stH264Cbr.fr32DstFrameRateNum = 30;
   venc_chn_attr.stRcAttr.stH264Cbr.u32SrcFrameRateDen = 0;
@@ -202,6 +228,9 @@ int main() {
   }
 
   printf("%s exit!\n", __func__);
+#ifdef RKAIQ
+  SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
+#endif
   stDestChn.s32ChnId = 0;
   RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
   stDestChn.s32ChnId = 1;
