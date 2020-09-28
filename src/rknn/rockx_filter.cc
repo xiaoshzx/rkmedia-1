@@ -8,6 +8,7 @@
 #include "lock.h"
 #include "rknn_utils.h"
 #include "utils.h"
+#include "rknn_user.h"
 #include <assert.h>
 #include <rockx/rockx.h>
 
@@ -187,6 +188,9 @@ private:
   int ProcessRockxFinger(std::shared_ptr<easymedia::ImageBuffer> input_buffer,
                          rockx_image_t input_img,
                          std::vector<rockx_handle_t> handles);
+  int ProcessRockxObjectDetect(std::shared_ptr<easymedia::ImageBuffer> input_buffer,
+                         rockx_image_t input_img,
+                         std::vector<rockx_handle_t> handles);
   static void RockxPoseBodyAsyncCallback(void *result, size_t result_size,
                                          void *extra_data);
   static void RockxFaceDetectAsyncCallback(void *result, size_t result_size,
@@ -355,6 +359,8 @@ ROCKXFilter::ROCKXFilter(const char *param) : model_name_("") {
     models.push_back(ROCKX_MODULE_POSE_FINGER_21);
   } else if (model_name_ == "rockx_pose_body_v2") {
     models.push_back(ROCKX_MODULE_POSE_BODY_V2);
+  } else if (model_name_ == "rockx_object_detect") {
+    models.push_back(ROCKX_MODULE_OBJECT_DETECTION);
   } else {
     assert(0);
   }
@@ -557,6 +563,49 @@ int ROCKXFilter::ProcessRockxFinger(
   return 0;
 }
 
+int ROCKXFilter::ProcessRockxObjectDetect(
+    std::shared_ptr<easymedia::ImageBuffer> input_buffer,
+    rockx_image_t input_img, std::vector<rockx_handle_t> handles) {
+  (void)input_buffer;
+  rockx_handle_t &object_detect_handle = handles[0];
+  rockx_object_array_t object_array;
+  rockx_ret_t ret;
+
+  memset(&object_array, 0, sizeof(rockx_object_array_t));
+  ret = rockx_object_detect(object_detect_handle, &input_img, &object_array, NULL);
+  if (ret != ROCKX_RET_SUCCESS) {
+    printf("rockx_object_detect error %d\n", ret);
+    return -1;
+  }
+
+  auto image = std::static_pointer_cast<easymedia::ImageBuffer>(input_buffer);
+  auto &nn_list = image->GetRknnResult();
+  RknnResult nn_result;
+  memset(&nn_result, 0, sizeof(RknnResult));
+  for (int i = 0; i < object_array.count; i++) {
+    rockx_object_t *object_g = &(object_array.object[i]);
+    nn_result.object_info = *object_g;
+    nn_list.push_back(nn_result);
+  }
+
+  int k = 0;
+  RknnResult nn_array[object_array.count];
+  for (int i = 0; i < object_array.count; i++) {
+    if(object_array.object[i].cls_idx == 1) { //Identification of human
+      nn_array[k].timeval = input_buffer->GetAtomicClock();
+      nn_array[k].img_w = input_img.width;
+      nn_array[k].img_h = input_img.height;
+      nn_array[k].type = NNRESULT_TYPE_OBJECT_DETECT;
+      memcpy(&nn_array[k].object_info, &object_array.object[i], sizeof(rockx_object_t));
+      k++;
+     }
+  }
+  if (callback_)
+    callback_(this, NNRESULT_TYPE_OBJECT_DETECT, nn_array, k);
+
+  return 0;
+}
+
 int ROCKXFilter::Process(std::shared_ptr<MediaBuffer> input,
                          std::shared_ptr<MediaBuffer> &output) {
   auto input_buffer = std::static_pointer_cast<easymedia::ImageBuffer>(input);
@@ -583,6 +632,8 @@ int ROCKXFilter::Process(std::shared_ptr<MediaBuffer> input,
     ProcessRockxPoseBody(input_buffer, input_img, handles);
   } else if (name == "rockx_pose_finger") {
     ProcessRockxFinger(input_buffer, input_img, handles);
+  } else if (name == "rockx_object_detect") {
+    ProcessRockxObjectDetect(input_buffer, input_img, handles);
   } else {
     assert(0);
   }

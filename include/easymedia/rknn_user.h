@@ -92,6 +92,7 @@ typedef enum {
   NNRESULT_TYPE_LANDMARK,
   NNRESULT_TYPE_AUTHORIZED_STATUS,
   NNRESULT_TYPE_FACE_REG,
+  NNRESULT_TYPE_OBJECT_DETECT,
 } RknnResultType;
 
 typedef struct {
@@ -105,6 +106,9 @@ typedef struct {
     FaceInfo face_info;
     LandmarkInfo landmark_info;
     FingerInfo finger_info;
+#ifdef USE_ROCKX
+    rockx_object_t  object_info;
+#endif
   };
 } RknnResult;
 

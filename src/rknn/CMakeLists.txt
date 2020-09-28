@@ -39,8 +39,10 @@ if(ROCKFACE)
 endif()
 
 if(ROCKX)
-    set(EASY_MEDIA_ROCKX_SOURCE_FILES rknn/rockx_filter.cc)
-    set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
+  set(EASY_MEDIA_ROCKX_SOURCE_FILES rknn/rockx_filter.cc
+                                    rknn/nn_result_input.cc
+                                    rknn/draw_filter.cc)
+  set(EASY_MEDIA_SOURCE_FILES ${EASY_MEDIA_SOURCE_FILES}
                                 ${EASY_MEDIA_ROCKX_SOURCE_FILES})
 endif()
 

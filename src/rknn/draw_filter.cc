@@ -9,7 +9,9 @@
 #include "filter.h"
 #include "lock.h"
 #include "media_config.h"
-
+#ifdef USE_ROCKX
+#include "rknn_user.h"
+#endif
 #define YUV_PIXEL_RED ((0x4C << 16) | (0x54 << 8) | 0xFF)
 
 namespace easymedia {
@@ -182,11 +184,23 @@ void DrawFilter::DoHwDraw(std::list<RknnResult> &nn_result) {
 
 void DrawFilter::DoDraw(std::shared_ptr<ImageBuffer> &buffer,
                         std::list<RknnResult> &nn_result) {
-  for (auto info : nn_result) {
-    rockface_det_t face_det = info.face_info.base;
-    Rect rect = {face_det.box.left, face_det.box.top, face_det.box.right,
+  for (auto info_result : nn_result) {
+#ifdef USE_ROCKFACE
+    if (info_result.type == NNRESULT_TYPE_FACE) {
+      rockface_det_t face_det = info_result.face_info.base;
+      Rect rect_face = {face_det.box.left, face_det.box.top, face_det.box.right,
                  face_det.box.bottom};
-    DoDrawRect(buffer, rect);
+      DoDrawRect(buffer, rect_face);
+    }
+#endif
+#ifdef USE_ROCKX
+    if (info_result.type == NNRESULT_TYPE_OBJECT_DETECT) {
+      rockx_object_t object_det = info_result.object_info;
+      Rect rect_rockx = {object_det.box.left, object_det.box.top,
+                         object_det.box.right,object_det.box.bottom};
+      DoDrawRect(buffer, rect_rockx);
+    }
+#endif
   }
 }
 
