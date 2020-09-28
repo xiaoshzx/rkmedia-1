@@ -395,6 +395,11 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
 
   md_ctx = move_detection_init(ori_width, ori_height, ds_width, ds_height,
                                is_single_ref);
+  if (!md_ctx) {
+    LOG("ERROR: MD: move_detection_init failed!.\n");
+    SetError(-EINVAL);
+    return;
+  }
 
   if ((Sensitivity > 0) && (Sensitivity <= 100)) {
     if (move_detection_set_sensitivity(md_ctx, Sensitivity))
