@@ -1228,7 +1228,7 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps_out);
   // jpeg pre encoder work in fixqp mode
   PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, KEY_FIXQP);
-  PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_QP_INIT, "20");
+  PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_QP_INIT, "15");
   PARAM_STRING_APPEND_TO(enc_param, KEY_ROTATION, enRotation);
 
   flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);

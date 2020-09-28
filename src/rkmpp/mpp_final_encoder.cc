@@ -737,6 +737,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_step", vconfig.qp_step);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_max_i", vconfig.qp_max_i);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_min_i", vconfig.qp_min_i);
+    ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_delta_ip", 8);
     LOG("MPP Encoder: AVC: encode profile %d level %d init_qp %d\n",
       vconfig.profile, vconfig.level, vconfig.qp_init);
     break;
@@ -747,7 +748,7 @@ bool MPPCommonConfig::InitConfig(MPPEncoder &mpp_enc, MediaConfig &cfg) {
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_step", vconfig.qp_step);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_max_i", vconfig.qp_max_i);
     ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_min_i", vconfig.qp_min_i);
-    ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_delta_ip", 3);
+    ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_delta_ip", 8);
     break;
   default:
     // will never go here, avoid gcc warning
@@ -1041,6 +1042,9 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_step", qps.qp_step);
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_max_i", qps.qp_max_i);
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_min_i", qps.qp_min_i);
+      // when qp changes qp_delta_ip will reset 0,
+      // so we should set default 8 again.
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h264:qp_delta_ip", 8);
     } else if (code_type == MPP_VIDEO_CodingHEVC) {
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_init", qps.qp_init);
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_max", qps.qp_max);
@@ -1049,8 +1053,8 @@ bool MPPCommonConfig::CheckConfigChange(MPPEncoder &mpp_enc, uint32_t change,
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_max_i", qps.qp_max_i);
       ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_min_i", qps.qp_min_i);
       // when qp changes qp_delta_ip will reset 0,
-      // so we should set default 3 again.
-      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_delta_ip", 3);
+      // so we should set default 8 again.
+      ret |= mpp_enc_cfg_set_s32(enc_cfg, "h265:qp_delta_ip", 8);
     }
     if (ret) {
       LOG("ERROR: MPP Encoder: qp: cfg set s32 failed ret %d\n", ret);
