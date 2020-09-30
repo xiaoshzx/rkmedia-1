@@ -588,20 +588,16 @@ int ROCKXFilter::ProcessRockxObjectDetect(
     nn_list.push_back(nn_result);
   }
 
-  int k = 0;
   RknnResult nn_array[object_array.count];
   for (int i = 0; i < object_array.count; i++) {
-    if(object_array.object[i].cls_idx == 1) { //Identification of human
-      nn_array[k].timeval = input_buffer->GetAtomicClock();
-      nn_array[k].img_w = input_img.width;
-      nn_array[k].img_h = input_img.height;
-      nn_array[k].type = NNRESULT_TYPE_OBJECT_DETECT;
-      memcpy(&nn_array[k].object_info, &object_array.object[i], sizeof(rockx_object_t));
-      k++;
-     }
+      nn_array[i].timeval = input_buffer->GetAtomicClock();
+      nn_array[i].img_w = input_img.width;
+      nn_array[i].img_h = input_img.height;
+      nn_array[i].type = NNRESULT_TYPE_OBJECT_DETECT;
+      memcpy(&nn_array[i].object_info, &object_array.object[i], sizeof(rockx_object_t));
   }
   if (callback_)
-    callback_(this, NNRESULT_TYPE_OBJECT_DETECT, nn_array, k);
+    callback_(this, NNRESULT_TYPE_OBJECT_DETECT, nn_array, object_array.count);
 
   return 0;
 }
