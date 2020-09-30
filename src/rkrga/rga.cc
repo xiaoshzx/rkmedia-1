@@ -32,6 +32,7 @@ RgaFilter::RgaFilter(const char *param) : rotate(0) {
   const std::string &v = params[KEY_BUFFER_ROTATE];
   if (!v.empty())
     rotate = std::stoi(v);
+  RgaFilter::gRkRga.RkRgaInit();
 }
 
 void RgaFilter::SetRects(std::vector<ImageRect> rects) {
@@ -60,8 +61,8 @@ int RgaFilter::Process(std::shared_ptr<MediaBuffer> input,
     // the same to src
     ImageInfo info = src->GetImageInfo();
     info.pix_fmt = dst->GetPixelFormat();
-    size_t size = CalPixFmtSize(info.pix_fmt, info.vir_width,
-                                info.vir_height, 16);
+    size_t size =
+        CalPixFmtSize(info.pix_fmt, info.vir_width, info.vir_height, 16);
     if (size == 0)
       return -EINVAL;
     auto &&mb = MediaBuffer::Alloc2(size, MediaBuffer::MemType::MEM_HARD_WARE);
@@ -74,7 +75,7 @@ int RgaFilter::Process(std::shared_ptr<MediaBuffer> input,
   }
   return rga_blit(src, dst, src_rect, dst_rect, rotate);
 }
-
+RgaFilter::~RgaFilter() { RgaFilter::gRkRga.RkRgaDeInit(); }
 static int get_rga_format(PixelFormat f) {
   static std::map<PixelFormat, int> rga_format_map = {
       {PIX_FMT_YUV420P, RK_FORMAT_YCbCr_420_P},
@@ -131,22 +132,22 @@ int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
     src_info.virAddr = src->GetPtr();
   src_info.mmuFlag = 1;
   switch (rotate) {
-    case 0:
-      src_info.rotation = 0;
-      break;
-    case 90:
-      src_info.rotation = HAL_TRANSFORM_ROT_90;
-      break;
-    case 180:
-      src_info.rotation = HAL_TRANSFORM_ROT_180;
-      break;
-    case 270:
-      src_info.rotation = HAL_TRANSFORM_ROT_270;
-      break;
-    default:
-      LOG("WARN: rotate is not valid! use default:0");
-      src_info.rotation = 0;
-      break;
+  case 0:
+    src_info.rotation = 0;
+    break;
+  case 90:
+    src_info.rotation = HAL_TRANSFORM_ROT_90;
+    break;
+  case 180:
+    src_info.rotation = HAL_TRANSFORM_ROT_180;
+    break;
+  case 270:
+    src_info.rotation = HAL_TRANSFORM_ROT_270;
+    break;
+  default:
+    LOG("WARN: rotate is not valid! use default:0");
+    src_info.rotation = 0;
+    break;
   }
   if (src_rect)
     rga_set_rect(&src_info.rect, src_rect->x, src_rect->y, src_rect->w,
@@ -185,8 +186,8 @@ int rga_blit(std::shared_ptr<ImageBuffer> src, std::shared_ptr<ImageBuffer> dst,
     dst->SetValidSize(0);
     LOG("Fail to RkRgaBlit, ret=%d\n", ret);
   } else {
-    size_t valid_size = CalPixFmtSize(dst->GetPixelFormat(),
-      dst->GetVirWidth(), dst->GetVirHeight(), 16);
+    size_t valid_size = CalPixFmtSize(dst->GetPixelFormat(), dst->GetVirWidth(),
+                                      dst->GetVirHeight(), 16);
     dst->SetValidSize(valid_size);
     if (src->GetUSTimeStamp() > dst->GetUSTimeStamp())
       dst->SetUSTimeStamp(src->GetUSTimeStamp());

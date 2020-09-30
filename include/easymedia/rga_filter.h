@@ -18,7 +18,7 @@ class ImageBuffer;
 class RgaFilter : public Filter {
 public:
   RgaFilter(const char *param);
-  virtual ~RgaFilter() = default;
+  virtual ~RgaFilter();
   static const char *GetFilterName() { return "rkrga"; }
   virtual int Process(std::shared_ptr<MediaBuffer> input,
                       std::shared_ptr<MediaBuffer> &output) override;
