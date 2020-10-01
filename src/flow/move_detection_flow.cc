@@ -425,16 +425,17 @@ MoveDetectionFlow::MoveDetectionFlow(const char *param) {
 MoveDetectionFlow::~MoveDetectionFlow() {
   AutoPrintLine apl(__func__);
   StopAllThread();
-
+  LOG("#FLOW: MD: %s deinit md ctx...\n", __func__);
   if (md_ctx)
     move_detection_deinit(md_ctx);
-
+  LOG("#FLOW: MD: %s free roi buffer...\n", __func__);
   if (roi_in)
     free(roi_in);
-
+  LOG("#FLOW: MD: %s free result buffer start...\n", __func__);
   std::list<std::shared_ptr<MediaBuffer>>::iterator it;
   for (it = md_results.begin(); it != md_results.end();)
     it = md_results.erase(it);
+  LOG("#FLOW: MD: %s free result buffer end!\n", __func__);
 }
 
 int MoveDetectionFlow::Control(unsigned long int request, ...) {

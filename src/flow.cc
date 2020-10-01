@@ -71,10 +71,14 @@ FlowCoroutine::FlowCoroutine(Flow *f, Model sync_model, FunctionProcess func,
 
 FlowCoroutine::~FlowCoroutine() {
   if (th) {
+    LOG("#FLOW: %s flow:%s(%p) thread join start...\n",
+        __func__, flow->GetFlowTag(), flow);
     th->join();
+    LOG("#FLOW: %s flow:%s(%p) thread join end!\n",
+        __func__, flow->GetFlowTag(), flow);
     delete th;
   }
-  LOG("%s quit\n", name.c_str());
+  LOG("#FLOW: %s quit\n", name.c_str());
 }
 
 void FlowCoroutine::Bind(std::vector<int> &in, std::vector<int> &out) {
@@ -159,8 +163,13 @@ void FlowCoroutine::RunOnce() {
 void FlowCoroutine::WhileRun() {
   prctl(PR_SET_NAME, this->name.c_str());
   LOGD("flow-name %s\n", this->name.c_str());
+
+  LOG("#FLOW: %s: %s(%p) start...\n", __func__,
+      flow->GetFlowTag(), flow);
   while (!flow->quit)
     RunOnce();
+  LOG("#FLOW: %s: %s(%p) end!\n", __func__,
+      flow->GetFlowTag(), flow);
 }
 
 void FlowCoroutine::WhileRunSleep() {
@@ -321,11 +330,17 @@ Flow::~Flow() { StopAllThread(); }
 void Flow::StopAllThread() {
   enable = false;
   quit = true;
+  LOG("#FLOW: %s(%p): %s doing notify...\n",
+      GetFlowTag(), this, __func__);
   cond_mtx.lock();
   cond_mtx.notify();
   cond_mtx.unlock();
+  LOG("#FLOW: %s(%p): %s coroutine reset start...\n",
+      GetFlowTag(), this, __func__);
   for (auto &coroutine : coroutines)
     coroutine.reset();
+  LOG("#FLOW: %s(%p): %s coroutine reset end!\n",
+      GetFlowTag(), this, __func__);
 }
 
 bool Flow::IsAllBuffEmpty() {

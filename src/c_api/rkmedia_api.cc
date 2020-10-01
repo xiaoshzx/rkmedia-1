@@ -201,7 +201,7 @@ static void RkmediaChnClearBuffer(RkmediaChannel *ptrChn) {
   }
   ptrChn->buffer_cond.notify_all();
   ptrChn->buffer_mtx.unlock();
-  LOGD("#%p Mode[%d]:Chn[%d] clear media buffer end...\n", ptrChn,
+  LOGD("#%p Mode[%d]:Chn[%d] clear media buffer end!\n", ptrChn,
        ptrChn->mode_id, ptrChn->chn_id);
 }
 
@@ -1946,12 +1946,19 @@ RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn) {
     return -RK_ERR_VENC_BUSY;
   }
   LOG("\n%s %s: Disable VENC[%d] Start...\n", LOG_TAG, __func__, VeChn);
+  RK_S16 reset_cnt = 0;
   if (g_venc_chns[VeChn].rkmedia_flow) {
     if (!g_venc_chns[VeChn].rkmedia_flow_list.empty()) {
       auto ptrRkmediaFlow = g_venc_chns[VeChn].rkmedia_flow_list.front();
       g_venc_chns[VeChn].rkmedia_flow->RemoveDownFlow(ptrRkmediaFlow);
     }
+    LOG("\n%s %s: Disable VENC[%d] reset%d %s start...\n",
+        LOG_TAG, __func__, VeChn, reset_cnt,
+        g_venc_chns[VeChn].rkmedia_flow->GetFlowTag());
     g_venc_chns[VeChn].rkmedia_flow.reset();
+    LOG("\n%s %s: Disable VENC[%d] reset%d end!\n",
+        LOG_TAG, __func__, VeChn, reset_cnt);
+    reset_cnt++;
   }
 
   while (!g_venc_chns[VeChn].rkmedia_flow_list.empty()) {
@@ -1961,9 +1968,19 @@ RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn) {
       auto ptrRkmediaFlow1 = g_venc_chns[VeChn].rkmedia_flow_list.front();
       ptrRkmediaFlow0->RemoveDownFlow(ptrRkmediaFlow1);
     }
+    LOG("\n%s %s: Disable VENC[%d] reset%d %s start...\n",
+        LOG_TAG, __func__, VeChn, reset_cnt,
+        ptrRkmediaFlow0->GetFlowTag());
     ptrRkmediaFlow0.reset();
+    LOG("\n%s %s: Disable VENC[%d] reset%d end!\n",
+        LOG_TAG, __func__, VeChn, reset_cnt);
+    reset_cnt++;
   }
+  LOG("\n%s %s: Disable VENC[%d] clear buffer start...\n",
+      LOG_TAG, __func__, VeChn);
   RkmediaChnClearBuffer(&g_venc_chns[VeChn]);
+  LOG("\n%s %s: Disable VENC[%d] clear buffer end!\n",
+      LOG_TAG, __func__, VeChn);
   g_venc_chns[VeChn].status = CHN_STATUS_CLOSED;
   g_venc_mtx.unlock();
   LOG("\n%s %s: Disable VENC[%d] End...\n", LOG_TAG, __func__, VeChn);

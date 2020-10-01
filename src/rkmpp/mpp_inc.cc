@@ -150,15 +150,19 @@ MppEncRcMode GetMPPRCMode(const char *rc_mode) {
 MPPContext::MPPContext() : ctx(NULL), mpi(NULL), frame_group(NULL) {}
 MPPContext::~MPPContext() {
   if (mpi) {
+    LOG("#MPP CTX: mpp reset ctx start...\n");
     mpi->reset(ctx);
+    LOG("#MPP CTX: mpp reset ctx end!\n");
+    LOG("#MPP CTX: mpp destroy ctx start...\n");
     mpp_destroy(ctx);
+    LOG("#MPP CTX: mpp destroy ctx end!\n");
     ctx = NULL;
-    LOG("mpp destroy ctx done\n");
   }
   if (frame_group) {
+    LOG("#MPP CTX: mpp put frame group start...\n");
     mpp_buffer_group_put(frame_group);
     frame_group = NULL;
-    LOG("mpp buffer group free done\n");
+    LOG("#MPP CTX: mpp put frame group done!\n");
   }
 }
 
