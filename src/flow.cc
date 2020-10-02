@@ -339,6 +339,7 @@ void Flow::StopAllThread() {
       GetFlowTag(), this, __func__);
   for (auto &coroutine : coroutines)
     coroutine.reset();
+  coroutines.clear();
   LOG("#FLOW: %s(%p): %s coroutine reset end!\n",
       GetFlowTag(), this, __func__);
 }
