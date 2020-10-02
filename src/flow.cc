@@ -202,7 +202,7 @@ void FlowCoroutine::ASyncFetchInputCommon(MediaBufferVector &in) {
     if (!v.empty())
       empty = false;
   }
-  if (empty)
+  if (empty && !flow->quit)
     flow->cond_mtx.wait();
   flow->cond_mtx.unlock();
 
@@ -319,9 +319,9 @@ Flow::Flow()
 Flow::~Flow() { StopAllThread(); }
 
 void Flow::StopAllThread() {
+  cond_mtx.lock();
   enable = false;
   quit = true;
-  cond_mtx.lock();
   cond_mtx.notify();
   cond_mtx.unlock();
   for (auto &coroutine : coroutines)
