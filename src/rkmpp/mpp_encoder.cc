@@ -759,7 +759,7 @@ int MPPEncoder::RoiUpdateRegions(EncROIRegion *regions, int region_cnt) {
       free(roi_cfg.regions);
       roi_cfg.regions = NULL;
     }
-    LOG("MPP Encoder: disable roi function.\n");
+    LOG("MPP Encoder: disable roi function.");
     return 0;
   }
 

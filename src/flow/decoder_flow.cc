@@ -16,9 +16,7 @@ static bool do_decode(Flow *f, MediaBufferVector &input_vector);
 class VideoDecoderFlow : public Flow {
 public:
   VideoDecoderFlow(const char *param);
-  virtual ~VideoDecoderFlow() {
-    StopAllThread();
-  }
+  virtual ~VideoDecoderFlow() { StopAllThread(); }
   static const char *GetFlowName() { return "video_dec"; }
 
 private:
