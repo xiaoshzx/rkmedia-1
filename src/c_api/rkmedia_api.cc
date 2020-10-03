@@ -95,6 +95,7 @@ typedef struct _RkmediaChannel {
   // used for region luma.
   std::mutex luma_buf_mtx;
   std::condition_variable luma_buf_cond;
+  bool luma_buf_quit;
   std::shared_ptr<easymedia::MediaBuffer> luma_rkmedia_buf;
 } RkmediaChannel;
 
@@ -572,7 +573,8 @@ FlowOutputCallback(void *handle,
 
   if (target_chn->mode_id == RK_ID_VI) {
     std::unique_lock<std::mutex> lck(target_chn->luma_buf_mtx);
-    target_chn->luma_rkmedia_buf = rkmedia_mb;
+    if (!target_chn->luma_buf_quit)
+      target_chn->luma_rkmedia_buf = rkmedia_mb;
     target_chn->luma_buf_cond.notify_all();
     // Generally, after the previous Chn is bound to the next stage,
     // FlowOutputCallback will be disabled. Because the VI needs to
@@ -967,6 +969,9 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
                                                    FlowOutputCallback);
   g_vi_chns[ViChn].status = CHN_STATUS_OPEN;
   RkmediaChnInitBuffer(&g_vi_chns[ViChn]);
+  g_vi_chns[ViChn].luma_buf_mtx.lock();
+  g_vi_chns[ViChn].luma_buf_quit = false;
+  g_vi_chns[ViChn].luma_buf_mtx.unlock();
   g_vi_mtx.unlock();
   LOG("\n%s %s: Enable VI[%d:%d]:%s, %dx%d End...\n", LOG_TAG, __func__, ViPipe,
       ViChn, g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
@@ -995,6 +1000,7 @@ RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   g_vi_chns[ViChn].luma_buf_mtx.lock();
   g_vi_chns[ViChn].luma_rkmedia_buf.reset();
   g_vi_chns[ViChn].luma_buf_cond.notify_all();
+  g_vi_chns[ViChn].luma_buf_quit = true;
   g_vi_chns[ViChn].luma_buf_mtx.unlock();
   // VI flow Should be released last
   g_vi_chns[ViChn].rkmedia_flow.reset();
@@ -1093,7 +1099,7 @@ RK_S32 RK_MPI_VI_GetChnRegionLuma(VI_PIPE ViPipe, VI_CHN ViChn,
     // outside the lock range. This is good for frame rate.
     std::unique_lock<std::mutex> lck(target_chn->luma_buf_mtx);
     if (!target_chn->luma_rkmedia_buf) {
-      if (s32MilliSec < 0) {
+      if (s32MilliSec < 0 && !target_chn->luma_buf_quit) {
         target_chn->luma_buf_cond.wait(lck);
       } else if (s32MilliSec > 0) {
         if (target_chn->luma_buf_cond.wait_for(
