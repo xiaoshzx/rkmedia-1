@@ -91,6 +91,7 @@ private:
   int64_t cur_ts;
 
 #ifdef MPP_SUPPORT_HW_OSD
+  MppBufferGroup osd_buf_grp;
   MppEncOSDData osd_data;
 #endif // MPP_SUPPORT_HW_OSD
 

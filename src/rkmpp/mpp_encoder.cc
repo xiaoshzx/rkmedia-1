@@ -24,6 +24,7 @@ MPPEncoder::MPPEncoder()
 #ifdef MPP_SUPPORT_HW_OSD
   //reset osd data.
   memset(&osd_data, 0, sizeof(osd_data));
+  osd_buf_grp = NULL;
 #endif
   memset(&roi_cfg, 0, sizeof(roi_cfg));
   rc_api_brief_name = "default";
@@ -35,6 +36,11 @@ MPPEncoder::~MPPEncoder() {
     LOGD("MPP Encoder: free osd buff\n");
     mpp_buffer_put(osd_data.buf);
     osd_data.buf = NULL;
+  }
+  if (osd_buf_grp) {
+    LOGD("MPP Encoder: free osd buff group\n");
+    mpp_buffer_group_put(osd_buf_grp);
+    osd_buf_grp = NULL;
   }
 #endif
   if (roi_cfg.regions) {
@@ -58,14 +64,27 @@ void MPPEncoder::SetMppCodeingType(MppCodingType type) {
 }
 
 bool MPPEncoder::Init() {
+  int ret = 0;
   if (coding_type == MPP_VIDEO_CodingUnused)
     return false;
+#ifdef MPP_SUPPORT_HW_OSD
+  ret = mpp_buffer_group_get_internal(&osd_buf_grp, MPP_BUFFER_TYPE_DRM);
+  if (ret) {
+    LOG("ERROR: MPP Encoder: failed to get mpp buffer group! ret=%d\n", ret);
+    return false;
+  }
+  ret = mpp_buffer_group_limit_config(osd_buf_grp, 0, 2);
+  if (ret) {
+    LOG("ERROR: MPP Encoder: failed to limit buffer group! ret=%d\n", ret);
+    return false;
+  }
+#endif
   mpp_ctx = std::make_shared<MPPContext>();
   if (!mpp_ctx)
     return false;
   MppCtx ctx = NULL;
   MppApi *mpi = NULL;
-  int ret = mpp_create(&ctx, &mpi);
+  ret = mpp_create(&ctx, &mpi);
   if (ret) {
     LOG("mpp_create failed\n");
     return false;
@@ -80,6 +99,7 @@ bool MPPEncoder::Init() {
     mpi = NULL;
     return false;
   }
+
   return true;
 }
 
@@ -581,7 +601,7 @@ int MPPEncoder::OsdPaletteSet(uint32_t *ptl_data) {
 }
 
 static int OsdUpdateRegionInfo(MppEncOSDData *osd,
-  OsdRegionData *region_data) {
+  OsdRegionData *region_data, MppBufferGroup buf_grp) {
   uint32_t new_size = 0;
   uint32_t old_size = 0;
   uint8_t rid = region_data->region_id;
@@ -662,7 +682,7 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
   }
 
   old_buff = osd->buf;
-  int ret = mpp_buffer_get(NULL, &new_buff, total_size);
+  int ret = mpp_buffer_get(buf_grp, &new_buff, total_size);
   if (ret) {
     LOG("ERROR: MPP Encoder: get osd %dBytes buffer failed(%d)\n",
       total_size, ret);
@@ -738,7 +758,7 @@ int MPPEncoder::OsdRegionSet(OsdRegionData *rdata) {
 #ifndef NDEBUG
   OsdDummpRegions(rdata);
 #endif
-  int ret = OsdUpdateRegionInfo(&osd_data, rdata);
+  int ret = OsdUpdateRegionInfo(&osd_data, rdata, osd_buf_grp);
 #ifndef NDEBUG
   OsdDummpMppOsd(&osd_data);
 #endif
