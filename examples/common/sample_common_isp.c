@@ -55,7 +55,7 @@ RK_VOID SAMPLE_COMM_ISP_Stop(void) {
     return;
 
   printf("rk_aiq_uapi_sysctl_stop enter\n");
-  rk_aiq_uapi_sysctl_stop(g_aiq_ctx);
+  rk_aiq_uapi_sysctl_stop(g_aiq_ctx, false);
   printf("rk_aiq_uapi_sysctl_deinit enter\n");
   rk_aiq_uapi_sysctl_deinit(g_aiq_ctx);
   printf("rk_aiq_uapi_sysctl_deinit exit\n");
