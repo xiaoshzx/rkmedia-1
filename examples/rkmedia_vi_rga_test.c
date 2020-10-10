@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
   RK_BOOL fec_enable = RK_FALSE;
   int fps = 30;
   char *iq_file_dir = NULL;
-  if (strcmp(argv[1], "-h") == 0) {
+  if ((argc > 1) && !strcmp(argv[1], "-h")) {
     printf("\n\n/Usage:./%s [--aiq iq_file_dir]\n", argv[0]);
     printf("\t --aiq iq_file_dir : init isp\n");
     return -1;
