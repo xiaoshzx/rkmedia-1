@@ -140,12 +140,26 @@ void DrawFilter::DoHwDraw(std::list<RknnResult> &nn_result) {
   std::vector<Rect> rects;
   for (auto info : nn_result) {
     Rect rect;
-    rockface_det_t face_det = info.face_info.base;
-    rect.left = UPALIGNTO16(face_det.box.left);
-    rect.right = DOWNALIGNTO16(face_det.box.right);
-    rect.top = UPALIGNTO16(face_det.box.top);
-    rect.bottom = DOWNALIGNTO16(face_det.box.bottom);
-    rects.push_back(rect);
+#ifdef USE_ROCKFACE
+    if (info.type == NNRESULT_TYPE_FACE) {
+      rockface_det_t face_det = info.face_info.base;
+      rect.left = UPALIGNTO16(face_det.box.left);
+      rect.right = DOWNALIGNTO16(face_det.box.right);
+      rect.top = UPALIGNTO16(face_det.box.top);
+      rect.bottom = DOWNALIGNTO16(face_det.box.bottom);
+      rects.push_back(rect);
+    }
+#endif
+#ifdef USE_ROCKX
+    if (info.type == NNRESULT_TYPE_OBJECT_DETECT) {
+      rockx_object_t object_det = info.object_info;
+      rect.left = UPALIGNTO16(object_det.box.left);
+      rect.right = DOWNALIGNTO16(object_det.box.right);
+      rect.top = UPALIGNTO16(object_det.box.top);
+      rect.bottom = DOWNALIGNTO16(object_det.box.bottom);
+      rects.push_back(rect);
+    }
+#endif
   }
   Rect combine = combine_rect(rects);
   for (auto &rect : rects) {
@@ -206,16 +220,30 @@ void DrawFilter::DoDraw(std::shared_ptr<ImageBuffer> &buffer,
 
 void DrawFilter::ConvertRect(std::list<RknnResult> &nn_list) {
   for (RknnResult &nn : nn_list) {
-    if (nn.type != NNRESULT_TYPE_FACE)
-      continue;
-    rockface_rect_t *rect = &nn.face_info.base.box;
-    rect->left = rect->left + offset_x_;
-    rect->top = rect->top + offset_y_;
-    rect->right = rect->right + offset_x_;
-    rect->bottom = rect->bottom + offset_y_;
-    int rect_size = (rect->right - rect->left) * (rect->bottom - rect->top);
-    if (rect_size < min_rect_size_)
-      memset(rect, 0, sizeof(rockface_rect_t));
+#ifdef USE_ROCKFACE
+    if (nn.type == NNRESULT_TYPE_FACE) {
+      rockface_rect_t *rect = &nn.face_info.base.box;
+      rect->left = rect->left + offset_x_;
+      rect->top = rect->top + offset_y_;
+      rect->right = rect->right + offset_x_;
+      rect->bottom = rect->bottom + offset_y_;
+      int rect_size = (rect->right - rect->left) * (rect->bottom - rect->top);
+      if (rect_size < min_rect_size_)
+        memset(rect, 0, sizeof(rockface_rect_t));
+    }
+#endif
+#ifdef USE_ROCKX
+    if (nn.type == NNRESULT_TYPE_OBJECT_DETECT) {
+      rockx_rect_t *rect = &nn.object_info.box;
+      rect->left = rect->left + offset_x_;
+      rect->top = rect->top + offset_y_;
+      rect->right = rect->right + offset_x_;
+      rect->bottom = rect->bottom + offset_y_;
+      int rect_size = (rect->right - rect->left) * (rect->bottom - rect->top);
+      if (rect_size < min_rect_size_)
+        memset(rect, 0, sizeof(rockx_rect_t));
+    }
+#endif
   }
 }
 
