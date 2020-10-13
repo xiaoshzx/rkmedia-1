@@ -282,8 +282,7 @@ bool save_buffer(Flow *f, MediaBufferVector &input_vector) {
     return true;
 
   if (flow->GetSaveMode() == KEY_SAVE_MODE_SINGLE) {
-    time_t curtime = buffer->GetUSTimeStamp() / 1000000LL;
-    flow->fstream->NewStream(flow->GenFilePath(curtime));
+    flow->fstream->NewStream(flow->GenFilePath());
     return flow->fstream->WriteAndClose(buffer->GetPtr(), 1, buffer->GetValidSize());
   } else {
     return flow->fstream->Write(buffer->GetPtr(), 1, buffer->GetValidSize());
