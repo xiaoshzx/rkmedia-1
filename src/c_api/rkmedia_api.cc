@@ -1428,7 +1428,8 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   if (bEnableRga)
     VenChn->rkmedia_flow_list.push_back(video_rga_flow);
   VenChn->rkmedia_flow_list.push_back(video_jpeg_flow);
-
+  // Init buffer list.
+  RkmediaChnInitBuffer(VenChn);
   VenChn->status = CHN_STATUS_OPEN;
 
   return RK_ERR_SYS_OK;
