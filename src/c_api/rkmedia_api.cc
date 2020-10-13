@@ -1755,36 +1755,46 @@ RK_S32 RK_MPI_VENC_SetJpegParam(VENC_CHN VeChn,
 }
 
 RK_S32 RK_MPI_VENC_SetRcMode(VENC_CHN VeChn, VENC_RC_MODE_E RcMode) {
+  RK_S32 ret = 0;
+  const RK_CHAR *key_value = NULL;
+
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
   if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN)
     return -RK_ERR_VENC_NOTREADY;
 
-  g_venc_mtx.lock();
   switch (RcMode) {
   case VENC_RC_MODE_H264CBR:
-    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_CBR);
+  case VENC_RC_MODE_MJPEGCBR:
+  case VENC_RC_MODE_H265CBR:
+    key_value = KEY_CBR;
     break;
   case VENC_RC_MODE_H264VBR:
-    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_VBR);
-    break;
-  case VENC_RC_MODE_H265CBR:
-    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_CBR);
-    break;
   case VENC_RC_MODE_H265VBR:
-    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_VBR);
-    break;
-  case VENC_RC_MODE_MJPEGCBR:
-    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_CBR);
-    break;
   case VENC_RC_MODE_MJPEGVBR:
-    video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, KEY_VBR);
+    key_value = KEY_VBR;
+    break;
+  case VENC_RC_MODE_H264AVBR:
+  case VENC_RC_MODE_H265AVBR:
+    key_value = KEY_AVBR;
     break;
   default:
     break;
   }
+
+  if (!key_value)
+    return -RK_ERR_VENC_NOT_SUPPORT;
+
+  g_venc_mtx.lock();
+  if (g_venc_chns[VeChn].rkmedia_flow) {
+    ret = video_encoder_set_rc_mode(g_venc_chns[VeChn].rkmedia_flow, key_value);
+    ret = ret ? -RK_ERR_VENC_ILLEGAL_PARAM : RK_ERR_SYS_OK;
+  } else {
+    ret = -RK_ERR_VENC_NOTREADY;
+  }
   g_venc_mtx.unlock();
-  return RK_ERR_SYS_OK;
+
+  return ret;
 }
 
 RK_S32 RK_MPI_VENC_SetRcQuality(VENC_CHN VeChn, VENC_RC_QUALITY_E RcQuality) {
