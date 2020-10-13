@@ -47,13 +47,13 @@ void video_packet_cb(MEDIA_BUFFER mb) {
   RK_MPI_MB_ReleaseBuffer(mb);
 }
 
-static int StreamOn(const char *video_node, int width, int height,
+static int StreamOn(int vi_pipe, const char *video_node, int width, int height,
                     IMAGE_TYPE_E img_type, int vi_chn, int venc_chn) {
   int ret = 0;
 
-  printf("===> StreamOn: Start: video_node:%s, wxh:%dx%d, vi_chn:%d, "
+  printf("===> StreamOn: Start: vi_pip:%d: video_node:%s, wxh:%dx%d, vi_chn:%d, "
          "venc_chn:%d <===\n",
-         video_node, width, height, vi_chn, venc_chn);
+         vi_pipe, video_node, width, height, vi_chn, venc_chn);
 
   VI_CHN_ATTR_S vi_chn_attr;
   vi_chn_attr.pcVideoNode = video_node;
@@ -62,8 +62,8 @@ static int StreamOn(const char *video_node, int width, int height,
   vi_chn_attr.u32Height = height;
   vi_chn_attr.enPixFmt = img_type;
   vi_chn_attr.enWorkMode = VI_WORK_MODE_NORMAL;
-  ret = RK_MPI_VI_SetChnAttr(0, vi_chn, &vi_chn_attr);
-  ret |= RK_MPI_VI_EnableChn(0, vi_chn);
+  ret = RK_MPI_VI_SetChnAttr(vi_pipe, vi_chn, &vi_chn_attr);
+  ret |= RK_MPI_VI_EnableChn(vi_pipe, vi_chn);
   if (ret) {
     printf("ERROR: Create VI[%d]:%s failed!\n", vi_chn, video_node);
     return -1;
@@ -119,7 +119,7 @@ static int StreamOn(const char *video_node, int width, int height,
   return 0;
 }
 
-static int StreamOff(int vi_chn, int venc_chn) {
+static int StreamOff(int vi_pipe, int vi_chn, int venc_chn) {
   int ret = 0;
 
   MPP_CHN_S stSrcChn;
@@ -136,7 +136,7 @@ static int StreamOff(int vi_chn, int venc_chn) {
            venc_chn, ret);
     return -1;
   }
-  ret = RK_MPI_VI_DisableChn(vi_chn, 1);
+  ret = RK_MPI_VI_DisableChn(vi_pipe, vi_chn);
   if (ret) {
     printf("ERROR: Destroy Vi[%d] failed! ret = %d\n", vi_chn, ret);
     return -1;
@@ -153,8 +153,8 @@ static int StreamOff(int vi_chn, int venc_chn) {
 static void print_usage(char *name) {
   printf("#Usage: \n");
   printf("  %s VideoNode0 VideoNode1\n", name);
-  printf("  VideoNode0: video node for camera0, such as:\"/dev/video31\"\n");
-  printf("  VideoNode1: video node for camera1, such as:\"/dev/video38\"\n");
+  printf("  VideoNode0: 1920x1080, video node for camera0, such as:\"/dev/video0\"\n");
+  printf("  VideoNode1: 1280x720, video node for camera1, such as:\"/dev/video1\"\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -173,11 +173,11 @@ int main(int argc, char *argv[]) {
   g_file0 = fopen("/userdata/camera0.h264", "w");
   g_file1 = fopen("/userdata/camera1.h264", "w");
 
-  ret = StreamOn("/dev/video32", 1920, 1080, IMAGE_TYPE_NV12, 0, 0);
+  ret = StreamOn(0, argv[1], 1920, 1080, IMAGE_TYPE_NV12, 0, 0);
   if (ret)
     exit(0);
 
-  ret = StreamOn("/dev/video38", 1280, 720, IMAGE_TYPE_NV12, 1, 1);
+  ret = StreamOn(1, argv[2], 1280, 720, IMAGE_TYPE_NV12, 1, 1);
   if (ret)
     exit(0);
 
@@ -188,8 +188,8 @@ int main(int argc, char *argv[]) {
     usleep(100);
   }
 
-  StreamOff(0, 0);
-  StreamOff(1, 1);
+  StreamOff(0, 0, 0);
+  StreamOff(1, 1, 1);
 
   if (g_file0)
     fclose(g_file0);

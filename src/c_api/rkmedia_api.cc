@@ -936,6 +936,7 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "v4l2_capture_stream");
   std::string stream_param;
   PARAM_STRING_APPEND_TO(stream_param, KEY_USE_LIBV4L2, 1);
+  PARAM_STRING_APPEND_TO(stream_param, KEY_CAMERA_ID, ViPipe);
   PARAM_STRING_APPEND(stream_param, KEY_DEVICE,
                       g_vi_chns[ViChn].vi_attr.attr.pcVideoNode);
   PARAM_STRING_APPEND(stream_param, KEY_V4L2_CAP_TYPE,

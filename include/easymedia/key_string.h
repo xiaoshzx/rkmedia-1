@@ -14,6 +14,7 @@
 #define KEY_SAVE_MODE_SINGLE "single_frame"
 #define KEY_SAVE_MODE_CONTIN "continuous_frame"
 #define KEY_DEVICE "device"
+#define KEY_CAMERA_ID "camera_id"
 
 #define KEY_NAME "name"
 #define KEY_INPUTDATATYPE "input_data_type"

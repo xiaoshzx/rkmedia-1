@@ -12,6 +12,7 @@
 #include <mutex>
 
 #include "v4l2_utils.h"
+#include "rkaiq_media.h"
 
 #define RKISP_SUBDEV_NAME "rkisp-isp-subdev"
 #define RKIISPP_SUBDEV_NAME "rkispp-subdev"
@@ -43,6 +44,8 @@ public:
   ~V4L2MediaCtl();
   int InitHwInfos();
   int SetupLink(std::string devname, bool enable);
+
+  RKAiqMedia media_ctl_infos;
 };
 
 class V4L2Stream : public Stream {
@@ -80,6 +83,7 @@ protected:
   std::string devname;
   std::string device;
   std::string sub_device;
+  int camera_id;
   int fd; // just for convenience
   // static sub_device_controller;
   enum v4l2_buf_type capture_type;
