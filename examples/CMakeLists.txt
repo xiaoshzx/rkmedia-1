@@ -227,9 +227,10 @@ install(TARGETS rkmedia_stream_stress_test RUNTIME DESTINATION "bin")
 # rkmedia_isp_stresss_test
 #--------------------------
 if(USE_RKAIQ)
+link_directories(${PROJECT_SOURCE_DIR}/librtsp/)
 add_executable(rkmedia_isp_stresss_test rkmedia_isp_stresss_test.c ${COMMON_SRC})
 add_dependencies(rkmedia_isp_stresss_test easymedia)
-target_link_libraries(rkmedia_isp_stresss_test easymedia)
+target_link_libraries(rkmedia_isp_stresss_test rtsp easymedia)
 target_include_directories(rkmedia_isp_stresss_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_isp_stresss_test RUNTIME DESTINATION "bin")
 endif()

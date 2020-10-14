@@ -12,9 +12,13 @@
 #include <unistd.h>
 
 #include "common/sample_common.h"
+#include "librtsp/rtsp_demo.h"
 #include "rkmedia_api.h"
 #include "rkmedia_venc.h"
 
+// static bool g_enable_rtsp = true;
+rtsp_demo_handle g_rtsplive = NULL;
+rtsp_session_handle g_session;
 static bool quit = false;
 static void sigterm_handler(int sig) {
   fprintf(stderr, "signal %d\n", sig);
@@ -36,13 +40,17 @@ void video_packet_cb(MEDIA_BUFFER mb) {
   printf("Get Video Encoded packet(%s):ptr:%p, fd:%d, size:%zu, mode:%d\n",
          nalu_type, RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb),
          RK_MPI_MB_GetSize(mb), RK_MPI_MB_GetModeID(mb));
+  rtsp_tx_video(g_session, RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetSize(mb),
+                RK_MPI_MB_GetTimestamp(mb));
   RK_MPI_MB_ReleaseBuffer(mb);
+  rtsp_do_event(g_rtsplive);
 }
 
 RK_U32 g_width = 1920;
 RK_U32 g_height = 1080;
 char *g_video_node = "rkispp_scale0";
 IMAGE_TYPE_E g_enPixFmt = IMAGE_TYPE_NV12;
+RK_S32 g_S32Rotation = 0;
 
 static void StreamOnOff(RK_BOOL start) {
   MPP_CHN_S stSrcChn;
@@ -63,6 +71,7 @@ static void StreamOnOff(RK_BOOL start) {
     venc_chn_attr.stVencAttr.u32VirWidth = g_width;
     venc_chn_attr.stVencAttr.u32VirHeight = g_height;
     venc_chn_attr.stVencAttr.u32Profile = 77;
+    venc_chn_attr.stVencAttr.enRotation = g_S32Rotation;
 
     venc_chn_attr.stRcAttr.enRcMode = VENC_RC_MODE_H264CBR;
 
@@ -179,21 +188,57 @@ static RK_VOID testFBCRotation(char *iq_file_dir) {
   g_video_node = "rkispp_m_bypass";
   g_enPixFmt = IMAGE_TYPE_FBC0;
   RK_U32 count = 0;
-  RK_S32 S32Rotation = 0;
   while (quit) {
     count++;
-    if (S32Rotation > 270) {
-      S32Rotation = 0;
+    if (g_S32Rotation > 270) {
+      g_S32Rotation = 0;
     } else {
-      S32Rotation += 90;
+      g_S32Rotation += 90;
     }
-    printf("######### %d : count = %u #############.\n", S32Rotation, count);
+    printf("######### %d : count = %u #############.\n", g_S32Rotation, count);
     startISP(RK_AIQ_WORKING_MODE_NORMAL, RK_FALSE, iq_file_dir);
+    SAMPLE_COMM_ISP_SET_BypassStreamRotation(g_S32Rotation);
     streamOn();
-    SAMPLE_COMM_ISP_SET_BypassStreamRotation(S32Rotation);
+    usleep(50 * 100 * 1000);
     SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
     streamOff();
-    usleep(300 * 1000);
+    usleep(100 * 1000);
+  }
+}
+
+static RK_VOID testDefog(char *iq_file_dir) {
+  quit = true;
+  // g_width = 3840;
+  // g_height = 2160;
+  // g_video_node = "rkispp_m_bypass";
+  // g_enPixFmt = IMAGE_TYPE_FBC0;
+  RK_U32 count = 0;
+  RK_U32 u32Mode;
+  while (quit) {
+    printf("######## disable count = %u ############.\n", count++);
+    startISP(RK_AIQ_WORKING_MODE_NORMAL, RK_FALSE, iq_file_dir);
+    u32Mode = 0;
+    SAMPLE_COMM_ISP_SET_DefogEnable(u32Mode);
+    streamOn();
+    SAMPLE_COMM_ISP_Stop();
+    streamOff();
+
+    printf("######## enable manaul count = %u ############.\n", count);
+    u32Mode = 1; // manual
+    startISP(RK_AIQ_WORKING_MODE_NORMAL, RK_FALSE, iq_file_dir);
+    SAMPLE_COMM_ISP_SET_DefogEnable(u32Mode);
+    streamOn();
+    for (int i = 0; i < 255; i++) {
+      SAMPLE_COMM_ISP_SET_DefogStrength(u32Mode, i);
+      usleep(100 * 1000);
+    }
+
+    printf("######## enable auto count = %u ############.\n", count);
+    u32Mode = 2;
+    SAMPLE_COMM_ISP_SET_DefogStrength(u32Mode, 0);
+    usleep(5 * 1000 * 1000);
+    SAMPLE_COMM_ISP_Stop();
+    streamOff();
   }
 }
 
@@ -203,6 +248,8 @@ static RK_VOID RKMEDIA_ISP_Usage() {
   printf("\t0:  normal --> hdr2\n");
   printf("\t1:  normal --> hdr2 --> hdr3\n");
   printf("\t2:  FBC rotating 0-->90-->270.\n");
+  printf("\t3:  Defog: close --> manual -> auto.\n");
+  printf("\tyou can play rtsp://xxx.xxx.xxx.xxx/live/main_stream\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -226,6 +273,12 @@ int main(int argc, char *argv[]) {
   }
 
   RK_MPI_SYS_Init();
+  // init rtsp
+  g_rtsplive = create_rtsp_demo(554);
+  g_session = rtsp_new_session(g_rtsplive, "/live/main_stream");
+  rtsp_set_video(g_session, RTSP_CODEC_ID_VIDEO_H264, NULL, 0);
+  rtsp_sync_video_ts(g_session, rtsp_get_reltime(), rtsp_get_ntptime());
+
   switch (u32Index) {
   case 0:
     testNormalToHdr2(iq_file_dir);
@@ -236,9 +289,13 @@ int main(int argc, char *argv[]) {
   case 2:
     testFBCRotation(iq_file_dir);
     break;
+  case 3:
+    testDefog(iq_file_dir);
   default:
     break;
   }
 
+  // release rtsp
+  rtsp_del_demo(g_rtsplive);
   return 0;
 }
