@@ -23,6 +23,7 @@ rk_aiq_cpsl_cfg_t g_cpsl_cfg;
 rk_aiq_wb_gain_t gs_wb_auto_gain = {2.083900, 1.000000, 1.000000, 2.018500};
 RK_U32 g_2dnr_default_level = 50;
 RK_U32 g_3dnr_default_level = 50;
+rk_aiq_working_mode_t g_WDRMode;
 
 typedef enum _SHUTTERSPEED_TYPE_E {
   SHUTTERSPEED_1_25 = 0,
@@ -78,6 +79,7 @@ RK_S32 SAMPLE_COMM_ISP_Init(rk_aiq_working_mode_t WDRMode, RK_BOOL bFECEnable,
   }
 
   // must set HDR_MODE, before init
+  g_WDRMode = WDRMode;
   char hdr_str[16];
   snprintf(hdr_str, sizeof(hdr_str), "%d", (int)WDRMode);
   setenv("HDR_MODE", hdr_str, 1);
@@ -93,15 +95,8 @@ RK_S32 SAMPLE_COMM_ISP_Init(rk_aiq_working_mode_t WDRMode, RK_BOOL bFECEnable,
                                     iq_file_dir, NULL, NULL);
 
   printf("rk_aiq_uapi_sysctl_init bFECEnable %d\n", bFECEnable);
-
   rk_aiq_uapi_setFecEn(aiq_ctx, bFECEnable);
 
-  printf("rk_aiq_uapi_setFecEn\n");
-  if (rk_aiq_uapi_sysctl_prepare(aiq_ctx, 0, 0, WDRMode)) {
-    printf("rkaiq engine prepare failed !\n");
-    return -1;
-  }
-  printf("rk_aiq_uapi_sysctl_init/prepare succeed\n");
   g_aiq_ctx = aiq_ctx;
   return 0;
 }
@@ -121,7 +116,12 @@ RK_VOID SAMPLE_COMM_ISP_Stop(void) {
 RK_S32 SAMPLE_COMM_ISP_Run(void) {
   if (!g_aiq_ctx)
     return -1;
-
+  if (rk_aiq_uapi_sysctl_prepare(g_aiq_ctx, 0, 0, g_WDRMode)) {
+    printf("rkaiq engine prepare failed !\n");
+    g_aiq_ctx = NULL;
+    return -1;
+  }
+  printf("rk_aiq_uapi_sysctl_init/prepare succeed\n");
   if (rk_aiq_uapi_sysctl_start(g_aiq_ctx)) {
     printf("rk_aiq_uapi_sysctl_start  failed\n");
     return -1;
@@ -145,8 +145,9 @@ RK_VOID SAMPLE_COMM_ISP_DumpExpInfo(rk_aiq_working_mode_t WDRMode) {
             stExpInfo.CurExpInfo.LinearExp.exp_real_params.analog_gain,
             stExpInfo.MeanLuma, stCCT.CCT);
   } else {
-    sprintf(aStr, "S:%.0f-%.1f M:%.0f-%.1f L:%.0f-%.1f SLM:%.1f MLM:%.1f "
-                  "LLM:%.1f CT:%.1f",
+    sprintf(aStr,
+            "S:%.0f-%.1f M:%.0f-%.1f L:%.0f-%.1f SLM:%.1f MLM:%.1f "
+            "LLM:%.1f CT:%.1f",
             stExpInfo.CurExpInfo.HdrExp[0].exp_real_params.integration_time *
                 1000 * 1000,
             stExpInfo.CurExpInfo.HdrExp[0].exp_real_params.analog_gain,
@@ -619,4 +620,18 @@ RK_VOID SAMPLE_COMM_ISP_SET_BypassStreamRotation(RK_S32 S32Rotation) {
   pthread_mutex_unlock(&aiq_ctx_mutex);
 }
 
+RK_VOID SAMPLE_COMM_ISP_SET_Crop(rk_aiq_rect_t rect) {
+  /*
+rk_aiq_rect_t rect;
+rect.left = 0;
+rect.top = 0;
+rect.width = 2560;
+rect.height = 1440;
+rk_aiq_uapi_sysctl_setCrop(aiq_ctx, rect);*/
+  pthread_mutex_lock(&aiq_ctx_mutex);
+  if (g_aiq_ctx) {
+    rk_aiq_uapi_sysctl_setCrop(g_aiq_ctx, rect);
+  }
+  pthread_mutex_unlock(&aiq_ctx_mutex);
+}
 #endif

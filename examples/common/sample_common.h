@@ -73,4 +73,5 @@ RK_VOID SAMPLE_COMM_ISP_SET_DefogStrength(RK_U32 u32Mode, RK_U32 u32Value);
 RK_VOID SAMPLE_COMM_ISP_SET_Correction(RK_U32 u32Mode, RK_U32 u32Value);
 RK_VOID SAMPLE_COMM_ISP_SET_mirror(RK_U32 u32Value);
 RK_VOID SAMPLE_COMM_ISP_SET_BypassStreamRotation(RK_S32 S32Rotation);
+RK_VOID SAMPLE_COMM_ISP_SET_Crop(rk_aiq_rect_t rect);
 #endif
