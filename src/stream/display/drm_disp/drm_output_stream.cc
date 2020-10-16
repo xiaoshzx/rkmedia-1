@@ -174,24 +174,32 @@ int DRMOutPutStream::Open() {
   if (ret)
     return ret;
   if (!GetAgreeableIDSet())
-    return false;
+    return -1;
+
   if (!active) {
-    size_t size = CalPixFmtSize(img_info);
-    auto &&mb = MediaBuffer::Alloc2(size, MediaBuffer::MemType::MEM_HARD_WARE);
-    if (mb.GetSize() < size)
-      return -1;
-    auto fb = std::make_shared<ImageBuffer>(mb, img_info);
-    if (!fb)
-      return -1;
-    uint32_t disp_fb_id = 0;
-    disp_buffer = std::make_shared<DRMDisplayBuffer>(fb, dev, drm_fmt);
-    if (!disp_buffer || (disp_fb_id = disp_buffer->GetFBID()) == 0)
-      return -1;
-    ret = drmModeSetCrtc(fd, crtc_id, disp_fb_id, 0, 0, &connector_id, 1,
-                         &cur_mode);
+    drmModeAtomicReq *req;
+    uint32_t blob_id;
+    uint32_t property_crtc_id;
+    uint32_t property_mode_id;
+    uint32_t property_active;
+
+    property_crtc_id = get_property_id(res, DRM_MODE_OBJECT_CONNECTOR, connector_id, "CRTC_ID");
+    property_active = get_property_id(res, DRM_MODE_OBJECT_CRTC, crtc_id, "ACTIVE");
+    property_mode_id = get_property_id(res, DRM_MODE_OBJECT_CRTC, crtc_id, "MODE_ID");
+
+    auto dmc = get_connector_by_id(res, connector_id);
+    drmModeCreatePropertyBlob(fd, &dmc->modes[cur_mode_idx],
+          sizeof(dmc->modes[cur_mode_idx]), &blob_id);
+
+    req = drmModeAtomicAlloc();
+    drmModeAtomicAddProperty(req, crtc_id, property_active, 1);
+    drmModeAtomicAddProperty(req, crtc_id, property_mode_id, blob_id);
+    drmModeAtomicAddProperty(req, connector_id, property_crtc_id, crtc_id);
+    ret = drmModeAtomicCommit(fd, req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+    drmModeAtomicFree(req);
     if (ret) {
-      LOG("Fail to set crtc, ret=%d, %m\n", ret);
-      return -1;
+      LOG("ERROR: DrmDisp: set crtc failed!\n");
+      return ret;
     }
   }
   // get property ids
@@ -225,16 +233,20 @@ int DRMOutPutStream::Open() {
   if (zindex >= 0) {
     DRM_ATOMIC_ADD_PROP_EXTRA(
         -1, DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.zpos, zindex);)
+    if (ret) {
+      LOG("ERROR: DrmDisp: set zpos(%d) failed!\n", zindex);
+      return ret;
+    }
   }
   ImageRect ir = {0, 0, img_info.vir_width, img_info.vir_height};
   ret = IoCtrl(S_SOURCE_RECT, &ir);
   if (ret) {
-    LOG("Fail to set display source rect\n");
+    LOG("ERROR: DrmDisp:Fail to set display source rect\n");
     return -1;
   }
   ret = IoCtrl(S_DESTINATION_RECT, &ir);
   if (ret) {
-    LOG("Fail to set display destination rect\n");
+    LOG("ERROR: DrmDisp:Fail to set display destination rect\n");
     return -1;
   }
 
@@ -268,15 +280,7 @@ int DRMOutPutStream::IoCtrl(unsigned long int request, ...) {
           plane_id);
       return -1;
     }
-    DRM_ATOMIC_ADD_PROP_EXTRA(-1, {
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_id, crtc_id);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.src_x, rect->x << 16);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.src_y, rect->y << 16);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.src_w, rect->w << 16);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.src_h, rect->h << 16);
-    })
-    if (!ret)
-      src_rect = *rect;
+    src_rect = *rect;
   } break;
   case S_DESTINATION_RECT: {
     ImageRect *rect = (static_cast<ImageRect *>(arg));
@@ -289,15 +293,7 @@ int DRMOutPutStream::IoCtrl(unsigned long int request, ...) {
           plane_id);
       return -1;
     }
-    DRM_ATOMIC_ADD_PROP_EXTRA(-1, {
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_id, crtc_id);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_x, rect->x);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_y, rect->y);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_w, rect->w);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_h, rect->h);
-    })
-    if (!ret)
-      dst_rect = *rect;
+    dst_rect = *rect;
   } break;
   case S_SRC_DST_RECT: {
     ImageRect *rect = (static_cast<ImageRect *>(arg));
@@ -307,21 +303,8 @@ int DRMOutPutStream::IoCtrl(unsigned long int request, ...) {
           plane_id);
       return -1;
     }
-    DRM_ATOMIC_ADD_PROP_EXTRA(-1, {
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_id, crtc_id);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.src_x, rect[0].x << 16);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.src_y, rect[0].y << 16);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.src_w, rect[0].w << 16);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.src_h, rect[0].h << 16);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_x, rect[1].x);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_y, rect[1].y);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_w, rect[1].w);
-      DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.crtc_h, rect[1].h);
-    })
-    if (!ret) {
-      src_rect = rect[0];
-      dst_rect = rect[1];
-    }
+    src_rect = rect[0];
+    dst_rect = rect[1];
   } break;
   case G_PLANE_IMAGE_INFO: {
     *(static_cast<ImageInfo *>(arg)) = img_info;
@@ -373,20 +356,26 @@ bool DRMOutPutStream::Write(std::shared_ptr<MediaBuffer> input) {
     num = in_num * drm_den;
     den = in_den * drm_num;
   }
+
   uint32_t disp_fb_id = 0;
   auto disp =
       std::make_shared<DRMDisplayBuffer>(input_img, dev, drm_fmt, num, den);
   if (!disp || (disp_fb_id = disp->GetFBID()) == 0)
     return false;
   int ret = 0;
-  if (0) {
-    ret = drmModeSetPlane(fd, plane_id, crtc_id, disp_fb_id, 0, dst_rect.x,
-                          dst_rect.y, dst_rect.w, dst_rect.h, src_rect.x << 16,
-                          src_rect.y << 16, src_rect.w << 16, src_rect.h << 16);
-  } else {
-    DRM_ATOMIC_ADD_PROP_EXTRA(
-        false, DRM_ATOMIC_ADD_PROP(plane_id, plane_prop_ids.fb_id, disp_fb_id);)
-  }
+	drmModeAtomicReq *req = drmModeAtomicAlloc();
+	drmModeAtomicAddProperty(req, plane_id, plane_prop_ids.crtc_id, crtc_id);
+	drmModeAtomicAddProperty(req, plane_id, plane_prop_ids.fb_id, disp_fb_id);
+	drmModeAtomicAddProperty(req, plane_id, plane_prop_ids.crtc_x, dst_rect.x);
+	drmModeAtomicAddProperty(req, plane_id, plane_prop_ids.crtc_y, dst_rect.y);
+	drmModeAtomicAddProperty(req, plane_id, plane_prop_ids.crtc_w, dst_rect.w);
+	drmModeAtomicAddProperty(req, plane_id, plane_prop_ids.crtc_h, dst_rect.h);
+	drmModeAtomicAddProperty(req, plane_id, plane_prop_ids.src_x, src_rect.x << 16);
+	drmModeAtomicAddProperty(req, plane_id, plane_prop_ids.src_y, src_rect.y << 16);
+	drmModeAtomicAddProperty(req, plane_id, plane_prop_ids.src_w, src_rect.w << 16);
+	drmModeAtomicAddProperty(req, plane_id, plane_prop_ids.src_h, src_rect.h << 16);
+	ret = drmModeAtomicCommit(fd, req, 0, NULL);
+	drmModeAtomicFree(req);
   if (!ret) {
     disp_buffer = disp;
     return true;

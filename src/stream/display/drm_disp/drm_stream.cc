@@ -10,7 +10,7 @@ namespace easymedia {
 
 DRMStream::DRMStream(const char *param, bool as)
     : accept_scale(as), fps(0), connector_id(0), crtc_id(0), encoder_id(0),
-      plane_id(0), active(false), drm_fmt(0), find_strict_match_wh(false),
+      plane_id(0), active(false), cur_mode_idx(0), drm_fmt(0), find_strict_match_wh(false),
       fd(-1), res(nullptr) {
   memset(&img_info, 0, sizeof(img_info));
   img_info.pix_fmt = PIX_FMT_NONE;
@@ -71,8 +71,8 @@ DRMStream::DRMStream(const char *param, bool as)
 }
 
 void DRMStream::SetModeInfo(const drmModeModeInfo &mode) {
-  if (img_info.vir_width != mode.hdisplay ||
-      img_info.vir_height != mode.vdisplay) {
+  if (img_info.vir_width > mode.hdisplay ||
+      img_info.vir_height > mode.vdisplay) {
     img_info.width = img_info.vir_width = mode.hdisplay;
     img_info.height = img_info.vir_height = mode.vdisplay;
   }
@@ -88,7 +88,7 @@ int DRMStream::Open() {
     return -EINVAL;
   }
   if (device.empty()) {
-    LOG("missing device path\n");
+    LOG("ERROR: DrmDisp: missing device path\n");
     return -EINVAL;
   }
   dev = std::make_shared<DRMDevice>(device);
@@ -244,9 +244,9 @@ bool DRMStream::GetAgreeableIDSet() {
       value = 0;
       get_property_id(res, DRM_MODE_OBJECT_PLANE, plane_id, KEY_CRTC_H, &value);
       int crtc_h = (int) value;
-
       /* Does the resolution meet current needs? */
-      active = ((img_info.width <= crtc_w) && (img_info.height <= crtc_h));
+      if (crtc_w && crtc_h)
+        active = ((img_info.width <= crtc_w) && (img_info.height <= crtc_h));
     }
 
     if (!active) {
@@ -271,11 +271,12 @@ bool DRMStream::GetAgreeableIDSet() {
       if (idx < 0)
         idx = 0;
       cur_mode = *(modes[idx]);
+	    cur_mode_idx = idx;
       free(modes);
     } else {
       auto dmcrtc = get_crtc_by_id(res, crtc_id);
       cur_mode = dmcrtc->mode;
-      active = (dmcrtc->buffer_id != 0);
+      //active = (dmcrtc->buffer_id != 0);
     }
     SetModeInfo(cur_mode);
   }

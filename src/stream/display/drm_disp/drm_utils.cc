@@ -219,16 +219,20 @@ static bool contain_element(int size, const uint32_t *ids, uint32_t id) {
   return false;
 }
 
-// id in ids must be unique
+// Delete the value in ids array that is not equal to id,
+// and reset the length of the ids array to 1.
 static int remove_element_except(int size, uint32_t *ids, uint32_t id) {
-  if (size == 0)
-    return 0;
-  int i = 0;
-  int ret = contain_element(size, ids, id) ? 1 : 0;
-  if (ret > 0 && i != 0)
-    ids[i] = id;
-  if (size > ret)
-    memset(&ids[ret], 0, size * sizeof(ids[0]));
+  int ret = 0;
+
+  for (int i = 0; i < size; i++) {
+    if (ids[i] == id) {
+      if (i > 0)
+        ids[0] = id;
+      ret = 1;
+      break;
+    }
+  }
+
   return ret;
 }
 

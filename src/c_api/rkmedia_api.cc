@@ -3360,6 +3360,7 @@ RK_S32 RK_MPI_ADEC_DestroyChn(ADEC_CHN AdecChn) {
  ********************************************************************/
 RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
   int ret = RK_ERR_SYS_OK;
+  const RK_CHAR *pcPlaneType = NULL;
 
   if ((VoChn < 0) || (VoChn >= VO_MAX_CHN_NUM))
     return -RK_ERR_VO_INVALID_DEVID;
@@ -3368,18 +3369,42 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
       !pstAttr->u32HorStride || !pstAttr->u32VerStride)
     return -RK_ERR_VO_ILLEGAL_PARAM;
 
+  switch (pstAttr->emPlaneType) {
+    case VO_PLANE_PRIMARY:
+      pcPlaneType = "Primary";
+      break;
+    case VO_PLANE_OVERLAY:
+      pcPlaneType = "Overlay";
+      break;
+    case VO_PLANE_CURSOR:
+      pcPlaneType = "Cursor";
+      break;
+    default:
+      break;
+  }
+
+  if (!pcPlaneType)
+    return -RK_ERR_VO_ILLEGAL_PARAM;
+
   g_vo_mtx.lock();
   if (g_vo_chns[VoChn].status != CHN_STATUS_CLOSED) {
     g_vo_mtx.unlock();
     return -RK_ERR_VO_EXIST;
   }
 
+  LOG("\n%s %s: Enable VO[%d] Start...\n", LOG_TAG, __func__, VoChn);
+
   std::string flow_name = "output_stream";
   std::string flow_param = "";
   PARAM_STRING_APPEND(flow_param, KEY_NAME, "drm_output_stream");
 
   std::string stream_param = "";
-  PARAM_STRING_APPEND(stream_param, KEY_DEVICE, "/dev/dri/card0");
+  if (!pstAttr->pcDevNode) {
+    LOG("WARN: VO: use default DevNode:/dev/dri/card0\n");
+    PARAM_STRING_APPEND(stream_param, KEY_DEVICE, "/dev/dri/card0");
+  } else {
+    PARAM_STRING_APPEND(stream_param, KEY_DEVICE, pstAttr->pcDevNode);
+  }
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_WIDTH, pstAttr->u32Width);
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_HEIGHT, pstAttr->u32Height);
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_VIR_WIDTH,
@@ -3387,7 +3412,7 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
   PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_VIR_HEIGHT,
                          pstAttr->u32VerStride);
   PARAM_STRING_APPEND_TO(stream_param, "framerate", pstAttr->u16Fps);
-  PARAM_STRING_APPEND(stream_param, "plane_type", "Primary");
+  PARAM_STRING_APPEND(stream_param, "plane_type", pcPlaneType);
   PARAM_STRING_APPEND_TO(stream_param, "ZPOS", pstAttr->u16Zpos);
   PARAM_STRING_APPEND(stream_param, KEY_OUTPUTDATATYPE,
                       ImageTypeToString(pstAttr->enImgType));
@@ -3401,6 +3426,7 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
   }
   g_vo_chns[VoChn].status = CHN_STATUS_OPEN;
   g_vo_mtx.unlock();
+  LOG("\n%s %s: Enable VO[%d] End!\n", LOG_TAG, __func__, VoChn);
 
   return ret;
 }
