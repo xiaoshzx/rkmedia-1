@@ -222,7 +222,6 @@ target_link_libraries(rkmedia_stream_stress_test easymedia)
 target_include_directories(rkmedia_stream_stress_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_stream_stress_test RUNTIME DESTINATION "bin")
 
-
 #--------------------------
 # rkmedia_isp_stresss_test
 #--------------------------
@@ -234,6 +233,15 @@ target_link_libraries(rkmedia_isp_stresss_test rtsp easymedia)
 target_include_directories(rkmedia_isp_stresss_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 install(TARGETS rkmedia_isp_stresss_test RUNTIME DESTINATION "bin")
 endif()
+
+#--------------------------
+# rkmedia_rga_api_test
+#--------------------------
+add_executable(rkmedia_rga_api_test rkmedia_rga_api_test.c ${COMMON_SRC})
+add_dependencies(rkmedia_rga_api_test easymedia)
+target_link_libraries(rkmedia_rga_api_test easymedia rga)
+target_include_directories(rkmedia_rga_api_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_rga_api_test RUNTIME DESTINATION "bin")
 
 option(COMPILES_UINT_TEST "Enable unit tests" OFF)
 if(COMPILES_UINT_TEST)
