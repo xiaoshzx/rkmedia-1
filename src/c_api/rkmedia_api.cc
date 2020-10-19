@@ -1696,6 +1696,152 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   return RK_ERR_SYS_OK;
 }
 
+RK_S32 RK_MPI_VENC_CreateJpegLightChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return -RK_ERR_VENC_INVALID_CHNID;
+
+  if (!stVencChnAttr)
+    return -RK_ERR_VENC_NULL_PTR;
+
+  if ((stVencChnAttr->stVencAttr.enType != RK_CODEC_TYPE_JPEG) &&
+      (stVencChnAttr->stVencAttr.enType != RK_CODEC_TYPE_MJPEG))
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+
+  if ((stVencChnAttr->stVencAttr.enRotation != VENC_ROTATION_0)) {
+    LOG("ERROR: Venc[%d]: JpegLT: rotation not support!\n", VeChn);
+    return -RK_ERR_VENC_NOT_SUPPORT;
+  }
+
+  if (g_venc_chns[VeChn].status != CHN_STATUS_CLOSED) {
+    return -RK_ERR_VENC_EXIST;
+  }
+
+  LOG("\n%s %s: Enable VENC[%d], Type:%d Start...\n", LOG_TAG, __func__, VeChn,
+      stVencChnAttr->stVencAttr.enType);
+
+  std::shared_ptr<easymedia::Flow> video_jpeg_flow;
+  RK_U32 u32InFpsNum = 1;
+  RK_U32 u32InFpsDen = 1;
+  RK_U32 u32OutFpsNum = 1;
+  RK_U32 u32OutFpsDen = 1;
+  const RK_CHAR *pcRkmediaRcMode = nullptr;
+  const RK_CHAR *pcRkmediaCodecType = nullptr;
+
+  RK_S32 mjpeg_bps = 0;
+  RK_S32 video_width = stVencChnAttr->stVencAttr.u32PicWidth;
+  RK_S32 video_height = stVencChnAttr->stVencAttr.u32PicHeight;
+  RK_S32 vir_width = stVencChnAttr->stVencAttr.u32VirWidth;
+  RK_S32 vir_height = stVencChnAttr->stVencAttr.u32VirHeight;
+  std::string pixel_format =
+      ImageTypeToString(stVencChnAttr->stVencAttr.imageType);
+
+  if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG) {
+    // MJPEG:
+    if (stVencChnAttr->stRcAttr.enRcMode == VENC_RC_MODE_MJPEGCBR) {
+      mjpeg_bps = stVencChnAttr->stRcAttr.stMjpegCbr.u32BitRate;
+      u32InFpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateNum;
+      u32InFpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.u32SrcFrameRateDen;
+      u32OutFpsNum = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateNum;
+      u32OutFpsDen = stVencChnAttr->stRcAttr.stMjpegCbr.fr32DstFrameRateDen;
+      pcRkmediaRcMode = KEY_CBR;
+    } else if (stVencChnAttr->stRcAttr.enRcMode == VENC_RC_MODE_MJPEGVBR) {
+      mjpeg_bps = stVencChnAttr->stRcAttr.stMjpegVbr.u32BitRate;
+      u32InFpsNum = stVencChnAttr->stRcAttr.stMjpegVbr.u32SrcFrameRateNum;
+      u32InFpsDen = stVencChnAttr->stRcAttr.stMjpegVbr.u32SrcFrameRateDen;
+      u32OutFpsNum = stVencChnAttr->stRcAttr.stMjpegVbr.fr32DstFrameRateNum;
+      u32OutFpsDen = stVencChnAttr->stRcAttr.stMjpegVbr.fr32DstFrameRateDen;
+      pcRkmediaRcMode = KEY_VBR;
+    } else {
+      LOG("ERROR: [%s]: Invalid RcMode[%d]\n", __func__,
+          stVencChnAttr->stRcAttr.enRcMode);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
+
+    if ((mjpeg_bps < 2000) || (mjpeg_bps > 100000000)) {
+      LOG("ERROR: [%s]: Invalid BitRate[%d], should be [2000, 100000000]\n",
+          __func__, mjpeg_bps);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
+    if (!u32InFpsNum) {
+      LOG("ERROR: [%s]: Invalid src frame rate [%d/%d]\n", __func__,
+          u32InFpsNum, u32InFpsDen);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
+    if (!u32OutFpsNum) {
+      LOG("ERROR: [%s]: Invalid dst frame rate [%d/%d]\n", __func__,
+          u32OutFpsNum, u32OutFpsDen);
+      return -RK_ERR_VENC_ILLEGAL_PARAM;
+    }
+    pcRkmediaCodecType = VIDEO_MJPEG;
+  } else {
+    // JPEG
+    pcRkmediaCodecType = IMAGE_JPEG;
+  }
+
+  g_venc_mtx.lock();
+  if (g_venc_chns[VeChn].status != CHN_STATUS_CLOSED) {
+    g_venc_mtx.unlock();
+    return -RK_ERR_VENC_EXIST;
+  }
+  // save venc_attr to venc chn.
+  memcpy(&g_venc_chns[VeChn].venc_attr, stVencChnAttr, sizeof(RkmediaVencAttr));
+
+  std::string flow_name = "video_enc";
+  std::string flow_param = "";
+  std::string enc_param = "";
+  PARAM_STRING_APPEND(flow_param, KEY_NAME, "rkmpp");
+  PARAM_STRING_APPEND(flow_param, KEY_INPUTDATATYPE, IMAGE_NV12);
+  PARAM_STRING_APPEND(flow_param, KEY_OUTPUTDATATYPE, pcRkmediaCodecType);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_WIDTH, video_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_HEIGHT, video_height);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_WIDTH, vir_width);
+  PARAM_STRING_APPEND_TO(enc_param, KEY_BUFFER_VIR_HEIGHT, vir_height);
+
+  if (stVencChnAttr->stVencAttr.enType == RK_CODEC_TYPE_MJPEG) {
+    // MJPEG
+    // set input fps
+    std::string str_fps_in;
+    str_fps_in.append(std::to_string(u32InFpsNum))
+        .append("/")
+        .append(std::to_string(u32InFpsDen));
+    PARAM_STRING_APPEND(enc_param, KEY_FPS_IN, str_fps_in);
+    // set output fps
+    std::string str_fps_out;
+    str_fps_out.append(std::to_string(u32OutFpsNum))
+        .append("/")
+        .append(std::to_string(u32OutFpsDen));
+    PARAM_STRING_APPEND(enc_param, KEY_FPS, str_fps_out);
+    PARAM_STRING_APPEND_TO(enc_param, KEY_COMPRESS_BITRATE_MAX, mjpeg_bps);
+    PARAM_STRING_APPEND(enc_param, KEY_COMPRESS_RC_MODE, pcRkmediaRcMode);
+  } else {
+    // JPEG
+    PARAM_STRING_APPEND_TO(enc_param, KEY_JPEG_QFACTOR, 50);
+  }
+
+  flow_param = easymedia::JoinFlowParam(flow_param, 1, enc_param);
+  LOGD("\n#JPEG-LT: [%s] encoder flow param:\n%s\n", pcRkmediaCodecType,
+       flow_param.c_str());
+  video_jpeg_flow = easymedia::REFLECTOR(Flow)::Create<easymedia::Flow>(
+      flow_name.c_str(), flow_param.c_str());
+  if (!video_jpeg_flow) {
+    LOG("ERROR: [%s]: Create flow %s failed\n", __func__, flow_name.c_str());
+    g_venc_mtx.unlock();
+    return -RK_ERR_VENC_ILLEGAL_PARAM;
+  }
+
+  video_jpeg_flow->SetFlowTag("JpegLightEncoder");
+  video_jpeg_flow->SetOutputCallBack(&g_venc_chns[VeChn], FlowOutputCallback);
+
+  g_venc_chns[VeChn].rkmedia_flow = video_jpeg_flow;
+  g_venc_chns[VeChn].rkmedia_flow_list.push_back(video_jpeg_flow);
+  // Init buffer list.
+  RkmediaChnInitBuffer(&g_venc_chns[VeChn]);
+  g_venc_chns[VeChn].status = CHN_STATUS_OPEN;
+  g_venc_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
 RK_S32 RK_MPI_VENC_SetRcParam(VENC_CHN VeChn,
                               const VENC_RC_PARAM_S *pstRcParam) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
