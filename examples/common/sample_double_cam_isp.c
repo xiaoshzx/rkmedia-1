@@ -8,14 +8,14 @@
 #define AIQ_WIDTH 2688
 #define AIQ_HEIGHT 1520
 
-rk_aiq_sys_ctx_t *aiq_double_cam_init(int id, rk_aiq_working_mode_t mode) {
+rk_aiq_sys_ctx_t *aiq_double_cam_init(int id, rk_aiq_working_mode_t mode, char *iq_dir) {
   rk_aiq_sys_ctx_t *ctx = NULL;
   rk_aiq_static_info_t info;
   rk_aiq_uapi_sysctl_enumStaticMetas(id, &info);
 
   printf("%d: sensor_name is %s\n", id, info.sensor_info.sensor_name);
 
-  ctx = rk_aiq_uapi_sysctl_init(info.sensor_info.sensor_name, IQFILES_PATH,
+  ctx = rk_aiq_uapi_sysctl_init(info.sensor_info.sensor_name, iq_dir ? iq_dir : IQFILES_PATH,
                                 NULL, NULL);
   if (!ctx) {
     printf("%s: rk_aiq_uapi_sysctl_init fail!\n", __func__);

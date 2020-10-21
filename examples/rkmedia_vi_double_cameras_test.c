@@ -129,14 +129,19 @@ int main(int argc, char *argv[]) {
   pthread_t trgb, tir;
   MB_IMAGE_INFO_S disp_info = {scale_width, scale_height, scale_width,
                                scale_height, IMAGE_TYPE_NV12};
+  char *iq_dir = NULL;
+  if (argc >= 2) {
+      iq_dir = argv[1];
+      if (access(iq_dir, R_OK)) {
+          printf("Usage: %s [/etc/iqfiles]\n", argv[0]);
+          exit(0);
+      }
+  }
 
-  (void)argc;
-  (void)argv;
-
-  rk_aiq_sys_ctx_t *ctx0 = aiq_double_cam_init(0, RK_AIQ_WORKING_MODE_NORMAL);
+  rk_aiq_sys_ctx_t *ctx0 = aiq_double_cam_init(0, RK_AIQ_WORKING_MODE_NORMAL, iq_dir);
   if (!ctx0)
     return -1;
-  rk_aiq_sys_ctx_t *ctx1 = aiq_double_cam_init(1, RK_AIQ_WORKING_MODE_NORMAL);
+  rk_aiq_sys_ctx_t *ctx1 = aiq_double_cam_init(1, RK_AIQ_WORKING_MODE_NORMAL, iq_dir);
   if (!ctx1)
     return -1;
 
