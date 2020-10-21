@@ -80,16 +80,16 @@ static void *GetRgbBuffer(void *arg) {
     }
 
     scale_buffer(RK_MPI_MB_GetPtr(mb), disp_width, disp_height,
-                 RK_FORMAT_RGB_888, RK_MPI_MB_GetPtr(rgb_mb), scale_width,
-                 scale_height, RK_FORMAT_RGB_888, 0);
+                 RK_FORMAT_YCbCr_420_SP, RK_MPI_MB_GetPtr(rgb_mb), scale_width,
+                 scale_height, RK_FORMAT_YCbCr_420_SP, 0);
     compose_buffer(RK_MPI_MB_GetPtr(rgb_mb), scale_width, scale_height,
-                   RK_FORMAT_RGB_888, RK_MPI_MB_GetPtr(mb), disp_width,
-                   disp_height, RK_FORMAT_RGB_888, 0, 0, scale_width,
+                   RK_FORMAT_YCbCr_420_SP, RK_MPI_MB_GetPtr(mb), disp_width,
+                   disp_height, RK_FORMAT_YCbCr_420_SP, 0, 0, scale_width,
                    scale_height);
     pthread_mutex_lock(&mutex);
     compose_buffer(RK_MPI_MB_GetPtr(ir_mb), scale_width, scale_height,
-                   RK_FORMAT_RGB_888, RK_MPI_MB_GetPtr(mb), disp_width,
-                   disp_height, RK_FORMAT_RGB_888, 0, scale_height, scale_width,
+                   RK_FORMAT_YCbCr_420_SP, RK_MPI_MB_GetPtr(mb), disp_width,
+                   disp_height, RK_FORMAT_YCbCr_420_SP, 0, scale_height, scale_width,
                    scale_height);
     pthread_mutex_unlock(&mutex);
 
@@ -115,7 +115,7 @@ static void *GetIrBuffer(void *arg) {
     pthread_mutex_lock(&mutex);
     scale_buffer(RK_MPI_MB_GetPtr(mb), video_width, video_height,
                  RK_FORMAT_YCbCr_420_SP, RK_MPI_MB_GetPtr(ir_mb), scale_width,
-                 scale_height, RK_FORMAT_RGB_888, HAL_TRANSFORM_ROT_270);
+                 scale_height, RK_FORMAT_YCbCr_420_SP, HAL_TRANSFORM_ROT_270);
     pthread_mutex_unlock(&mutex);
 
     RK_MPI_MB_ReleaseBuffer(mb);
@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
   int ret = 0;
   pthread_t trgb, tir;
   MB_IMAGE_INFO_S disp_info = {scale_width, scale_height, scale_width,
-                               scale_height, IMAGE_TYPE_RGB888};
+                               scale_height, IMAGE_TYPE_NV12};
 
   (void)argc;
   (void)argv;
@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
   stRgaAttr.stImgIn.u32VirStride = video_height;
   stRgaAttr.stImgOut.u32X = 0;
   stRgaAttr.stImgOut.u32Y = 0;
-  stRgaAttr.stImgOut.imgType = IMAGE_TYPE_RGB888;
+  stRgaAttr.stImgOut.imgType = IMAGE_TYPE_NV12;
   stRgaAttr.stImgOut.u32Width = disp_width;
   stRgaAttr.stImgOut.u32Height = disp_height;
   stRgaAttr.stImgOut.u32HorStride = disp_width;
@@ -208,7 +208,7 @@ int main(int argc, char *argv[]) {
 
   VO_CHN_ATTR_S stVoAttr = {0};
   stVoAttr.emPlaneType = VO_PLANE_OVERLAY;
-  stVoAttr.enImgType = IMAGE_TYPE_RGB888;
+  stVoAttr.enImgType = IMAGE_TYPE_NV12;
   stVoAttr.u16Fps = 60;
   stVoAttr.u16Zpos = 0;
   stVoAttr.u32Width = disp_width;
@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
 
   RK_MPI_VO_DestroyChn(0);
   RK_MPI_VI_DisableChn(0, 0);
-  RK_MPI_VI_DisableChn(0, 1);
+  RK_MPI_VI_DisableChn(1, 1);
   RK_MPI_RGA_DestroyChn(0);
   RK_MPI_RGA_DestroyChn(1);
   RK_MPI_MB_ReleaseBuffer(rgb_mb);
