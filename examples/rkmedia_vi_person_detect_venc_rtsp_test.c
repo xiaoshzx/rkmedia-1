@@ -5,16 +5,16 @@
 #include "rkmedia_api.h"
 #include "rkmedia_api.h"
 #include "rkmedia_venc.h"
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <pthread.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
+#include <unistd.h>
 
-#include "stdbool.h"
 #include "rockx.h"
+#include "stdbool.h"
 
 #define MAX_SESSION_NUM 2
 #define DRAW_INDEX 0
@@ -24,7 +24,7 @@
 #define UPALIGNTO16(value) UPALIGNTO(value, 16)
 #define RKNN_RUNTIME_LIB_PATH "/usr/lib/librknn_runtime.so"
 
-typedef struct node{
+typedef struct node {
   long timeval;
   rockx_object_array_t person_array;
   struct node *next;
@@ -36,72 +36,74 @@ typedef struct my_stack {
 } rknn_list;
 
 void create_rknn_list(rknn_list **s) {
-	if (*s != NULL)
-		return;
-	*s = (rknn_list *)malloc(sizeof(rknn_list));
-	(*s)->top = NULL;
-	(*s)->size = 0;
-	printf("create rknn_list success\n");
+  if (*s != NULL)
+    return;
+  *s = (rknn_list *)malloc(sizeof(rknn_list));
+  (*s)->top = NULL;
+  (*s)->size = 0;
+  printf("create rknn_list success\n");
 }
 
 void destory_rknn_list(rknn_list **s) {
-	Node *t = NULL;
-	if (*s == NULL)
-		return;
-	while((*s)->top) {
-		t = (*s)->top;
-		(*s)->top = t->next;
-		free(t);
-	}
-	free(*s);
-	*s = NULL;
+  Node *t = NULL;
+  if (*s == NULL)
+    return;
+  while ((*s)->top) {
+    t = (*s)->top;
+    (*s)->top = t->next;
+    free(t);
+  }
+  free(*s);
+  *s = NULL;
 }
 
-void rknn_list_push(rknn_list *s, long timeval, rockx_object_array_t person_array) {
-	Node *t = NULL;
-	t = (Node *)malloc(sizeof(Node));
-	t->timeval = timeval;
+void rknn_list_push(rknn_list *s, long timeval,
+                    rockx_object_array_t person_array) {
+  Node *t = NULL;
+  t = (Node *)malloc(sizeof(Node));
+  t->timeval = timeval;
   t->person_array = person_array;
-	if(s->top == NULL) {
-		s->top = t;
-		t->next = NULL;
-	} else {
+  if (s->top == NULL) {
+    s->top = t;
+    t->next = NULL;
+  } else {
     t->next = s->top;
     s->top = t;
   }
   s->size++;
 }
 
-void rknn_list_pop(rknn_list *s, long *timeval, rockx_object_array_t *person_array) {
-	Node *t =NULL;
-	if(s == NULL || s->top ==NULL)
-		return;
-	t = s->top;
-	*timeval = t->timeval;
+void rknn_list_pop(rknn_list *s, long *timeval,
+                   rockx_object_array_t *person_array) {
+  Node *t = NULL;
+  if (s == NULL || s->top == NULL)
+    return;
+  t = s->top;
+  *timeval = t->timeval;
   *person_array = t->person_array;
-	s->top = t->next;
-	free(t);
-	s->size--;
+  s->top = t->next;
+  free(t);
+  s->size--;
 }
 
 void rknn_list_drop(rknn_list *s) {
-	Node *t =NULL;
-	if(s == NULL || s->top ==NULL)
-		return;
-	t = s->top;
-	s->top = t->next;
-	free(t);
-	s->size--;
+  Node *t = NULL;
+  if (s == NULL || s->top == NULL)
+    return;
+  t = s->top;
+  s->top = t->next;
+  free(t);
+  s->size--;
 }
 
 int rknn_list_size(rknn_list *s) {
-	if(s == NULL)
-		return -1;
-	return s->size;//返回元素个数
+  if (s == NULL)
+    return -1;
+  return s->size;
 }
 
 rtsp_demo_handle g_rtsplive = NULL;
-// rtsp_session_handle g_session[MAX_SESSION_NUM] = {NULL};
+
 struct Session {
   char path[64];
   CODEC_TYPE_E video_type;
@@ -113,8 +115,6 @@ struct Session {
   rtsp_session_handle session;
   MPP_CHN_S stViChn;
   MPP_CHN_S stVenChn;
-  MPP_CHN_S stAiChn;
-  MPP_CHN_S stAencChn;
 };
 
 struct demo_cfg {
@@ -132,50 +132,51 @@ static void sig_proc(int signo) {
   g_flag_run = 0;
 }
 
-static long getCurrentTimeMsec()
-{
+static long getCurrentTimeMsec() {
   long msec = 0;
   char str[20] = {0};
   struct timeval stuCurrentTime;
 
   gettimeofday(&stuCurrentTime, NULL);
-  sprintf(str, "%ld%03ld", stuCurrentTime.tv_sec, (stuCurrentTime.tv_usec)/1000);
+  sprintf(str, "%ld%03ld", stuCurrentTime.tv_sec,
+          (stuCurrentTime.tv_usec) / 1000);
   for (size_t i = 0; i < strlen(str); i++) {
-      msec = msec * 10 + (str[i] - '0');
+    msec = msec * 10 + (str[i] - '0');
   }
 
   return msec;
 }
 
-int nv12_border(char *pic, int pic_w, int pic_h, int rect_x, int rect_y, int rect_w, int rect_h, int R, int G, int B)
-{
-    /* Set up the rectangle border size */
-    const int border = 5;
+int nv12_border(char *pic, int pic_w, int pic_h, int rect_x, int rect_y,
+                int rect_w, int rect_h, int R, int G, int B) {
+  /* Set up the rectangle border size */
+  const int border = 5;
 
-    /* RGB convert YUV */
-    int Y, U, V;
-    Y =  0.299  * R + 0.587  * G + 0.114  * B;
-    U = -0.1687 * R + 0.3313 * G + 0.5    * B + 128;
-    V =  0.5    * R - 0.4187 * G - 0.0813 * B + 128;
-    /* Locking the scope of rectangle border range */
-    int j, k;
-    for(j = rect_y; j < rect_y + rect_h; j++){
-      for(k = rect_x; k < rect_x + rect_w; k++){
-        if (k < (rect_x + border) || k > (rect_x + rect_w - border) ||\
-            j < (rect_y + border) || j > (rect_y + rect_h - border)){
-          /* Components of YUV's storage address index */
-          int y_index = j * pic_w + k;
-          int u_index = (y_index / 2 - pic_w / 2 * ((j + 1) / 2)) * 2 + pic_w * pic_h;
-          int v_index = u_index + 1;
-          /* set up YUV's conponents value of rectangle border */
-          pic[y_index] =  Y ;
-          pic[u_index] =  U ;
-          pic[v_index] =  V ;
-        }
+  /* RGB convert YUV */
+  int Y, U, V;
+  Y = 0.299 * R + 0.587 * G + 0.114 * B;
+  U = -0.1687 * R + 0.3313 * G + 0.5 * B + 128;
+  V = 0.5 * R - 0.4187 * G - 0.0813 * B + 128;
+  /* Locking the scope of rectangle border range */
+  int j, k;
+  for (j = rect_y; j < rect_y + rect_h; j++) {
+    for (k = rect_x; k < rect_x + rect_w; k++) {
+      if (k < (rect_x + border) || k > (rect_x + rect_w - border) ||
+          j < (rect_y + border) || j > (rect_y + rect_h - border)) {
+        /* Components of YUV's storage address index */
+        int y_index = j * pic_w + k;
+        int u_index =
+            (y_index / 2 - pic_w / 2 * ((j + 1) / 2)) * 2 + pic_w * pic_h;
+        int v_index = u_index + 1;
+        /* set up YUV's conponents value of rectangle border */
+        pic[y_index] = Y;
+        pic[u_index] = U;
+        pic[v_index] = V;
       }
     }
+  }
 
-    return 0;
+  return 0;
 }
 
 static void *GetMediaBuffer(void *arg) {
@@ -190,10 +191,13 @@ static void *GetMediaBuffer(void *arg) {
   input_image.is_prealloc_buf = 1;
   // create a object detection handle
   rockx_config_t *config = rockx_create_config();
-  rockx_add_config(config, ROCKX_CONFIG_RKNN_RUNTIME_PATH, RKNN_RUNTIME_LIB_PATH);
-  rockx_ret = rockx_create(&object_det_handle, ROCKX_MODULE_PERSON_DETECTION_V2, config, sizeof(rockx_config_t));
+  rockx_add_config(config, ROCKX_CONFIG_RKNN_RUNTIME_PATH,
+                   RKNN_RUNTIME_LIB_PATH);
+  rockx_ret = rockx_create(&object_det_handle, ROCKX_MODULE_PERSON_DETECTION_V2,
+                           config, sizeof(rockx_config_t));
   if (rockx_ret != ROCKX_RET_SUCCESS) {
-    printf("init rockx module ROCKX_MODULE_PERSON_DETECTION_V2 error %d\n", rockx_ret);
+    printf("init rockx module ROCKX_MODULE_PERSON_DETECTION_V2 error %d\n",
+           rockx_ret);
     return NULL;
   }
   printf("ROCKX_MODULE_PERSON_DETECTION_V2 rockx_create success\n");
@@ -203,9 +207,11 @@ static void *GetMediaBuffer(void *arg) {
 
   // create a object track handle
   rockx_handle_t object_track_handle;
-  rockx_ret = rockx_create(&object_track_handle, ROCKX_MODULE_OBJECT_TRACK, NULL, 0);
+  rockx_ret =
+      rockx_create(&object_track_handle, ROCKX_MODULE_OBJECT_TRACK, NULL, 0);
   if (rockx_ret != ROCKX_RET_SUCCESS) {
-      printf("init rockx module ROCKX_MODULE_OBJECT_DETECTION error %d\n", rockx_ret);
+    printf("init rockx module ROCKX_MODULE_OBJECT_DETECTION error %d\n",
+           rockx_ret);
   }
 
   MEDIA_BUFFER buffer = NULL;
@@ -217,25 +223,29 @@ static void *GetMediaBuffer(void *arg) {
 
     // printf("Get Frame:ptr:%p, fd:%d, size:%zu, mode:%d, channel:%d, "
     //        "timestamp:%lld\n",
-    //        RK_MPI_MB_GetPtr(buffer), RK_MPI_MB_GetFD(buffer), RK_MPI_MB_GetSize(buffer),
+    //        RK_MPI_MB_GetPtr(buffer), RK_MPI_MB_GetFD(buffer),
+    //        RK_MPI_MB_GetSize(buffer),
     //        RK_MPI_MB_GetModeID(buffer), RK_MPI_MB_GetChannelID(buffer),
     //        RK_MPI_MB_GetTimestamp(buffer));
     input_image.size = RK_MPI_MB_GetSize(buffer);
     input_image.data = RK_MPI_MB_GetPtr(buffer);
     // detect object
     long nn_before_time = getCurrentTimeMsec();
-    rockx_ret = rockx_person_detect(object_det_handle, &input_image, &person_array, NULL);
+    rockx_ret = rockx_person_detect(object_det_handle, &input_image,
+                                    &person_array, NULL);
     if (rockx_ret != ROCKX_RET_SUCCESS)
       printf("rockx_person_detect error %d\n", rockx_ret);
     long nn_after_time = getCurrentTimeMsec();
-    printf("Algorithm time-consuming is %ld\n", (nn_after_time - nn_before_time));
-    //printf("person_array.count is %d\n", person_array.count);
+    printf("Algorithm time-consuming is %ld\n",
+           (nn_after_time - nn_before_time));
+    // printf("person_array.count is %d\n", person_array.count);
 
     rockx_object_array_t out_track_objects;
-    rockx_ret = rockx_object_track(object_track_handle, input_image.width,  input_image.height, 10,
-            &person_array, &out_track_objects);
+    rockx_ret = rockx_object_track(object_track_handle, input_image.width,
+                                   input_image.height, 10, &person_array,
+                                   &out_track_objects);
     if (rockx_ret != ROCKX_RET_SUCCESS)
-        printf("rockx_object_track error %d\n", rockx_ret);
+      printf("rockx_object_track error %d\n", rockx_ret);
     // process result
     if (person_array.count > 0) {
       rknn_list_push(rknn_list_, getCurrentTimeMsec(), person_array);
@@ -255,12 +265,15 @@ static void *GetMediaBuffer(void *arg) {
 
 static void *MainStream() {
   MEDIA_BUFFER buffer;
-  float x_rate = (float)cfg.session_cfg[DRAW_INDEX].u32Width / (float)cfg.session_cfg[RK_NN_INDEX].u32Width;
-  float y_rate = (float)cfg.session_cfg[DRAW_INDEX].u32Height / (float)cfg.session_cfg[RK_NN_INDEX].u32Height;
+  float x_rate = (float)cfg.session_cfg[DRAW_INDEX].u32Width /
+                 (float)cfg.session_cfg[RK_NN_INDEX].u32Width;
+  float y_rate = (float)cfg.session_cfg[DRAW_INDEX].u32Height /
+                 (float)cfg.session_cfg[RK_NN_INDEX].u32Height;
   printf("x_rate is %f, y_rate is %f\n", x_rate, y_rate);
 
   while (g_flag_run) {
-    buffer = RK_MPI_SYS_GetMediaBuffer(RK_ID_VI, cfg.session_cfg[DRAW_INDEX].stViChn.s32ChnId, -1);
+    buffer = RK_MPI_SYS_GetMediaBuffer(
+        RK_ID_VI, cfg.session_cfg[DRAW_INDEX].stViChn.s32ChnId, -1);
     if (!buffer)
       continue;
     // draw
@@ -273,34 +286,44 @@ static void *MainStream() {
 
       for (int j = 0; j < person_array.count; j++) {
         // printf("person_array.count is %d\n", person_array.count);
-        // const char *cls_name = OBJECT_DETECTION_LABELS_91[person_array.object[j].cls_idx];
+        // const char *cls_name =
+        // OBJECT_DETECTION_LABELS_91[person_array.object[j].cls_idx];
         // int left = person_array.object[j].box.left;
         // int top = person_array.object[j].box.top;
         // int right = person_array.object[j].box.right;
         // int bottom = person_array.object[j].box.bottom;
         // float score = person_array.object[j].score;
-        // printf("box=(%d %d %d %d) cls_name=%s, score=%f\n", left, top, right, bottom, cls_name, score);
+        // printf("box=(%d %d %d %d) cls_name=%s, score=%f\n", left, top, right,
+        // bottom, cls_name, score);
 
         int x = person_array.object[j].box.left * x_rate;
         int y = person_array.object[j].box.top * y_rate;
-        int w = (person_array.object[j].box.right - person_array.object[j].box.left) * x_rate;
-        int h = (person_array.object[j].box.bottom - person_array.object[j].box.top) * y_rate;
+        int w = (person_array.object[j].box.right -
+                 person_array.object[j].box.left) *
+                x_rate;
+        int h = (person_array.object[j].box.bottom -
+                 person_array.object[j].box.top) *
+                y_rate;
         if (x < 0)
           x = 0;
         if (y < 0)
           y = 0;
-        while ((uint32_t)(x+w) >= cfg.session_cfg[DRAW_INDEX].u32Width) {
+        while ((uint32_t)(x + w) >= cfg.session_cfg[DRAW_INDEX].u32Width) {
           w -= 16;
         }
-        while ((uint32_t)(y+h) >= cfg.session_cfg[DRAW_INDEX].u32Height) {
+        while ((uint32_t)(y + h) >= cfg.session_cfg[DRAW_INDEX].u32Height) {
           h -= 16;
         }
         printf("border=(%d %d %d %d)\n", x, y, w, h);
-        nv12_border((char *)RK_MPI_MB_GetPtr(buffer), cfg.session_cfg[DRAW_INDEX].u32Width, cfg.session_cfg[DRAW_INDEX].u32Height, x, y, w, h, 0, 0, 255);
+        nv12_border((char *)RK_MPI_MB_GetPtr(buffer),
+                    cfg.session_cfg[DRAW_INDEX].u32Width,
+                    cfg.session_cfg[DRAW_INDEX].u32Height, x, y, w, h, 0, 0,
+                    255);
       }
     }
     // send from VI to VENC
-    RK_MPI_SYS_SendMediaBuffer(RK_ID_VENC, cfg.session_cfg[DRAW_INDEX].stVenChn.s32ChnId, buffer);
+    RK_MPI_SYS_SendMediaBuffer(
+        RK_ID_VENC, cfg.session_cfg[DRAW_INDEX].stVenChn.s32ChnId, buffer);
     RK_MPI_MB_ReleaseBuffer(buffer);
   }
 
@@ -367,7 +390,8 @@ static int load_cfg(const char *cfg_file) {
   return count;
 }
 
-static void SAMPLE_COMMON_VI_Start(struct Session *session, VI_CHN_WORK_MODE mode) {
+static void SAMPLE_COMMON_VI_Start(struct Session *session,
+                                   VI_CHN_WORK_MODE mode) {
   VI_CHN_ATTR_S vi_chn_attr;
 
   vi_chn_attr.u32BufCnt = 4;
@@ -467,7 +491,8 @@ int main(int argc, char **argv) {
     if (i == DRAW_INDEX)
       RK_MPI_VI_StartStream(0, cfg.session_cfg[i].stViChn.s32ChnId);
     else
-      RK_MPI_SYS_Bind(&cfg.session_cfg[i].stViChn, &cfg.session_cfg[i].stVenChn);
+      RK_MPI_SYS_Bind(&cfg.session_cfg[i].stViChn,
+                      &cfg.session_cfg[i].stVenChn);
 
     // rtsp video
     printf("rtsp video\n");
@@ -490,10 +515,10 @@ int main(int argc, char **argv) {
   }
 
   create_rknn_list(&rknn_list_);
-
+  // Get the sub-stream buffer for humanoid recognition
   pthread_t read_thread;
   pthread_create(&read_thread, NULL, GetMediaBuffer, NULL);
-
+  // The mainstream draws a box asynchronously based on the recognition result
   pthread_t main_stream_thread;
   pthread_create(&main_stream_thread, NULL, MainStream, NULL);
 
@@ -516,9 +541,10 @@ int main(int argc, char **argv) {
 
   for (int i = 0; i < cfg.session_count; i++) {
     if (i != DRAW_INDEX)
-      RK_MPI_SYS_UnBind(&cfg.session_cfg[i].stViChn, &cfg.session_cfg[i].stVenChn);
+      RK_MPI_SYS_UnBind(&cfg.session_cfg[i].stViChn,
+                        &cfg.session_cfg[i].stVenChn);
     RK_MPI_VI_DisableChn(0, cfg.session_cfg[i].stViChn.s32ChnId);
-    RK_MPI_VENC_DestroyChn(cfg.session_cfg[i].stAencChn.s32ChnId);
+    RK_MPI_VENC_DestroyChn(cfg.session_cfg[i].stVenChn.s32ChnId);
   }
   rtsp_del_demo(g_rtsplive);
   destory_rknn_list(&rknn_list_);
