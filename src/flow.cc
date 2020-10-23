@@ -374,12 +374,10 @@ bool Flow::IsAllBuffEmpty() {
 }
 
 void Flow::StartStream() {
+  source_start_cond_mtx->lock();
   waite_down_flow = false;
-  if (source_start_cond_mtx) {
-    source_start_cond_mtx->lock();
-    source_start_cond_mtx->notify();
-    source_start_cond_mtx->unlock();
-  }
+  source_start_cond_mtx->notify();
+  source_start_cond_mtx->unlock();
 }
 
 int Flow::SetRunTimes(int _run_times) {

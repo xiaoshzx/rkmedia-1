@@ -88,12 +88,13 @@ SourceStreamFlow::~SourceStreamFlow() {
 
 void SourceStreamFlow::ReadThreadRun() {
   prctl(PR_SET_NAME, this->tag.c_str());
+  source_start_cond_mtx->lock();
   if (waite_down_flow) {
-    source_start_cond_mtx->lock();
-    if (down_flow_num == 0 && IsEnable())
+    if (down_flow_num == 0 && IsEnable()) {
       source_start_cond_mtx->wait();
-    source_start_cond_mtx->unlock();
+    }
   }
+  source_start_cond_mtx->unlock();
   while (loop) {
     if (stream->Eof()) {
       // TODO: tell that I reach eof
