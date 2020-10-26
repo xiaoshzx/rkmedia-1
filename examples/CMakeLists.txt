@@ -41,6 +41,42 @@ target_include_directories(rkmedia_audio_test PRIVATE ${CMAKE_SOURCE_DIR}/includ
 install(TARGETS rkmedia_audio_test RUNTIME DESTINATION "bin")
 
 #--------------------------
+#  rkmedia_ai_test
+#--------------------------
+add_executable(rkmedia_ai_test rkmedia_ai_test.c)
+add_dependencies(rkmedia_ai_test easymedia)
+target_link_libraries(rkmedia_ai_test easymedia)
+target_include_directories(rkmedia_ai_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_ai_test RUNTIME DESTINATION "bin")
+
+#--------------------------
+#  rkmedia_ao_test
+#--------------------------
+add_executable(rkmedia_ao_test rkmedia_ao_test.c)
+add_dependencies(rkmedia_ao_test easymedia)
+target_link_libraries(rkmedia_ao_test easymedia)
+target_include_directories(rkmedia_ao_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_ao_test RUNTIME DESTINATION "bin")
+
+#--------------------------
+#  rkmedia_adec_ao_test
+#--------------------------
+add_executable(rkmedia_adec_ao_test rkmedia_adec_ao_test.c)
+add_dependencies(rkmedia_adec_ao_test easymedia)
+target_link_libraries(rkmedia_adec_ao_test easymedia)
+target_include_directories(rkmedia_adec_ao_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_adec_ao_test RUNTIME DESTINATION "bin")
+
+#--------------------------
+#  rkmedia_ai_aenc_test
+#--------------------------
+add_executable(rkmedia_ai_aenc_test rkmedia_ai_aenc_test.c)
+add_dependencies(rkmedia_ai_aenc_test easymedia)
+target_link_libraries(rkmedia_ai_aenc_test easymedia)
+target_include_directories(rkmedia_ai_aenc_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_ai_aenc_test RUNTIME DESTINATION "bin")
+
+#--------------------------
 #  rkmedia_vi_md_test
 #--------------------------
 add_executable(rkmedia_vi_md_test rkmedia_vi_md_test.c ${COMMON_SRC})
