@@ -33,8 +33,8 @@ typedef enum rkMB_TYPE {
 typedef struct rkMB_IMAGE_INFO {
   RK_U32 u32Width;
   RK_U32 u32Height;
-  RK_U32 u32VerStride;
   RK_U32 u32HorStride;
+  RK_U32 u32VerStride;
   IMAGE_TYPE_E enImgType;
 } MB_IMAGE_INFO_S;
 
