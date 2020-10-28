@@ -20,30 +20,44 @@
 rtsp_demo_handle g_rtsplive = NULL;
 rtsp_session_handle g_session;
 static bool quit = false;
+static bool g_connect = false;
+static bool g_venc = false;
+static bool g_fec = false;
+static rk_aiq_working_mode_t g_wmode = RK_AIQ_WORKING_MODE_NORMAL;
+
 static void sigterm_handler(int sig) {
   fprintf(stderr, "signal %d\n", sig);
   quit = false;
+  g_connect = false;
 }
 
 void video_packet_cb(MEDIA_BUFFER mb) {
-  const char *nalu_type = "Unknow";
-  switch (RK_MPI_MB_GetFlag(mb)) {
-  case VENC_NALU_IDRSLICE:
-    nalu_type = "IDR Slice";
-    break;
-  case VENC_NALU_PSLICE:
-    nalu_type = "P Slice";
-    break;
-  default:
-    break;
+  if (RK_MPI_MB_GetModeID(mb) == RK_ID_VENC) {
+    const char *nalu_type = "Unknow";
+    switch (RK_MPI_MB_GetFlag(mb)) {
+    case VENC_NALU_IDRSLICE:
+      nalu_type = "IDR Slice";
+      break;
+    case VENC_NALU_PSLICE:
+      nalu_type = "P Slice";
+      break;
+    default:
+      break;
+    }
+    printf("Get Video Encoded packet(%s):ptr:%p, fd:%d, size:%zu, mode:%d\n",
+           nalu_type, RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb),
+           RK_MPI_MB_GetSize(mb), RK_MPI_MB_GetModeID(mb));
+    rtsp_tx_video(g_session, RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetSize(mb),
+                  RK_MPI_MB_GetTimestamp(mb));
+    RK_MPI_MB_ReleaseBuffer(mb);
+    rtsp_do_event(g_rtsplive);
+  } else if (RK_MPI_MB_GetModeID(mb) == RK_ID_VI) {
+    printf("Get Video:ptr:%p, fd:%d, size:%zu, mode:%d\n", RK_MPI_MB_GetPtr(mb),
+           RK_MPI_MB_GetFD(mb), RK_MPI_MB_GetSize(mb), RK_MPI_MB_GetModeID(mb));
+    RK_MPI_MB_ReleaseBuffer(mb);
   }
-  printf("Get Video Encoded packet(%s):ptr:%p, fd:%d, size:%zu, mode:%d\n",
-         nalu_type, RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb),
-         RK_MPI_MB_GetSize(mb), RK_MPI_MB_GetModeID(mb));
-  rtsp_tx_video(g_session, RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetSize(mb),
-                RK_MPI_MB_GetTimestamp(mb));
-  RK_MPI_MB_ReleaseBuffer(mb);
-  rtsp_do_event(g_rtsplive);
+
+  g_connect = false;
 }
 
 RK_U32 g_width = 1920;
@@ -105,20 +119,58 @@ static void StreamOnOff(RK_BOOL start) {
     venc_rc_param.stParamH264.u32MaxQp = 51;
     venc_rc_param.stParamH264.u32MinIQp = 24;
     venc_rc_param.stParamH264.u32MaxIQp = 51;
-    sleep(3);
     printf("%s: start set qp.\n", __func__);
     RK_MPI_VENC_SetRcParam(stDestChn.s32ChnId, &venc_rc_param);
     printf("%s: after set qp.\n", __func__);
     printf("%s exit!\n", __func__);
   } else {
     RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
-    RK_MPI_VENC_DestroyChn(stSrcChn.s32ChnId);
-    RK_MPI_VI_DisableChn(stDestChn.s32DevId, stDestChn.s32ChnId);
+    RK_MPI_VENC_DestroyChn(stDestChn.s32ChnId);
+    RK_MPI_VI_DisableChn(stSrcChn.s32DevId, stSrcChn.s32ChnId);
   }
 }
 
-static void streamOn() { StreamOnOff(RK_TRUE); }
-static void streamOff() { StreamOnOff(RK_FALSE); }
+static void StreamOnOffVI(RK_BOOL start) {
+  MPP_CHN_S stSrcChn;
+  stSrcChn.enModId = RK_ID_VI;
+  stSrcChn.s32DevId = 0;
+  stSrcChn.s32ChnId = 1;
+  if (start) {
+    VI_CHN_ATTR_S vi_chn_attr;
+    vi_chn_attr.pcVideoNode = g_video_node;
+    vi_chn_attr.u32BufCnt = 4;
+    vi_chn_attr.u32Width = g_width;
+    vi_chn_attr.u32Height = g_height;
+    vi_chn_attr.enPixFmt = g_enPixFmt;
+    vi_chn_attr.enWorkMode = VI_WORK_MODE_NORMAL;
+
+    RK_MPI_VI_SetChnAttr(stSrcChn.s32DevId, stSrcChn.s32ChnId, &vi_chn_attr);
+    RK_MPI_VI_EnableChn(stSrcChn.s32DevId, stSrcChn.s32ChnId);
+    RK_MPI_SYS_RegisterOutCb(&stSrcChn, video_packet_cb);
+    int ret = RK_MPI_VI_StartStream(stSrcChn.s32DevId, stSrcChn.s32ChnId);
+    if (ret) {
+      printf("Start Vi failed! ret=%d\n", ret);
+    }
+  } else {
+    RK_MPI_VI_DisableChn(stSrcChn.s32DevId, stSrcChn.s32ChnId);
+  }
+}
+
+static void streamOn() {
+  if (g_venc) {
+    StreamOnOff(RK_TRUE);
+  } else {
+    StreamOnOffVI(RK_TRUE);
+  }
+}
+static void streamOff() {
+  if (g_venc) {
+    StreamOnOff(RK_FALSE);
+  } else {
+    StreamOnOffVI(RK_FALSE);
+  }
+}
+
 static void startISP(rk_aiq_working_mode_t hdr_mode, RK_BOOL fec_enable,
                      char *iq_file_dir) {
   // hdr_mode = RK_AIQ_WORKING_MODE_NORMAL;
@@ -188,21 +240,21 @@ static RK_VOID testFBCRotation(char *iq_file_dir) {
   g_video_node = "rkispp_m_bypass";
   g_enPixFmt = IMAGE_TYPE_FBC0;
   RK_U32 count = 0;
+  g_S32Rotation = 0;
   while (quit) {
-    count++;
     if (g_S32Rotation > 270) {
       g_S32Rotation = 0;
     } else {
       g_S32Rotation += 90;
     }
-    printf("######### %d : count = %u #############.\n", g_S32Rotation, count);
+    printf("######### %d : count = %u #############.\n", g_S32Rotation,
+           count++);
     startISP(RK_AIQ_WORKING_MODE_NORMAL, RK_FALSE, iq_file_dir);
     SAMPLE_COMM_ISP_SET_BypassStreamRotation(g_S32Rotation);
     streamOn();
-    usleep(50 * 100 * 1000);
+    usleep(5 * 100 * 1000);
     SAMPLE_COMM_ISP_Stop(); // isp aiq stop before vi streamoff
     streamOff();
-    usleep(100 * 1000);
   }
 }
 
@@ -214,31 +266,186 @@ static RK_VOID testDefog(char *iq_file_dir) {
   // g_enPixFmt = IMAGE_TYPE_FBC0;
   RK_U32 count = 0;
   RK_U32 u32Mode;
+  startISP(RK_AIQ_WORKING_MODE_NORMAL, RK_FALSE, iq_file_dir);
+  streamOn();
   while (quit) {
     printf("######## disable count = %u ############.\n", count++);
-    startISP(RK_AIQ_WORKING_MODE_NORMAL, RK_FALSE, iq_file_dir);
     u32Mode = 0;
     SAMPLE_COMM_ISP_SET_DefogEnable(u32Mode);
-    streamOn();
-    SAMPLE_COMM_ISP_Stop();
-    streamOff();
 
     printf("######## enable manaul count = %u ############.\n", count);
     u32Mode = 1; // manual
-    startISP(RK_AIQ_WORKING_MODE_NORMAL, RK_FALSE, iq_file_dir);
     SAMPLE_COMM_ISP_SET_DefogEnable(u32Mode);
-    streamOn();
+
     for (int i = 0; i < 255; i++) {
       SAMPLE_COMM_ISP_SET_DefogStrength(u32Mode, i);
-      usleep(100 * 1000);
     }
 
     printf("######## enable auto count = %u ############.\n", count);
     u32Mode = 2;
     SAMPLE_COMM_ISP_SET_DefogStrength(u32Mode, 0);
-    usleep(5 * 1000 * 1000);
-    SAMPLE_COMM_ISP_Stop();
+  }
+  SAMPLE_COMM_ISP_Stop();
+  streamOff();
+}
+
+static RK_VOID testImage(char *iq_file_dir) {
+  quit = true;
+  // g_width = 3840;
+  // g_height = 2160;
+  // g_video_node = "rkispp_m_bypass";
+  // g_enPixFmt = IMAGE_TYPE_FBC0;
+  RK_U32 u32Count = 0;
+  startISP(RK_AIQ_WORKING_MODE_NORMAL, RK_FALSE, iq_file_dir);
+  streamOn();
+  while (quit) {
+    printf("###########count = %u ###########.\n", u32Count++);
+    for (int i = 0; i < 255; i++) {
+      SAMPLE_COMM_ISP_SET_Brightness(i);
+      SAMPLE_COMM_ISP_SET_Contrast(i);
+      SAMPLE_COMM_ISP_SET_Saturation(i);
+      SAMPLE_COMM_ISP_SET_Sharpness(i);
+    }
+  }
+  SAMPLE_COMM_ISP_Stop();
+  streamOff();
+}
+
+static RK_VOID testDayNight(char *iq_file_dir) {
+  quit = true;
+  RK_U32 u32Count = 0;
+  startISP(RK_AIQ_WORKING_MODE_NORMAL, RK_FALSE, iq_file_dir);
+  streamOn();
+  while (quit) {
+    // day
+    printf("###########day count = %u ###########.\n", u32Count++);
+    SAMPLE_COMM_ISP_SET_OpenColorCloseLed();
+    SAMPLE_COMM_ISP_SET_HDR(RK_AIQ_WORKING_MODE_ISP_HDR2);
+    usleep(2 * 1000 * 1000);
+    // night
+    printf("###########night count = %u ###########.\n", u32Count);
+    SAMPLE_COMM_ISP_SET_HDR(RK_AIQ_WORKING_MODE_NORMAL);
+    for (int i = 0; i < 100; i++)
+      SAMPLE_COMM_ISP_SET_GrayOpenLed(i);
+    usleep(2 * 1000 * 1000);
+  }
+  SAMPLE_COMM_ISP_Stop();
+  streamOff();
+}
+
+static RK_VOID testExposure(char *iq_file_dir) {
+  quit = true;
+  // g_width = 3840;
+  // g_height = 2160;
+  // g_video_node = "rkispp_m_bypass";
+  // g_enPixFmt = IMAGE_TYPE_FBC0;
+  RK_U32 u32Count = 0;
+  RK_BOOL bIsAutoExposure;
+  RK_U32 bIsAGC;
+  RK_U32 u32ElectronicShutter;
+  RK_U32 u32Agc;
+  startISP(RK_AIQ_WORKING_MODE_NORMAL, RK_FALSE, iq_file_dir);
+  streamOn();
+  while (quit) {
+    printf("########### auto exposre auto gain: count = %u ###########.\n",
+           u32Count++);
+    bIsAutoExposure = RK_TRUE;
+    u32ElectronicShutter = 0;
+    bIsAGC = RK_TRUE;
+    u32Agc = 0;
+    SAMPLE_COMM_ISP_SET_Exposure(bIsAutoExposure, bIsAGC, u32ElectronicShutter,
+                                 u32Agc);
+    usleep(100 * 1000);
+
+    printf(
+        "########### manaul exposure, manual gain : count = %u ###########.\n",
+        u32Count);
+    bIsAutoExposure = RK_FALSE;
+    u32ElectronicShutter = 0;
+    bIsAGC = RK_FALSE;
+    u32Agc = 0;
+    for (u32ElectronicShutter = 0; u32ElectronicShutter < 17;
+         u32ElectronicShutter++)
+      for (u32Agc = 0; u32Agc < 255; u32Agc += 10)
+        SAMPLE_COMM_ISP_SET_Exposure(bIsAutoExposure, bIsAGC,
+                                     u32ElectronicShutter, u32Agc);
+    usleep(100 * 1000);
+
+    printf("########### manual exposure, auto gain : count = %u ###########.\n",
+           u32Count);
+    bIsAutoExposure = RK_FALSE;
+    u32ElectronicShutter = 0;
+    bIsAGC = RK_TRUE;
+    u32Agc = 0;
+    for (u32ElectronicShutter = 0; u32ElectronicShutter < 17;
+         u32ElectronicShutter++)
+      SAMPLE_COMM_ISP_SET_Exposure(bIsAutoExposure, bIsAGC,
+                                   u32ElectronicShutter, u32Agc);
+    usleep(100 * 1000);
+  }
+  SAMPLE_COMM_ISP_Stop();
+  streamOff();
+}
+
+static RK_VOID testCrop(char *iq_file_dir) {
+  quit = true;
+  RK_U32 u32Count = 0;
+  // g_width = 2560;
+  // g_height = 1440;
+  g_video_node = "rkispp_m_bypass";
+  // g_enPixFmt = IMAGE_TYPE_FBC0;
+  g_enPixFmt = IMAGE_TYPE_NV12;
+  rk_aiq_rect_t rect;
+  rect.left = 0;
+  rect.top = 0;
+
+  RK_BOOL bCrop = RK_TRUE;
+  RK_BOOL bChange = RK_FALSE;
+  if (strcmp(iq_file_dir, "400w") == 0) {
+    bCrop = RK_FALSE;
+    printf("%s: 400w.\n", __func__);
+  } else if (strcmp(iq_file_dir, "500w") == 0) {
+    bCrop = RK_TRUE;
+    printf("%s: 500w.\n", __func__);
+  } else {
+    bChange = RK_TRUE;
+    printf("%s: 500 -> 400w.\n", __func__);
+  }
+
+  while (quit) {
+    if (bCrop) {
+      iq_file_dir = "/userdata/iqfiles/500w/";
+      g_width = rect.width = 2592;
+      g_height = rect.height = 1944;
+    } else {
+      iq_file_dir = "/userdata/iqfiles/400w/";
+      g_width = rect.width = 2560;
+      g_height = rect.height = 1440;
+    }
+    printf("###########crop count = %u (%u x %u)###########.\n", u32Count++,
+           g_width, g_height);
+    int fps = 30;
+    printf("hdr mode %d, fec mode %d, fps %d\n", g_wmode, g_fec, fps);
+    SAMPLE_COMM_ISP_Init(g_wmode, g_fec, iq_file_dir);
+    SAMPLE_COMM_ISP_SET_Crop(rect);
+    SAMPLE_COMM_ISP_Run();
+    SAMPLE_COMM_ISP_SetFrameRate(fps);
+
+    streamOn();
+    sleep(2);
+    g_connect = true;
+    while (g_connect) {
+      usleep(10 * 1000);
+    }
     streamOff();
+    SAMPLE_COMM_ISP_Stop();
+    if (bChange) {
+      if (bCrop) {
+        bCrop = RK_FALSE;
+      } else {
+        bCrop = RK_TRUE;
+      }
+    }
   }
 }
 
@@ -249,9 +456,43 @@ static RK_VOID RKMEDIA_ISP_Usage() {
   printf("\t1:  normal --> hdr2 --> hdr3\n");
   printf("\t2:  FBC rotating 0-->90-->270.\n");
   printf("\t3:  Defog: close --> manual -> auto.\n");
-  printf("\tyou can play rtsp://xxx.xxx.xxx.xxx/live/main_stream\n");
+  printf("\t4:  Image test.\n");
+  printf("\t5:  DayNight test.\n");
+  printf("\t6:  Exposure test.\n");
+  printf("\t7:  Crop test.\n");
+  printf("\t environment:\n");
+  printf("\t VENC=ON: you can play rtsp://xxx.xxx.xxx.xxx/live/main_stream");
+  printf("\t HDR=HDR2 or HDR=HDR3 or default normal.\n");
+  printf("\t FEC=ON: open fec.\n");
 }
+static RK_VOID RKMEDIA_ISP_ENV() {
+  char *env = NULL;
+  env = getenv("FEC");
+  if (env != NULL && strcmp(env, "ON") == 0) {
+    printf("FEC ON.\n");
+    g_fec = RK_TRUE;
+  }
 
+  env = getenv("HDR");
+  if (env != NULL) {
+    if (strcmp(env, "HDR3") == 0) {
+      printf("HDR3 ON.\n");
+      g_wmode = RK_AIQ_WORKING_MODE_ISP_HDR3;
+    } else if (strcmp(env, "HDR2") == 0) {
+      printf("HDR2 ON.\n");
+      g_wmode = RK_AIQ_WORKING_MODE_ISP_HDR2;
+    } else {
+      printf("Normal ON.\n");
+      g_wmode = RK_AIQ_WORKING_MODE_NORMAL;
+    }
+  }
+
+  env = getenv("VENC");
+  if (env != NULL && strcmp(env, "ON") == 0) {
+    printf("VNEC ON.\n");
+    g_venc = RK_TRUE;
+  }
+}
 int main(int argc, char *argv[]) {
   signal(SIGINT, sigterm_handler);
 
@@ -271,6 +512,7 @@ int main(int argc, char *argv[]) {
     RKMEDIA_ISP_Usage();
     return -1;
   }
+  RKMEDIA_ISP_ENV();
 
   RK_MPI_SYS_Init();
   // init rtsp
@@ -291,11 +533,25 @@ int main(int argc, char *argv[]) {
     break;
   case 3:
     testDefog(iq_file_dir);
+    break;
+  case 4:
+    testImage(iq_file_dir);
+    break;
+  case 5:
+    testDayNight(iq_file_dir);
+    break;
+  case 6:
+    testExposure(iq_file_dir);
+    break;
+  case 7:
+    testCrop(iq_file_dir);
+    break;
   default:
     break;
   }
 
   // release rtsp
   rtsp_del_demo(g_rtsplive);
+  printf("exit program.\n");
   return 0;
 }
