@@ -96,6 +96,7 @@ typedef struct _RkmediaChannel {
   std::mutex luma_buf_mtx;
   std::condition_variable luma_buf_cond;
   bool luma_buf_quit;
+  bool luma_buf_start;
   std::shared_ptr<easymedia::MediaBuffer> luma_rkmedia_buf;
 } RkmediaChannel;
 
@@ -573,7 +574,7 @@ FlowOutputCallback(void *handle,
 
   if (target_chn->mode_id == RK_ID_VI) {
     std::unique_lock<std::mutex> lck(target_chn->luma_buf_mtx);
-    if (!target_chn->luma_buf_quit)
+    if (!target_chn->luma_buf_quit && target_chn->luma_buf_start)
       target_chn->luma_rkmedia_buf = rkmedia_mb;
     target_chn->luma_buf_cond.notify_all();
     // Generally, after the previous Chn is bound to the next stage,
@@ -978,13 +979,16 @@ RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn) {
     return -RK_ERR_VI_BUSY;
   }
 
+  g_vi_chns[ViChn].luma_buf_mtx.lock();
+  g_vi_chns[ViChn].luma_buf_quit = false;
+  g_vi_chns[ViChn].luma_buf_start = false;
+  g_vi_chns[ViChn].luma_buf_mtx.unlock();
+
+  RkmediaChnInitBuffer(&g_vi_chns[ViChn]);
   g_vi_chns[ViChn].rkmedia_flow->SetOutputCallBack(&g_vi_chns[ViChn],
                                                    FlowOutputCallback);
   g_vi_chns[ViChn].status = CHN_STATUS_OPEN;
-  RkmediaChnInitBuffer(&g_vi_chns[ViChn]);
-  g_vi_chns[ViChn].luma_buf_mtx.lock();
-  g_vi_chns[ViChn].luma_buf_quit = false;
-  g_vi_chns[ViChn].luma_buf_mtx.unlock();
+
   g_vi_mtx.unlock();
   LOG("\n%s %s: Enable VI[%d:%d]:%s, %dx%d End...\n", LOG_TAG, __func__, ViPipe,
       ViChn, g_vi_chns[ViChn].vi_attr.attr.pcVideoNode,
@@ -1066,6 +1070,33 @@ rkmediaCalculateRegionLuma(std::shared_ptr<easymedia::ImageBuffer> &rkmedia_mb,
   return sum;
 }
 
+RK_S32 RK_MPI_VI_StartRegionLuma(VI_CHN ViChn) {
+  if ((ViChn < 0) || (ViChn > VI_MAX_CHN_NUM))
+    return -RK_ERR_VI_INVALID_CHNID;
+  if (g_vi_chns[ViChn].status < CHN_STATUS_OPEN)
+    return -RK_ERR_VI_NOTREADY;
+
+  g_vi_chns[ViChn].luma_buf_mtx.lock();
+  g_vi_chns[ViChn].luma_buf_start = true;
+  g_vi_chns[ViChn].luma_buf_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_VI_StopRegionLuma(VI_CHN ViChn) {
+  if ((ViChn < 0) || (ViChn > VI_MAX_CHN_NUM))
+    return -RK_ERR_VI_INVALID_CHNID;
+  if (g_vi_chns[ViChn].status < CHN_STATUS_OPEN)
+    return -RK_ERR_VI_NOTREADY;
+
+  g_vi_chns[ViChn].luma_buf_mtx.lock();
+  g_vi_chns[ViChn].luma_buf_start = false;
+  g_vi_chns[ViChn].luma_rkmedia_buf.reset();
+  g_vi_chns[ViChn].luma_buf_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
 RK_S32 RK_MPI_VI_GetChnRegionLuma(VI_PIPE ViPipe, VI_CHN ViChn,
                                   const VIDEO_REGION_INFO_S *pstRegionInfo,
                                   RK_U64 *pu64LumaData, RK_S32 s32MilliSec) {
@@ -1111,6 +1142,7 @@ RK_S32 RK_MPI_VI_GetChnRegionLuma(VI_PIPE ViPipe, VI_CHN ViChn,
     // used to find the buffer, and the accumulation of the buffer is
     // outside the lock range. This is good for frame rate.
     std::unique_lock<std::mutex> lck(target_chn->luma_buf_mtx);
+    target_chn->luma_buf_start = true;
     if (!target_chn->luma_rkmedia_buf) {
       if (s32MilliSec < 0 && !target_chn->luma_buf_quit) {
         target_chn->luma_buf_cond.wait(lck);
@@ -1434,6 +1466,8 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
     video_decoder_flow->AddDownFlow(video_jpeg_flow, 0, 0);
   }
   video_encoder_flow->AddDownFlow(video_decoder_flow, 0, 0);
+  // Init buffer list.
+  RkmediaChnInitBuffer(VenChn);
   video_jpeg_flow->SetOutputCallBack(VenChn, FlowOutputCallback);
 
   VenChn->rkmedia_flow = video_encoder_flow;
@@ -1441,8 +1475,7 @@ static RK_S32 RkmediaCreateJpegSnapPipeline(RkmediaChannel *VenChn) {
   if (bEnableRga)
     VenChn->rkmedia_flow_list.push_back(video_rga_flow);
   VenChn->rkmedia_flow_list.push_back(video_jpeg_flow);
-  // Init buffer list.
-  RkmediaChnInitBuffer(VenChn);
+
   VenChn->status = CHN_STATUS_OPEN;
 
   return RK_ERR_SYS_OK;
@@ -1685,10 +1718,10 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   }
   // easymedia::video_encoder_enable_statistics(g_venc_chns[VeChn].rkmedia_flow,
   // 1);
+  RkmediaChnInitBuffer(&g_venc_chns[VeChn]);
   g_venc_chns[VeChn].rkmedia_flow->SetOutputCallBack(&g_venc_chns[VeChn],
                                                      FlowOutputCallback);
   g_venc_chns[VeChn].status = CHN_STATUS_OPEN;
-  RkmediaChnInitBuffer(&g_venc_chns[VeChn]);
   g_venc_mtx.unlock();
   LOG("\n%s %s: Enable VENC[%d], Type:%d End...\n", LOG_TAG, __func__, VeChn,
       stVencChnAttr->stVencAttr.enType);
@@ -1696,7 +1729,8 @@ RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
   return RK_ERR_SYS_OK;
 }
 
-RK_S32 RK_MPI_VENC_CreateJpegLightChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChnAttr) {
+RK_S32 RK_MPI_VENC_CreateJpegLightChn(VENC_CHN VeChn,
+                                      VENC_CHN_ATTR_S *stVencChnAttr) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
 
@@ -1830,12 +1864,13 @@ RK_S32 RK_MPI_VENC_CreateJpegLightChn(VENC_CHN VeChn, VENC_CHN_ATTR_S *stVencChn
   }
 
   video_jpeg_flow->SetFlowTag("JpegLightEncoder");
+  // Init buffer list.
+  RkmediaChnInitBuffer(&g_venc_chns[VeChn]);
   video_jpeg_flow->SetOutputCallBack(&g_venc_chns[VeChn], FlowOutputCallback);
 
   g_venc_chns[VeChn].rkmedia_flow = video_jpeg_flow;
   g_venc_chns[VeChn].rkmedia_flow_list.push_back(video_jpeg_flow);
-  // Init buffer list.
-  RkmediaChnInitBuffer(&g_venc_chns[VeChn]);
+
   g_venc_chns[VeChn].status = CHN_STATUS_OPEN;
   g_venc_mtx.unlock();
 
@@ -2643,10 +2678,11 @@ RK_S32 RK_MPI_AI_EnableChn(AI_CHN AiChn) {
     g_ai_mtx.unlock();
     return -RK_ERR_AI_BUSY;
   }
+  RkmediaChnInitBuffer(&g_ai_chns[AiChn]);
   g_ai_chns[AiChn].rkmedia_flow->SetOutputCallBack(&g_ai_chns[AiChn],
                                                    FlowOutputCallback);
   g_ai_chns[AiChn].status = CHN_STATUS_OPEN;
-  RkmediaChnInitBuffer(&g_ai_chns[AiChn]);
+
   g_ai_mtx.unlock();
   return RK_ERR_SYS_OK;
 }
@@ -3076,11 +3112,11 @@ RK_S32 RK_MPI_AENC_CreateChn(AENC_CHN AencChn, const AENC_CHN_ATTR_S *pstAttr) {
     g_aenc_mtx.unlock();
     return -RK_ERR_AENC_BUSY;
   }
+  RkmediaChnInitBuffer(&g_aenc_chns[AencChn]);
   g_aenc_chns[AencChn].rkmedia_flow->SetOutputCallBack(&g_aenc_chns[AencChn],
                                                        FlowOutputCallback);
 
   g_aenc_chns[AencChn].status = CHN_STATUS_OPEN;
-  RkmediaChnInitBuffer(&g_aenc_chns[AencChn]);
   g_aenc_mtx.unlock();
   return RK_ERR_SYS_OK;
 }
@@ -3500,11 +3536,11 @@ RK_S32 RK_MPI_ADEC_CreateChn(ADEC_CHN AdecChn, const ADEC_CHN_ATTR_S *pstAttr) {
     g_adec_mtx.unlock();
     return -RK_ERR_ADEC_BUSY;
   }
-
+  RkmediaChnInitBuffer(&g_adec_chns[AdecChn]);
   g_adec_chns[AdecChn].rkmedia_flow->SetOutputCallBack(&g_adec_chns[AdecChn],
                                                        FlowOutputCallback);
   g_adec_chns[AdecChn].status = CHN_STATUS_OPEN;
-  RkmediaChnInitBuffer(&g_adec_chns[AdecChn]);
+
   g_adec_mtx.unlock();
   return RK_ERR_SYS_OK;
 }
@@ -3542,17 +3578,17 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
     return -RK_ERR_VO_ILLEGAL_PARAM;
 
   switch (pstAttr->emPlaneType) {
-    case VO_PLANE_PRIMARY:
-      pcPlaneType = "Primary";
-      break;
-    case VO_PLANE_OVERLAY:
-      pcPlaneType = "Overlay";
-      break;
-    case VO_PLANE_CURSOR:
-      pcPlaneType = "Cursor";
-      break;
-    default:
-      break;
+  case VO_PLANE_PRIMARY:
+    pcPlaneType = "Primary";
+    break;
+  case VO_PLANE_OVERLAY:
+    pcPlaneType = "Overlay";
+    break;
+  case VO_PLANE_CURSOR:
+    pcPlaneType = "Cursor";
+    break;
+  default:
+    break;
   }
 
   if (!pcPlaneType)

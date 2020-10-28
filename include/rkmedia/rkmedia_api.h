@@ -77,6 +77,8 @@ _CAPI RK_S32 RK_MPI_VI_SetChnAttr(VI_PIPE ViPipe, VI_CHN ViChn,
                                   const VI_CHN_ATTR_S *pstChnAttr);
 _CAPI RK_S32 RK_MPI_VI_DisableChn(VI_PIPE ViPipe, VI_CHN ViChn);
 _CAPI RK_S32 RK_MPI_VI_EnableChn(VI_PIPE ViPipe, VI_CHN ViChn);
+_CAPI RK_S32 RK_MPI_VI_StartRegionLuma(VI_CHN ViChn);
+_CAPI RK_S32 RK_MPI_VI_StopRegionLuma(VI_CHN ViChn);
 _CAPI RK_S32 RK_MPI_VI_GetChnRegionLuma(
     VI_PIPE ViPipe, VI_CHN ViChn, const VIDEO_REGION_INFO_S *pstRegionInfo,
     RK_U64 *pu64LumaData, RK_S32 s32MilliSec);
