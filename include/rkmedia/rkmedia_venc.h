@@ -321,17 +321,17 @@ typedef struct rkVENC_RECV_PIC_PARAM_S {
 } VENC_RECV_PIC_PARAM_S;
 
 typedef struct rkVENC_JPEG_PARAM_S {
-  RK_U32 u32Qfactor; // 1-10
-  RK_U8 u8YQt[64];
-  RK_U8 u8CbQt[64];
-  RK_U8 u8CrQt[64];
-  RK_U32 u32MCUPerECS;
+  RK_U32 u32Qfactor; // 1-99
+  RK_U8 u8YQt[64]; // useless now
+  RK_U8 u8CbQt[64]; // useless now
+  RK_U8 u8CrQt[64]; // useless now
+  RK_U32 u32MCUPerECS; // useless now
 } VENC_JPEG_PARAM_S;
 
 typedef struct rkVENC_RESOLUTION_PARAM_S {
   RK_U32 u32Width;
   RK_U32 u32Height;
-  RK_U32 u32VirWidht;
+  RK_U32 u32VirWidth;
   RK_U32 u32VirHeight;
 } VENC_RESOLUTION_PARAM_S;
 
