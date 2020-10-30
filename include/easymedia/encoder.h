@@ -86,6 +86,7 @@ public:
   static const uint32_t kUserDataChange = (1 << 14);
   //enable fps/bps statistics.
   static const uint32_t kEnableStatistics = (1 << 31);
+  static const uint32_t kResolutionChange = (1 << 15);
 
   VideoEncoder() : codec_type(CODEC_TYPE_NONE) {}
   virtual ~VideoEncoder() = default;

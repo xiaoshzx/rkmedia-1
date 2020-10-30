@@ -328,6 +328,13 @@ typedef struct rkVENC_JPEG_PARAM_S {
   RK_U32 u32MCUPerECS;
 } VENC_JPEG_PARAM_S;
 
+typedef struct rkVENC_RESOLUTION_PARAM_S {
+  RK_U32 u32Width;
+  RK_U32 u32Height;
+  RK_U32 u32VirWidht;
+  RK_U32 u32VirHeight;
+} VENC_RESOLUTION_PARAM_S;
+
 #ifdef __cplusplus
 }
 #endif

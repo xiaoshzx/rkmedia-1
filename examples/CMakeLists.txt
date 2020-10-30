@@ -332,6 +332,18 @@ install(FILES rtsp-nn.cfg DESTINATION share)
 install(DIRECTORY rknn_model DESTINATION share)
 endif()
 
+#--------------------------
+# rkmedia_rga_crop_venc_test
+#--------------------------
+if(USE_RKAIQ)
+link_directories(${PROJECT_SOURCE_DIR}/librtsp/)
+add_executable(rkmedia_rga_crop_venc_test rkmedia_rga_crop_venc_test.c ${COMMON_SRC})
+add_dependencies(rkmedia_rga_crop_venc_test easymedia)
+target_link_libraries(rkmedia_rga_crop_venc_test rtsp easymedia rga)
+target_include_directories(rkmedia_rga_crop_venc_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+install(TARGETS rkmedia_rga_crop_venc_test RUNTIME DESTINATION "bin")
+endif()
+
 option(COMPILES_UINT_TEST "Enable unit tests" OFF)
 if(COMPILES_UINT_TEST)
   add_subdirectory(uintTest)

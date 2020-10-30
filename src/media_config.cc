@@ -4,18 +4,19 @@
 
 #include "media_config.h"
 
-#include <strings.h>
 #include <sstream>
+#include <strings.h>
 
+#include "encoder.h"
 #include "key_string.h"
 #include "media_type.h"
 #include "utils.h"
-#include "encoder.h"
 
 namespace easymedia {
 
-const char *rc_quality_strings[7] = {KEY_LOWEST,  KEY_LOWER, KEY_LOW,
-  KEY_MEDIUM, KEY_HIGH, KEY_HIGHER, KEY_HIGHEST};
+const char *rc_quality_strings[7] = {KEY_LOWEST, KEY_LOWER, KEY_LOW,
+                                     KEY_MEDIUM, KEY_HIGH,  KEY_HIGHER,
+                                     KEY_HIGHEST};
 
 const char *rc_mode_strings[4] = {KEY_VBR, KEY_CBR, KEY_FIXQP, KEY_AVBR};
 
@@ -37,7 +38,7 @@ const char *ConvertRcMode(const std::string &s) {
 }
 
 static int ParseMediaConfigFps(std::map<std::string, std::string> &params,
-  VideoConfig &vid_cfg) {
+                               VideoConfig &vid_cfg) {
   std::string value = params[KEY_FPS];
   char *num = NULL;
   char *den = NULL;
@@ -106,7 +107,7 @@ bool ParseMediaConfigFromMap(std::map<std::string, std::string> &params,
     aud_cfg.bit_rate = std::stoi(value);
     CHECK_EMPTY(value, params, KEY_FLOAT_QUALITY)
     aud_cfg.quality = std::stof(value);
-    //CHECK_EMPTY(value, params, KEY_CODECTYPE)
+    // CHECK_EMPTY(value, params, KEY_CODECTYPE)
     aud_cfg.codec_type = codec_type;
     mc.type = Type::Audio;
     return true;
@@ -176,7 +177,7 @@ std::vector<EncROIRegion> StringToRoiRegions(const std::string &str_regions) {
     const char *end = strstr(start, ")");
     if (!end) {
       LOG("ERROR: RoiRegions string is invalid! end error! Value:%s\n",
-        str_regions.c_str());
+          str_regions.c_str());
       break;
     }
 
@@ -193,12 +194,12 @@ std::vector<EncROIRegion> StringToRoiRegions(const std::string &str_regions) {
 
     if (commas_cnt != 8) {
       LOG("ERROR: RoiRegions string is invalid! Value:%s\n",
-        str_regions.c_str());
+          str_regions.c_str());
       break;
     }
     int x, y, w, h, intra, quality, qp_area_idx, area_map_en, abs_qp_en;
-    int r = sscanf(start, "(%d,%d,%d,%d,%d,%d,%d,%d,%d)",
-      &x, &y, &w, &h, &intra, &quality, &qp_area_idx, &area_map_en, &abs_qp_en);
+    int r = sscanf(start, "(%d,%d,%d,%d,%d,%d,%d,%d,%d)", &x, &y, &w, &h,
+                   &intra, &quality, &qp_area_idx, &area_map_en, &abs_qp_en);
     if (r != 9) {
       LOG("ERROR: Fail to sscanf(ret=%d) : %m\n", r);
       ret.clear();
@@ -305,38 +306,32 @@ std::string to_param_string(const MediaConfig &mc,
   return ret;
 }
 
-std::string get_video_encoder_config_string (
-  const ImageInfo &info, const VideoEncoderCfg &cfg) {
-  if (!info.width || !info.height ||
-      (info.pix_fmt >= PIX_FMT_NB) ||
+std::string get_video_encoder_config_string(const ImageInfo &info,
+                                            const VideoEncoderCfg &cfg) {
+  if (!info.width || !info.height || (info.pix_fmt >= PIX_FMT_NB) ||
       (info.pix_fmt <= PIX_FMT_NONE)) {
     LOG("ERROR: %s image info is wrong!\n", __func__);
     return NULL;
   }
 
   if (StringToCodecType(cfg.type) < 0) {
-    LOG("ERROR: %s not support enc type:%s!\n",
-      __func__, cfg.type);
+    LOG("ERROR: %s not support enc type:%s!\n", __func__, cfg.type);
     return NULL;
   }
 
-  if (cfg.rc_quality &&
-    strcmp(cfg.rc_quality, KEY_HIGHEST) &&
-    strcmp(cfg.rc_quality, KEY_HIGHER) &&
-    strcmp(cfg.rc_quality, KEY_HIGH) &&
-    strcmp(cfg.rc_quality, KEY_MEDIUM) &&
-    strcmp(cfg.rc_quality, KEY_LOW) &&
-    strcmp(cfg.rc_quality, KEY_LOWER) &&
-    strcmp(cfg.rc_quality, KEY_LOWEST)) {
+  if (cfg.rc_quality && strcmp(cfg.rc_quality, KEY_HIGHEST) &&
+      strcmp(cfg.rc_quality, KEY_HIGHER) && strcmp(cfg.rc_quality, KEY_HIGH) &&
+      strcmp(cfg.rc_quality, KEY_MEDIUM) && strcmp(cfg.rc_quality, KEY_LOW) &&
+      strcmp(cfg.rc_quality, KEY_LOWER) && strcmp(cfg.rc_quality, KEY_LOWEST)) {
     LOG("ERROR: %s rc_quality is invalid!"
-      "should be [KEY_LOWEST, KEY_HIGHEST]\n", __func__);
+        "should be [KEY_LOWEST, KEY_HIGHEST]\n",
+        __func__);
     return NULL;
   }
 
   if (cfg.rc_mode && strcmp(cfg.rc_mode, KEY_VBR) &&
-    strcmp(cfg.rc_mode, KEY_CBR) &&
-    strcmp(cfg.rc_mode, KEY_AVBR) &&
-    strcmp(cfg.rc_mode, KEY_FIXQP)) {
+      strcmp(cfg.rc_mode, KEY_CBR) && strcmp(cfg.rc_mode, KEY_AVBR) &&
+      strcmp(cfg.rc_mode, KEY_FIXQP)) {
     LOG("ERROR: %s rc_mode(%s) is invalid!\n", __func__, cfg.rc_mode);
     return NULL;
   }
@@ -386,9 +381,8 @@ std::string get_video_encoder_config_string (
   return enc_param;
 }
 
-int video_encoder_set_bps(
-  std::shared_ptr<Flow> &enc_flow, unsigned int target,
-  unsigned int min, unsigned int max) {
+int video_encoder_set_bps(std::shared_ptr<Flow> &enc_flow, unsigned int target,
+                          unsigned int min, unsigned int max) {
   if (!enc_flow)
     return -EINVAL;
 
@@ -404,17 +398,18 @@ int video_encoder_set_bps(
   return 0;
 }
 
-int video_encoder_set_rc_quality(
-  std::shared_ptr<Flow> &enc_flow, const char *rc_quality) {
+int video_encoder_set_rc_quality(std::shared_ptr<Flow> &enc_flow,
+                                 const char *rc_quality) {
   if (!enc_flow || !rc_quality)
     return -EINVAL;
 
   if (strcmp(rc_quality, KEY_HIGHEST) && strcmp(rc_quality, KEY_HIGHER) &&
-    strcmp(rc_quality, KEY_HIGH) && strcmp(rc_quality, KEY_MEDIUM) &&
-    strcmp(rc_quality, KEY_LOW) && strcmp(rc_quality, KEY_LOWER) &&
-    strcmp(rc_quality, KEY_LOWEST)) {
+      strcmp(rc_quality, KEY_HIGH) && strcmp(rc_quality, KEY_MEDIUM) &&
+      strcmp(rc_quality, KEY_LOW) && strcmp(rc_quality, KEY_LOWER) &&
+      strcmp(rc_quality, KEY_LOWEST)) {
     LOG("ERROR: %s rc_quality:%s is invalid! "
-      "should be [KEY_LOWEST, KEY_HIGHEST]\n", __func__, rc_quality);
+        "should be [KEY_LOWEST, KEY_HIGHEST]\n",
+        __func__, rc_quality);
     return -EINVAL;
   }
 
@@ -429,8 +424,8 @@ int video_encoder_set_rc_quality(
   return 0;
 }
 
-int video_encoder_set_rc_mode(
-  std::shared_ptr<Flow> &enc_flow, const char *rc_mode) {
+int video_encoder_set_rc_mode(std::shared_ptr<Flow> &enc_flow,
+                              const char *rc_mode) {
   if (!enc_flow || !rc_mode)
     return -EINVAL;
 
@@ -451,18 +446,17 @@ int video_encoder_set_rc_mode(
   return 0;
 }
 
-int video_encoder_set_qp(
-  std::shared_ptr<Flow> &enc_flow, VideoEncoderQp &qps) {
+int video_encoder_set_qp(std::shared_ptr<Flow> &enc_flow, VideoEncoderQp &qps) {
   if (!enc_flow)
     return -EINVAL;
 
   // qp_max       - 8 ~ 51
   // qp_min       - 0 ~ 48
   if ((qps.qp_max && ((qps.qp_max > 51) || (qps.qp_max < 8))) ||
-    (qps.qp_max_i && ((qps.qp_max_i > 51) || (qps.qp_max_i < 8))) ||
-    (qps.qp_min < 0) || (qps.qp_min > 48) ||
-    (qps.qp_min_i < 0) || (qps.qp_min_i > 48) ||
-    (qps.qp_min > qps.qp_max) || (qps.qp_min_i > qps.qp_max_i)) {
+      (qps.qp_max_i && ((qps.qp_max_i > 51) || (qps.qp_max_i < 8))) ||
+      (qps.qp_min < 0) || (qps.qp_min > 48) || (qps.qp_min_i < 0) ||
+      (qps.qp_min_i > 48) || (qps.qp_min > qps.qp_max) ||
+      (qps.qp_min_i > qps.qp_max_i)) {
     LOG("ERROR: qp range error. qp_min:[0, 48]; qp_max:[8, 51]\n");
     return -EINVAL;
   }
@@ -478,8 +472,7 @@ int video_encoder_set_qp(
   }
 
   auto pbuff = std::make_shared<ParameterBuffer>(0);
-  VideoEncoderQp *qp_struct =
-    (VideoEncoderQp *)malloc(sizeof(VideoEncoderQp));
+  VideoEncoderQp *qp_struct = (VideoEncoderQp *)malloc(sizeof(VideoEncoderQp));
   memcpy(qp_struct, &qps, sizeof(VideoEncoderQp));
   pbuff->SetPtr(qp_struct, sizeof(VideoEncoderQp));
   enc_flow->Control(VideoEncoder::kQPChange, pbuff);
@@ -487,8 +480,7 @@ int video_encoder_set_qp(
   return 0;
 }
 
-int jpeg_encoder_set_qfactor(
-  std::shared_ptr<Flow> &enc_flow, int qfactor) {
+int jpeg_encoder_set_qfactor(std::shared_ptr<Flow> &enc_flow, int qfactor) {
   if (!enc_flow)
     return -EINVAL;
 
@@ -514,16 +506,15 @@ int video_encoder_force_idr(std::shared_ptr<Flow> &enc_flow) {
   return 0;
 }
 
-int video_encoder_set_fps(std::shared_ptr<Flow> &enc_flow,
-  uint8_t out_num, uint8_t out_den, uint8_t in_num, uint8_t in_den) {
+int video_encoder_set_fps(std::shared_ptr<Flow> &enc_flow, uint8_t out_num,
+                          uint8_t out_den, uint8_t in_num, uint8_t in_den) {
   if (!enc_flow)
     return -EINVAL;
 
-  if (!out_den || !out_num ||
-    (out_den > 16) || (out_num > 120) ||
-    (in_den > 16) || (in_num > 120)) {
-    LOG("ERROR: fps(%d/%d) is invalid! num:[1,120], den:[1, 16].\n",
-      out_num, out_den);
+  if (!out_den || !out_num || (out_den > 16) || (out_num > 120) ||
+      (in_den > 16) || (in_num > 120)) {
+    LOG("ERROR: fps(%d/%d) is invalid! num:[1,120], den:[1, 16].\n", out_num,
+        out_den);
     return -EINVAL;
   }
 
@@ -541,8 +532,8 @@ int video_encoder_set_fps(std::shared_ptr<Flow> &enc_flow,
 }
 
 // input palette should be yuva formate.
-int video_encoder_set_osd_plt(
-  std::shared_ptr<Flow> &enc_flow, const uint32_t *yuv_plt) {
+int video_encoder_set_osd_plt(std::shared_ptr<Flow> &enc_flow,
+                              const uint32_t *yuv_plt) {
   if (!enc_flow)
     return -EINVAL;
 
@@ -556,8 +547,7 @@ int video_encoder_set_osd_plt(
   return 0;
 }
 
-int video_encoder_set_gop_size(
-  std::shared_ptr<Flow> &enc_flow, int gop) {
+int video_encoder_set_gop_size(std::shared_ptr<Flow> &enc_flow, int gop) {
   if (!enc_flow || (gop < 0))
     return -EINVAL;
 
@@ -568,20 +558,20 @@ int video_encoder_set_gop_size(
   return 0;
 }
 
-int video_encoder_set_osd_region(
-  std::shared_ptr<Flow> &enc_flow, OsdRegionData *region_data) {
+int video_encoder_set_osd_region(std::shared_ptr<Flow> &enc_flow,
+                                 OsdRegionData *region_data) {
   if (!enc_flow || !region_data)
     return -EINVAL;
 
   if (region_data->enable &&
-    ((region_data->width % 16) || (region_data->height % 16))) {
+      ((region_data->width % 16) || (region_data->height % 16))) {
     LOG("ERROR: osd region size must be a multiple of 16x16.");
     return -EINVAL;
   }
 
   int buffer_size = region_data->width * region_data->height;
   OsdRegionData *rdata =
-    (OsdRegionData *)malloc(sizeof(OsdRegionData) + buffer_size);
+      (OsdRegionData *)malloc(sizeof(OsdRegionData) + buffer_size);
   memcpy((void *)rdata, (void *)region_data, sizeof(OsdRegionData));
   if (buffer_size) {
     rdata->buffer = (uint8_t *)rdata + sizeof(OsdRegionData);
@@ -596,7 +586,7 @@ int video_encoder_set_osd_region(
 }
 
 int video_encoder_set_move_detection(std::shared_ptr<Flow> &enc_flow,
-  std::shared_ptr<Flow> &md_flow) {
+                                     std::shared_ptr<Flow> &md_flow) {
   int ret = 0;
   void **rdata = (void **)malloc(sizeof(void *));
   *rdata = md_flow.get();
@@ -609,7 +599,7 @@ int video_encoder_set_move_detection(std::shared_ptr<Flow> &enc_flow,
 }
 
 int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
-  EncROIRegion *regions, int region_cnt) {
+                                  EncROIRegion *regions, int region_cnt) {
   if (!enc_flow)
     return -EINVAL;
 
@@ -626,8 +616,8 @@ int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
   return 0;
 }
 
-int video_encoder_set_roi_regions(
-  std::shared_ptr<Flow> &enc_flow, std::string roi_param) {
+int video_encoder_set_roi_regions(std::shared_ptr<Flow> &enc_flow,
+                                  std::string roi_param) {
   if (!enc_flow)
     return -EINVAL;
 
@@ -643,7 +633,7 @@ int video_encoder_set_roi_regions(
     return -EINVAL;
 
   int i = 0;
-  for(auto iter : regions)
+  for (auto iter : regions)
     memcpy((void *)&rdata[i++], (void *)&iter, sizeof(EncROIRegion));
 
   auto pbuff = std::make_shared<ParameterBuffer>(0);
@@ -653,15 +643,15 @@ int video_encoder_set_roi_regions(
 }
 
 int video_move_detect_set_rects(std::shared_ptr<Flow> &md_flow,
-  ImageRect *rects, int rect_cnt) {
+                                ImageRect *rects, int rect_cnt) {
   if (!md_flow || !rects || !rect_cnt)
     return -EINVAL;
 
   return md_flow->Control(easymedia::S_MD_ROI_RECTS, rects, rect_cnt);
 }
 
-int video_move_detect_set_rects(
-  std::shared_ptr<Flow> &md_flow, std::string rects_param) {
+int video_move_detect_set_rects(std::shared_ptr<Flow> &md_flow,
+                                std::string rects_param) {
   if (!md_flow)
     return -EINVAL;
 
@@ -676,7 +666,7 @@ int video_move_detect_set_rects(
     return -ENOSPC;
 
   int i = 0;
-  for(auto iter : rect_vector)
+  for (auto iter : rect_vector)
     memcpy((void *)&rects[i++], (void *)&iter, sizeof(ImageRect));
 
   int ret = md_flow->Control(easymedia::S_MD_ROI_RECTS, rects, rect_cnt);
@@ -684,8 +674,8 @@ int video_move_detect_set_rects(
   return ret;
 }
 
-int video_encoder_set_split(
-  std::shared_ptr<Flow> &enc_flow, unsigned int mode, unsigned int size) {
+int video_encoder_set_split(std::shared_ptr<Flow> &enc_flow, unsigned int mode,
+                            unsigned int size) {
   if (!enc_flow)
     return -EINVAL;
 
@@ -700,7 +690,7 @@ int video_encoder_set_split(
 }
 
 int video_encoder_set_gop_mode(std::shared_ptr<Flow> &enc_flow,
-  EncGopModeParam *mode_params) {
+                               EncGopModeParam *mode_params) {
   if (!enc_flow || !mode_params)
     return -EINVAL;
 
@@ -716,16 +706,15 @@ int video_encoder_set_gop_mode(std::shared_ptr<Flow> &enc_flow,
   return 0;
 }
 
-int video_encoder_set_avc_profile(
-  std::shared_ptr<Flow> &enc_flow, int profile_idc, int level) {
+int video_encoder_set_avc_profile(std::shared_ptr<Flow> &enc_flow,
+                                  int profile_idc, int level) {
   if (!enc_flow)
     return -EINVAL;
 
-  if ((profile_idc != 66) && (profile_idc != 77) &&
-    (profile_idc != 100)) {
+  if ((profile_idc != 66) && (profile_idc != 77) && (profile_idc != 100)) {
     LOG("ERROR: %s profile_idc:%d is invalid!"
-      "Only supprot: 66:Baseline, 77:Main Profile, 100: High Profile\n",
-      __func__, profile_idc);
+        "Only supprot: 66:Baseline, 77:Main Profile, 100: High Profile\n",
+        __func__, profile_idc);
     return -EINVAL;
   }
 
@@ -739,8 +728,8 @@ int video_encoder_set_avc_profile(
   return 0;
 }
 
-int video_encoder_set_userdata(std::shared_ptr<Flow> &enc_flow,
-  void *data, int len, int all_frames) {
+int video_encoder_set_userdata(std::shared_ptr<Flow> &enc_flow, void *data,
+                               int len, int all_frames) {
   if (!enc_flow)
     return -EINVAL;
 
@@ -749,7 +738,7 @@ int video_encoder_set_userdata(std::shared_ptr<Flow> &enc_flow,
     return -EINVAL;
   }
 
-  //Param formate: allFrameEnableFlag(8bit) + dataPoint
+  // Param formate: allFrameEnableFlag(8bit) + dataPoint
   uint8_t *param = (uint8_t *)malloc(len + 1);
   *param = all_frames ? 1 : 0;
   if (len)
@@ -762,8 +751,25 @@ int video_encoder_set_userdata(std::shared_ptr<Flow> &enc_flow,
   return 0;
 }
 
-int video_encoder_enable_statistics(
-  std::shared_ptr<Flow> &enc_flow, int enable) {
+int video_encoder_set_resolution(std::shared_ptr<Flow> &enc_flow,
+                                 VideoResolutionCfg *vid_cfg) {
+  if (!enc_flow || !vid_cfg)
+    return -EINVAL;
+
+  uint8_t *cfg = (uint8_t *)malloc(sizeof(VideoResolutionCfg));
+  if (!cfg)
+    return -ENOSPC;
+
+  memcpy(cfg, vid_cfg, sizeof(VideoResolutionCfg));
+  auto pbuff = std::make_shared<ParameterBuffer>(0);
+  pbuff->SetPtr(cfg, sizeof(VideoResolutionCfg));
+  enc_flow->Control(VideoEncoder::kResolutionChange, pbuff);
+
+  return 0;
+}
+
+int video_encoder_enable_statistics(std::shared_ptr<Flow> &enc_flow,
+                                    int enable) {
   if (!enc_flow)
     return -EINVAL;
 

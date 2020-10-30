@@ -107,6 +107,8 @@ _CAPI RK_S32 RK_MPI_VENC_SetAvcProfile(VENC_CHN VeChn, RK_U32 u32Profile,
                                        RK_U32 u32Level);
 _CAPI RK_S32 RK_MPI_VENC_InsertUserData(VENC_CHN VeChn, RK_U8 *pu8Data,
                                         RK_U32 u32Len);
+_CAPI RK_S32 RK_MPI_VENC_SetResolution(
+    VENC_CHN VeChn, VENC_RESOLUTION_PARAM_S stResolutionParam);
 _CAPI RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn,
                                     const VENC_ROI_ATTR_S *pstRoiAttr,
                                     RK_S32 region_cnt);

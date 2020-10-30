@@ -5,24 +5,24 @@
 #include "mpp_encoder.h"
 
 #include <assert.h>
-#include <unistd.h>
-#include <time.h>
 #include <fcntl.h>
+#include <time.h>
+#include <unistd.h>
 
 #include <memory>
 
-#include "utils.h"
 #include "buffer.h"
+#include "utils.h"
 
 namespace easymedia {
 
 MPPEncoder::MPPEncoder()
-    : coding_type(MPP_VIDEO_CodingAutoDetect),
-      output_mb_flags(0), encoder_sta_en(false),
-      stream_size_1s(0), frame_cnt_1s(0), last_ts(0), cur_ts(0),
-      userdata_len(0),userdata_frame_id(0), userdata_all_frame_en(0) {
+    : coding_type(MPP_VIDEO_CodingAutoDetect), output_mb_flags(0),
+      encoder_sta_en(false), stream_size_1s(0), frame_cnt_1s(0), last_ts(0),
+      cur_ts(0), userdata_len(0), userdata_frame_id(0),
+      userdata_all_frame_en(0) {
 #ifdef MPP_SUPPORT_HW_OSD
-  //reset osd data.
+  // reset osd data.
   memset(&osd_data, 0, sizeof(osd_data));
   osd_buf_grp = NULL;
 #endif
@@ -134,25 +134,25 @@ int MPPEncoder::PrepareMppFrame(const std::shared_ptr<MediaBuffer> &input,
   MppMeta meta = mpp_frame_get_meta(frame);
   auto &related_vec = input->GetRelatedSPtrs();
   if (!related_vec.empty()) {
-     mdinfo = std::static_pointer_cast<MediaBuffer>(related_vec[0]);
-    LOGD("MPP Encoder: set mdinfo(%p, %zuBytes) to frame\n",
-      mdinfo->GetPtr(), mdinfo->GetValidSize());
+    mdinfo = std::static_pointer_cast<MediaBuffer>(related_vec[0]);
+    LOGD("MPP Encoder: set mdinfo(%p, %zuBytes) to frame\n", mdinfo->GetPtr(),
+         mdinfo->GetValidSize());
     mpp_meta_set_ptr(meta, KEY_MV_LIST, mdinfo->GetPtr());
   }
 
   if (roi_cfg.number && roi_cfg.regions) {
-    LOGD("MPP Encoder: set roi cfg(cnt:%d,%p) to frame\n",
-      roi_cfg.number, roi_cfg.regions);
+    LOGD("MPP Encoder: set roi cfg(cnt:%d,%p) to frame\n", roi_cfg.number,
+         roi_cfg.regions);
     mpp_meta_set_ptr(meta, KEY_ROI_DATA, &roi_cfg);
   }
 
 #ifdef MPP_SUPPORT_HW_OSD
   if (osd_data.num_region && osd_data.buf) {
     LOGD("MPP Encoder: set osd data(%d regions) to frame\n",
-      osd_data.num_region);
-    mpp_meta_set_ptr(meta, KEY_OSD_DATA, (void*)&osd_data);
+         osd_data.num_region);
+    mpp_meta_set_ptr(meta, KEY_OSD_DATA, (void *)&osd_data);
   }
-#endif //MPP_SUPPORT_HW_OSD
+#endif // MPP_SUPPORT_HW_OSD
 
   if (userdata_len) {
     LOGD("MPP Encoder: set userdata(%dBytes) to frame\n", userdata_len);
@@ -273,6 +273,17 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
       return -1;
   }
 
+  // check input buffer.
+  MediaConfig &cfg_check = GetConfig();
+  ImageBuffer *hw_buffer = static_cast<ImageBuffer *>(input.get());
+  if (cfg_check.img_cfg.image_info.width != hw_buffer->GetWidth() ||
+      cfg_check.img_cfg.image_info.height != hw_buffer->GetHeight() ||
+      cfg_check.img_cfg.image_info.vir_width != hw_buffer->GetVirWidth() ||
+      cfg_check.img_cfg.image_info.vir_height != hw_buffer->GetVirHeight()) {
+    LOG("ERROR: The resolution of the input buffer is wrong.\n");
+    return 0;
+  }
+
   int ret = mpp_frame_init(&frame);
   if (MPP_OK != ret) {
     LOG("mpp_frame_init failed\n");
@@ -306,7 +317,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
 
   if (!packet) {
     LOG("ERROR: MPP Encoder: input frame:%p, %zuBytes; output null packet!\n",
-      frame, mpp_buffer_get_size(mpp_frame_get_buffer(frame)));
+        frame, mpp_buffer_get_size(mpp_frame_get_buffer(frame)));
     goto ENCODE_OUT;
   }
 
@@ -343,29 +354,29 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
       target_fps = 30;
       enable_bps = 0;
     }
-    //Refresh every second
+    // Refresh every second
     if ((frame_cnt_1s % target_fps) == 0) {
-        // Calculate the frame rate based on the system time.
-        cur_ts = gettimeofday();
-        if (last_ts)
-          encoded_fps = ((float)target_fps / (cur_ts - last_ts)) * 1000000;
-        else
-          encoded_fps = 0;
+      // Calculate the frame rate based on the system time.
+      cur_ts = gettimeofday();
+      if (last_ts)
+        encoded_fps = ((float)target_fps / (cur_ts - last_ts)) * 1000000;
+      else
+        encoded_fps = 0;
 
-        last_ts = cur_ts;
-        if (enable_bps) {
-          // convert bytes to bits
-          encoded_bps = stream_size_1s * 8;
-          LOG("MPP ENCODER: bps:%d, actual_bps:%d, fps:%d, actual_fps:%f\n",
-              target_bpsmax, encoded_bps, target_fps, encoded_fps);
-        } else {
-          LOG("MPP ENCODER: fps statistical period:%d, actual_fps:%f\n",
-              target_fps, encoded_fps);
-        }
+      last_ts = cur_ts;
+      if (enable_bps) {
+        // convert bytes to bits
+        encoded_bps = stream_size_1s * 8;
+        LOG("MPP ENCODER: bps:%d, actual_bps:%d, fps:%d, actual_fps:%f\n",
+            target_bpsmax, encoded_bps, target_fps, encoded_fps);
+      } else {
+        LOG("MPP ENCODER: fps statistical period:%d, actual_fps:%f\n",
+            target_fps, encoded_fps);
+      }
 
-        // reset 1s variable
-        stream_size_1s = 0;
-        frame_cnt_1s = 0;
+      // reset 1s variable
+      stream_size_1s = 0;
+      frame_cnt_1s = 0;
     }
   } else if (cur_ts) {
     // clear tmp statistics variable.
@@ -410,7 +421,7 @@ int MPPEncoder::Process(const std::shared_ptr<MediaBuffer> &input,
     info = (coding_type == MPP_VIDEO_CodingMJPEG)
                ? in_cfg.img_cfg.image_info
                : in_cfg.vid_cfg.image_cfg.image_info;
-    //info.pix_fmt = codec_type;
+    // info.pix_fmt = codec_type;
   } else {
     output->SetType(Type::Video);
   }
@@ -486,25 +497,24 @@ void MPPEncoder::QueryChange(uint32_t change, void *value, int32_t size) {
     return;
   }
   switch (change) {
-    case VideoEncoder::kMoveDetectionFlow:
-      if (size < (int)sizeof(int32_t)) {
-        LOG("ERROR: MPP ENCODER: %s change:[%d], size invalid!\n",
-          __func__, VideoEncoder::kMoveDetectionFlow);
-        return;
-      }
-      if (rc_api_brief_name == "smart")
-        *((int32_t *)value) = 1;
-      else
-        *((int32_t *)value) = 0;
-      break;
-    default:
-      LOG("WARN: MPP ENCODER: %s change:[%d] not support!\n",
-        __func__, change);
+  case VideoEncoder::kMoveDetectionFlow:
+    if (size < (int)sizeof(int32_t)) {
+      LOG("ERROR: MPP ENCODER: %s change:[%d], size invalid!\n", __func__,
+          VideoEncoder::kMoveDetectionFlow);
+      return;
+    }
+    if (rc_api_brief_name == "smart")
+      *((int32_t *)value) = 1;
+    else
+      *((int32_t *)value) = 0;
+    break;
+  default:
+    LOG("WARN: MPP ENCODER: %s change:[%d] not support!\n", __func__, change);
   }
 }
 
 void MPPEncoder::set_statistics_switch(bool value) {
-  LOG("[INFO] MPP ENCODER %s statistics\n", value?"enable":"disable");
+  LOG("[INFO] MPP ENCODER %s statistics\n", value ? "enable" : "disable");
   encoder_sta_en = value;
 }
 
@@ -515,14 +525,14 @@ int MPPEncoder::get_statistics_bps() {
 }
 
 int MPPEncoder::get_statistics_fps() {
-    if (!encoder_sta_en)
+  if (!encoder_sta_en)
     LOG("[WARN] MPP ENCODER statistics should enable first!\n");
   return encoded_fps;
 }
 
 #ifdef MPP_SUPPORT_HW_OSD
 
-#define OSD_PTL_SIZE 1024 //Bytes.
+#define OSD_PTL_SIZE 1024 // Bytes.
 
 #ifndef NDEBUG
 static void OsdDummpRegions(OsdRegionData *rdata) {
@@ -540,8 +550,8 @@ static void OsdDummpRegions(OsdRegionData *rdata) {
 }
 
 static void OsdDummpMppOsd(MppEncOSDData *osd) {
-  LOGD("#MPP OsdData: cnt:%d buff:%p, bufSize:%zu\n",
-    osd->num_region, osd->buf, mpp_buffer_get_size(osd->buf));
+  LOGD("#MPP OsdData: cnt:%d buff:%p, bufSize:%zu\n", osd->num_region, osd->buf,
+       mpp_buffer_get_size(osd->buf));
   for (int i = 0; i < OSD_REGIONS_CNT; i++) {
     LOGD("#MPP OsdData[%d]:\n", i);
     LOG("\t enable:%u\n", osd->region[i].enable);
@@ -573,7 +583,7 @@ static void SaveOsdImg(MppEncOSDData *_data, int index) {
     write(fd, ptr, size);
   close(fd);
 }
-#endif //NDEBUG
+#endif // NDEBUG
 
 int MPPEncoder::OsdPaletteSet(uint32_t *ptl_data) {
   if (!ptl_data)
@@ -585,7 +595,7 @@ int MPPEncoder::OsdPaletteSet(uint32_t *ptl_data) {
   MppEncOSDPltCfg osd_plt_cfg;
   MppEncOSDPlt osd_plt;
 
-  //TODO rgba plt to yuva plt.
+  // TODO rgba plt to yuva plt.
   for (int k = 0; k < 256; k++)
     osd_plt.data[k].val = *(ptl_data + k);
 
@@ -600,8 +610,8 @@ int MPPEncoder::OsdPaletteSet(uint32_t *ptl_data) {
   return ret;
 }
 
-static int OsdUpdateRegionInfo(MppEncOSDData *osd,
-  OsdRegionData *region_data, MppBufferGroup buf_grp) {
+static int OsdUpdateRegionInfo(MppEncOSDData *osd, OsdRegionData *region_data,
+                               MppBufferGroup buf_grp) {
   uint32_t new_size = 0;
   uint32_t old_size = 0;
   uint8_t rid = region_data->region_id;
@@ -626,8 +636,7 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
   // avoid opening up too large a buffer at the beginning,
   // and it will not be reduced later.
   if (osd->region[rid].enable)
-    old_size =
-      osd->region[rid].num_mb_x * osd->region[rid].num_mb_y * 256;
+    old_size = osd->region[rid].num_mb_x * osd->region[rid].num_mb_y * 256;
 
   // update region info.
   osd->region[rid].enable = 1;
@@ -639,14 +648,14 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
 
   // 256 * 16 => 4096 is enough for osd.
   assert(osd->region[rid].start_mb_x <= 256);
-  assert(osd->region[rid].start_mb_y <=  256);
-  assert(osd->region[rid].num_mb_x <=  256);
-  assert(osd->region[rid].num_mb_y <=  256);
+  assert(osd->region[rid].start_mb_y <= 256);
+  assert(osd->region[rid].num_mb_x <= 256);
+  assert(osd->region[rid].num_mb_y <= 256);
 
   // region[rid] buffer size is enough, copy data directly.
   if (old_size >= new_size) {
-    LOGD("MPP Encoder: Region[%d] reuse old buff:%u, new_size:%u\n",
-      rid, old_size, new_size);
+    LOGD("MPP Encoder: Region[%d] reuse old buff:%u, new_size:%u\n", rid,
+         old_size, new_size);
     region_src = region_data->buffer;
     region_dst = (uint8_t *)mpp_buffer_get_ptr(osd->buf);
     region_dst += osd->region[rid].buf_offset;
@@ -669,8 +678,7 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
     if (osd->region[i].enable) {
       old_offset[i] = osd->region[i].buf_offset;
       osd->region[i].buf_offset = total_size;
-      total_size +=
-        osd->region[i].num_mb_x * osd->region[i].num_mb_y * 256;
+      total_size += osd->region[i].num_mb_x * osd->region[i].num_mb_y * 256;
       osd->num_region = i + 1;
     } else {
       osd->region[i].start_mb_x = 0;
@@ -684,8 +692,8 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
   old_buff = osd->buf;
   int ret = mpp_buffer_get(buf_grp, &new_buff, total_size);
   if (ret) {
-    LOG("ERROR: MPP Encoder: get osd %dBytes buffer failed(%d)\n",
-      total_size, ret);
+    LOG("ERROR: MPP Encoder: get osd %dBytes buffer failed(%d)\n", total_size,
+        ret);
     // reset target region.
     osd->region[rid].enable = 0;
     osd->region[rid].start_mb_x = 0;
@@ -704,8 +712,7 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
       region_src += old_offset[i];
       region_dst = (uint8_t *)mpp_buffer_get_ptr(new_buff);
       region_dst += osd->region[i].buf_offset;
-      current_size =
-        osd->region[i].num_mb_x * osd->region[i].num_mb_y * 256;
+      current_size = osd->region[i].num_mb_x * osd->region[i].num_mb_y * 256;
     } else {
       // copy current region data to new buffer.
       region_src = region_data->buffer;
@@ -722,7 +729,7 @@ static int OsdUpdateRegionInfo(MppEncOSDData *osd,
 #endif
   }
 
-  //replace old buff with new buff.
+  // replace old buff with new buff.
   osd->buf = new_buff;
   if (old_buff)
     mpp_buffer_put(old_buff);
@@ -737,7 +744,7 @@ int MPPEncoder::OsdRegionSet(OsdRegionData *rdata) {
   LOGD("MPP Encoder: setting osd regions...\n");
   if ((rdata->region_id >= OSD_REGIONS_CNT)) {
     LOG("ERROR: MPP Encoder: invalid region id(%d), should be [0, %d).\n",
-      rdata->region_id, OSD_REGIONS_CNT);
+        rdata->region_id, OSD_REGIONS_CNT);
     return -EINVAL;
   }
 
@@ -746,8 +753,8 @@ int MPPEncoder::OsdRegionSet(OsdRegionData *rdata) {
     return -EINVAL;
   }
 
-  if ((rdata->width % 16) || (rdata->height % 16) ||
-    (rdata->pos_x % 16) || (rdata->pos_y % 16)) {
+  if ((rdata->width % 16) || (rdata->height % 16) || (rdata->pos_x % 16) ||
+      (rdata->pos_y % 16)) {
     LOG("WARN: MPP Encoder: osd size must be 16 aligned\n");
     rdata->width = UPALIGNTO16(rdata->width);
     rdata->height = UPALIGNTO16(rdata->height);
@@ -791,25 +798,30 @@ int MPPEncoder::RoiUpdateRegions(EncROIRegion *regions, int region_cnt) {
   }
 
   for (int i = 0; i < region_cnt; i++) {
-    if ((regions[i].x % 16) || (regions[i].y % 16) ||
-      (regions[i].w % 16) || (regions[i].h % 16)) {
-      LOG("WARN: MPP Encoder: region parameter should be an integer multiple of 16\n");
-      LOG("WARN: MPP Encoder: reset region[%d] frome <%d,%d,%d,%d> to <%d,%d,%d,%d>\n",
-        i, regions[i].x, regions[i].y, regions[i].w, regions[i].h,
-        UPALIGNTO16(regions[i].x), UPALIGNTO16(regions[i].y),
-        UPALIGNTO16(regions[i].w), UPALIGNTO16(regions[i].h));
+    if ((regions[i].x % 16) || (regions[i].y % 16) || (regions[i].w % 16) ||
+        (regions[i].h % 16)) {
+      LOG("WARN: MPP Encoder: region parameter should be an integer multiple "
+          "of 16\n");
+      LOG("WARN: MPP Encoder: reset region[%d] frome <%d,%d,%d,%d> to "
+          "<%d,%d,%d,%d>\n",
+          i, regions[i].x, regions[i].y, regions[i].w, regions[i].h,
+          UPALIGNTO16(regions[i].x), UPALIGNTO16(regions[i].y),
+          UPALIGNTO16(regions[i].w), UPALIGNTO16(regions[i].h));
       regions[i].x = UPALIGNTO16(regions[i].x);
       regions[i].y = UPALIGNTO16(regions[i].y);
       regions[i].w = UPALIGNTO16(regions[i].w);
       regions[i].h = UPALIGNTO16(regions[i].h);
     }
-    LOGD("MPP Encoder: roi region[%d]:<%d,%d,%d,%d>\n",
-      i, regions[i].x, regions[i].y, regions[i].w, regions[i].h);
+    LOGD("MPP Encoder: roi region[%d]:<%d,%d,%d,%d>\n", i, regions[i].x,
+         regions[i].y, regions[i].w, regions[i].h);
     LOGD("MPP Encoder: roi region[%d].intra=%d,\n", i, regions[i].intra);
     LOGD("MPP Encoder: roi region[%d].quality=%d,\n", i, regions[i].quality);
-    LOGD("MPP Encoder: roi region[%d].abs_qp_en=%d,\n", i, regions[i].abs_qp_en);
-    LOGD("MPP Encoder: roi region[%d].qp_area_idx=%d,\n", i, regions[i].qp_area_idx);
-    LOGD("MPP Encoder: roi region[%d].area_map_en=%d,\n", i, regions[i].area_map_en);
+    LOGD("MPP Encoder: roi region[%d].abs_qp_en=%d,\n", i,
+         regions[i].abs_qp_en);
+    LOGD("MPP Encoder: roi region[%d].qp_area_idx=%d,\n", i,
+         regions[i].qp_area_idx);
+    LOGD("MPP Encoder: roi region[%d].area_map_en=%d,\n", i,
+         regions[i].area_map_en);
     assert(regions[i].x < 8192);
     assert(regions[i].y < 8192);
     assert(regions[i].w < 8192);
@@ -849,7 +861,8 @@ int MPPEncoder::SetUserData(const char *data, uint16_t len) {
   if (valid_size > MPP_ENCODER_USERDATA_MAX_SIZE) {
     valid_size = MPP_ENCODER_USERDATA_MAX_SIZE;
     LOG("WARN: Mpp Encoder: UserData exceeds maximum length(%d),"
-      "Reset to %d\n", valid_size, valid_size);
+        "Reset to %d\n",
+        valid_size, valid_size);
   }
 
   if (valid_size)
@@ -859,13 +872,9 @@ int MPPEncoder::SetUserData(const char *data, uint16_t len) {
   return 0;
 }
 
-void MPPEncoder::ClearUserData() {
-  userdata_len = 0;
-}
+void MPPEncoder::ClearUserData() { userdata_len = 0; }
 
-void MPPEncoder::RestartUserData() {
-  userdata_frame_id = 0;
-}
+void MPPEncoder::RestartUserData() { userdata_frame_id = 0; }
 
 void MPPEncoder::EnableUserDataAllFrame(bool value) {
   userdata_all_frame_en = value ? 1 : 0;

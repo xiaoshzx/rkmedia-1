@@ -2043,6 +2043,7 @@ RK_S32 RK_MPI_VENC_SetGop(VENC_CHN VeChn, RK_U32 u32Gop) {
   g_venc_mtx.unlock();
   return RK_ERR_SYS_OK;
 }
+
 RK_S32 RK_MPI_VENC_SetAvcProfile(VENC_CHN VeChn, RK_U32 u32Profile,
                                  RK_U32 u32Level) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
@@ -2133,6 +2134,24 @@ RK_S32 RK_MPI_VENC_SetRoiAttr(VENC_CHN VeChn, const VENC_ROI_ATTR_S *pstRoiAttr,
   return ret ? -RK_ERR_VENC_NOTREADY : RK_ERR_SYS_OK;
 }
 
+RK_S32 RK_MPI_VENC_SetResolution(VENC_CHN VeChn,
+                                 VENC_RESOLUTION_PARAM_S stResolutionParam) {
+  if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
+    return -RK_ERR_VENC_INVALID_CHNID;
+  if (g_venc_chns[VeChn].status < CHN_STATUS_OPEN)
+    return -RK_ERR_VENC_NOTREADY;
+
+  g_venc_mtx.lock();
+  VideoResolutionCfg vid_cfg;
+  vid_cfg.width = stResolutionParam.u32Width;
+  vid_cfg.height = stResolutionParam.u32Height;
+  vid_cfg.vir_width = stResolutionParam.u32VirWidht;
+  vid_cfg.vir_height = stResolutionParam.u32VirHeight;
+
+  video_encoder_set_resolution(g_venc_chns[VeChn].rkmedia_flow, &vid_cfg);
+  g_venc_mtx.unlock();
+  return RK_ERR_SYS_OK;
+}
 RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN VeChn) {
   if ((VeChn < 0) || (VeChn >= VENC_MAX_CHN_NUM))
     return -RK_ERR_VENC_INVALID_CHNID;
