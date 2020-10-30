@@ -13,8 +13,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "rockx.h"
 #include "stdbool.h"
+#include "rockx.h"
 
 #define MAX_SESSION_NUM 2
 #define DRAW_INDEX 0
@@ -258,6 +258,7 @@ static void *GetMediaBuffer(void *arg) {
   }
   // release
   rockx_image_release(&input_image);
+  rockx_destroy(object_track_handle);
   rockx_destroy(object_det_handle);
 
   return NULL;
