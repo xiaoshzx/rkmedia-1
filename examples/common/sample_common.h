@@ -10,17 +10,18 @@
 #include "rkmedia_common.h"
 
 #ifdef RKAIQ
+
 #include <rk_aiq_user_api_imgproc.h>
 #include <rk_aiq_user_api_sysctl.h>
 /*
  * stream on:
  * 1) ISP Init
- * 2) ISP Stop
+ * 2) ISP Run
  * 3) VI enable and stream on
  *
  * stream off:
- * 4) ISP Stop
- * 5) VI disable
+ * 4) VI disable
+ * 5) ISP Stop
  */
 /*
 typedef enum {

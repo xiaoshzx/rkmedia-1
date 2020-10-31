@@ -3573,8 +3573,7 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
   if ((VoChn < 0) || (VoChn >= VO_MAX_CHN_NUM))
     return -RK_ERR_VO_INVALID_DEVID;
 
-  if (!pstAttr || !pstAttr->u32Width || !pstAttr->u32Height ||
-      !pstAttr->u32HorStride || !pstAttr->u32VerStride)
+  if (!pstAttr)
     return -RK_ERR_VO_ILLEGAL_PARAM;
 
   switch (pstAttr->emPlaneType) {
@@ -3613,12 +3612,12 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
   } else {
     PARAM_STRING_APPEND(stream_param, KEY_DEVICE, pstAttr->pcDevNode);
   }
-  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_WIDTH, pstAttr->u32Width);
-  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_HEIGHT, pstAttr->u32Height);
-  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_VIR_WIDTH,
-                         pstAttr->u32HorStride);
-  PARAM_STRING_APPEND_TO(stream_param, KEY_BUFFER_VIR_HEIGHT,
-                         pstAttr->u32VerStride);
+  if (pstAttr->u16ConIdx)
+    PARAM_STRING_APPEND_TO(stream_param, "connector_id", pstAttr->u16ConIdx);
+  if (pstAttr->u16EncIdx)
+    PARAM_STRING_APPEND_TO(stream_param, "encoder_id", pstAttr->u16EncIdx);
+  if (pstAttr->u16CrtcIdx)
+    PARAM_STRING_APPEND_TO(stream_param, "crtc_id", pstAttr->u16CrtcIdx);
   PARAM_STRING_APPEND_TO(stream_param, "framerate", pstAttr->u16Fps);
   PARAM_STRING_APPEND(stream_param, "plane_type", pcPlaneType);
   PARAM_STRING_APPEND_TO(stream_param, "ZPOS", pstAttr->u16Zpos);
@@ -3632,6 +3631,29 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
     g_vo_mtx.unlock();
     return -RK_ERR_VO_BUSY;
   }
+
+  if (pstAttr->stImgRect.s32X || pstAttr->stImgRect.s32Y ||
+      pstAttr->stImgRect.u32Width || pstAttr->stImgRect.u32Height) {
+    ImageRect ImgRect = {pstAttr->stImgRect.s32X, pstAttr->stImgRect.s32Y,
+                         (int)pstAttr->stImgRect.u32Width, (int)pstAttr->stImgRect.u32Height};
+    if (g_vo_chns[VoChn].rkmedia_flow->Control(S_SOURCE_RECT, &ImgRect)) {
+      g_vo_chns[VoChn].rkmedia_flow.reset();
+      g_vo_mtx.unlock();
+      return -RK_ERR_VO_ILLEGAL_PARAM;
+    }
+  }
+
+  if (pstAttr->stDispRect.s32X || pstAttr->stDispRect.s32Y ||
+      pstAttr->stDispRect.u32Width || pstAttr->stDispRect.u32Height) {
+    ImageRect PlaneRect = {pstAttr->stDispRect.s32X, pstAttr->stDispRect.s32Y,
+                           (int)pstAttr->stDispRect.u32Width, (int)pstAttr->stDispRect.u32Height};
+    if (g_vo_chns[VoChn].rkmedia_flow->Control(S_DESTINATION_RECT, &PlaneRect)) {
+      g_vo_chns[VoChn].rkmedia_flow.reset();
+      g_vo_mtx.unlock();
+      return -RK_ERR_VO_ILLEGAL_PARAM;
+    }
+  }
+
   g_vo_chns[VoChn].status = CHN_STATUS_OPEN;
   g_vo_mtx.unlock();
   LOG("\n%s %s: Enable VO[%d] End!\n", LOG_TAG, __func__, VoChn);

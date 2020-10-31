@@ -357,6 +357,14 @@ bool DRMOutPutStream::Write(std::shared_ptr<MediaBuffer> input) {
     den = in_den * drm_num;
   }
 
+  if ((input_img->GetVirWidth() < (src_rect.x + src_rect.w)) ||
+      (input_img->GetVirHeight() < (src_rect.y + src_rect.h))) {
+    LOG("ERROR: DrmDisp: InBuf<%dx%d> does not match the imgRect<%d,%d,%d,%d>\n",
+        input_img->GetVirWidth(), input_img->GetVirHeight(),
+        src_rect.x, src_rect.y, src_rect.w, src_rect.h);
+    return false;
+  }
+
   uint32_t disp_fb_id = 0;
   auto disp =
       std::make_shared<DRMDisplayBuffer>(input_img, dev, drm_fmt, num, den);
@@ -380,6 +388,9 @@ bool DRMOutPutStream::Write(std::shared_ptr<MediaBuffer> input) {
     disp_buffer = disp;
     return true;
   }
+  LOG("ERROR: DrmDisp: %d:%d::Imgbuf<%d,%d,%d,%d> display with <%d,%d,%d,%d> failed!\n",
+      crtc_id, plane_id, src_rect.x, src_rect.y, src_rect.w, src_rect.h,
+      dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h);
   return false;
 }
 

@@ -71,8 +71,8 @@ DRMStream::DRMStream(const char *param, bool as)
 }
 
 void DRMStream::SetModeInfo(const drmModeModeInfo &mode) {
-  if (img_info.vir_width > mode.hdisplay ||
-      img_info.vir_height > mode.vdisplay) {
+  if (img_info.vir_width != mode.hdisplay ||
+      img_info.vir_height != mode.vdisplay) {
     img_info.width = img_info.vir_width = mode.hdisplay;
     img_info.height = img_info.vir_height = mode.vdisplay;
   }
@@ -237,6 +237,7 @@ bool DRMStream::GetAgreeableIDSet() {
   if (i < ids.count_connectors) {
     auto dme = get_encoder_by_id(res, encoder_id);
     active = (dme->crtc_id > 0 && dme->crtc_id == crtc_id);
+#if 0
     if (active) {
       uint64_t value = 0;
       get_property_id(res, DRM_MODE_OBJECT_PLANE, plane_id, KEY_CRTC_W, &value);
@@ -248,6 +249,7 @@ bool DRMStream::GetAgreeableIDSet() {
       if (crtc_w && crtc_h)
         active = ((img_info.width <= crtc_w) && (img_info.height <= crtc_h));
     }
+#endif
 
     if (!active) {
       auto dmc = get_connector_by_id(res, connector_id);

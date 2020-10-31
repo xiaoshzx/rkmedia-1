@@ -18,14 +18,15 @@ typedef enum rk_VO_PLANE_TYPE_E {
 
 typedef struct rkVO_CHN_ATTR_S {
   const RK_CHAR *pcDevNode;
+  RK_U16 u16ConIdx; // Connectors idx
+  RK_U16 u16EncIdx; // Encoder idx
+  RK_U16 u16CrtcIdx; // CRTC idx
   VO_PLANE_TYPE_E emPlaneType;
-  RK_U32 u32Width;
-  RK_U32 u32Height;
-  RK_U32 u32VerStride;
-  RK_U32 u32HorStride;
   IMAGE_TYPE_E enImgType;
   RK_U16 u16Fps;
   RK_U16 u16Zpos;
+  RECT_S stImgRect;
+  RECT_S stDispRect;
 } VO_CHN_ATTR_S;
 
 #ifdef __cplusplus

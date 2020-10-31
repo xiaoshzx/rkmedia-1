@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
   int ret = 0;
   int video_width = 1920;
   int video_hegith = 1080;
-  int disp_widht = 720;
+  int disp_width = 720;
   int disp_height = 1280;
   int id = 0;
   char *iq_dir = NULL;
@@ -109,9 +109,9 @@ int main(int argc, char *argv[]) {
   stRgaAttr.stImgOut.u32X = 0;
   stRgaAttr.stImgOut.u32Y = 0;
   stRgaAttr.stImgOut.imgType = IMAGE_TYPE_NV12;
-  stRgaAttr.stImgOut.u32Width = disp_widht;
+  stRgaAttr.stImgOut.u32Width = disp_width;
   stRgaAttr.stImgOut.u32Height = disp_height;
-  stRgaAttr.stImgOut.u32HorStride = disp_widht;
+  stRgaAttr.stImgOut.u32HorStride = disp_width;
   stRgaAttr.stImgOut.u32VirStride = disp_height;
   ret = RK_MPI_RGA_CreateChn(0, &stRgaAttr);
   if (ret) {
@@ -132,9 +132,9 @@ int main(int argc, char *argv[]) {
   stRgaAttr.stImgOut.u32X = 0;
   stRgaAttr.stImgOut.u32Y = 0;
   stRgaAttr.stImgOut.imgType = IMAGE_TYPE_NV12;
-  stRgaAttr.stImgOut.u32Width = disp_widht;
+  stRgaAttr.stImgOut.u32Width = disp_width;
   stRgaAttr.stImgOut.u32Height = disp_height;
-  stRgaAttr.stImgOut.u32HorStride = disp_widht;
+  stRgaAttr.stImgOut.u32HorStride = disp_width;
   stRgaAttr.stImgOut.u32VirStride = disp_height;
   ret = RK_MPI_RGA_CreateChn(1, &stRgaAttr);
   if (ret) {
@@ -144,12 +144,15 @@ int main(int argc, char *argv[]) {
   VO_CHN_ATTR_S stVoAttr = {0};
   stVoAttr.emPlaneType = VO_PLANE_OVERLAY;
   stVoAttr.enImgType = IMAGE_TYPE_NV12;
-  stVoAttr.u16Fps = 60;
   stVoAttr.u16Zpos = 0;
-  stVoAttr.u32Width = disp_widht;
-  stVoAttr.u32Height = disp_height;
-  stVoAttr.u32HorStride = disp_widht;
-  stVoAttr.u32VerStride = disp_height;
+  stVoAttr.stImgRect.s32X = 0;
+  stVoAttr.stImgRect.s32Y = 0;
+  stVoAttr.stImgRect.u32Width = disp_width;
+  stVoAttr.stImgRect.u32Height = disp_height;
+  stVoAttr.stDispRect.s32X = 0;
+  stVoAttr.stDispRect.s32Y = 0;
+  stVoAttr.stDispRect.u32Width = disp_width;
+  stVoAttr.stDispRect.u32Height = disp_height;
   ret = RK_MPI_VO_CreateChn(0, &stVoAttr);
   if (ret) {
     printf("Create vo[0] failed! ret=%d\n", ret);

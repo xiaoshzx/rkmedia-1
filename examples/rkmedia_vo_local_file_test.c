@@ -92,10 +92,14 @@ int main(int argc, char *argv[]) {
   stVoAttr.pcDevNode = "/dev/dri/card0";
   stVoAttr.u16Fps = 60;
   stVoAttr.u16Zpos = u32Zpos;
-  stVoAttr.u32Width = u32DispWidth;
-  stVoAttr.u32Height = u32DispHeight;
-  stVoAttr.u32HorStride = u32DispWidth;
-  stVoAttr.u32VerStride = u32DispHeight;
+  stVoAttr.stImgRect.s32X = 0;
+  stVoAttr.stImgRect.s32Y = 0;
+  stVoAttr.stImgRect.u32Width = u32DispWidth;
+  stVoAttr.stImgRect.u32Height = u32DispHeight;
+  stVoAttr.stDispRect.s32X = 0;
+  stVoAttr.stDispRect.s32Y = 0;
+  stVoAttr.stDispRect.u32Width = u32DispWidth;
+  stVoAttr.stDispRect.u32Height = u32DispHeight;
   if (!strcmp(u32PlaneType, "Primary")) {
     // VO[0] for primary plane
     stVoAttr.emPlaneType = VO_PLANE_PRIMARY;

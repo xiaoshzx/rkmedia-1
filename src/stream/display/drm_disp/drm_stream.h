@@ -42,7 +42,7 @@ protected:
   bool accept_scale;
   std::string device;
   std::string data_type;
-  ImageInfo img_info;
+  ImageInfo img_info; // Plane mode display img info.
   int fps;
   uint32_t connector_id; // plane_id is more preferred than connector_id
   uint32_t crtc_id;

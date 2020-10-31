@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
   int video_height = 1080;
   int video1_width = 640;
   int video1_height = 360;
-  int disp_widht = 720;
+  int disp_width = 720;
   int disp_height = 1280;
   int disp1_width = 360;
   int disp1_height = 640;
@@ -98,9 +98,9 @@ int main(int argc, char *argv[]) {
   stRgaAttr.stImgOut.u32X = 0;
   stRgaAttr.stImgOut.u32Y = 0;
   stRgaAttr.stImgOut.imgType = IMAGE_TYPE_RGB888;
-  stRgaAttr.stImgOut.u32Width = disp_widht;
+  stRgaAttr.stImgOut.u32Width = disp_width;
   stRgaAttr.stImgOut.u32Height = disp_height;
-  stRgaAttr.stImgOut.u32HorStride = disp_widht;
+  stRgaAttr.stImgOut.u32HorStride = disp_width;
   stRgaAttr.stImgOut.u32VirStride = disp_height;
   ret = RK_MPI_RGA_CreateChn(0, &stRgaAttr);
   if (ret) {
@@ -137,12 +137,11 @@ int main(int argc, char *argv[]) {
   stVoAttr.pcDevNode = "/dev/dri/card0";
   stVoAttr.emPlaneType = VO_PLANE_PRIMARY;
   stVoAttr.enImgType = IMAGE_TYPE_RGB888;
-  stVoAttr.u16Fps = 60;
   stVoAttr.u16Zpos = 0;
-  stVoAttr.u32Width = disp_widht;
-  stVoAttr.u32Height = disp_height;
-  stVoAttr.u32HorStride = disp_widht;
-  stVoAttr.u32VerStride = disp_height;
+  stVoAttr.stDispRect.s32X = 0;
+  stVoAttr.stDispRect.s32Y = 0;
+  stVoAttr.stDispRect.u32Width = disp_width;
+  stVoAttr.stDispRect.u32Height = disp_height;
   ret = RK_MPI_VO_CreateChn(0, &stVoAttr);
   if (ret) {
     printf("Create vo[0] failed! ret=%d\n", ret);
@@ -154,12 +153,15 @@ int main(int argc, char *argv[]) {
   stVoAttr.pcDevNode = "/dev/dri/card0";
   stVoAttr.emPlaneType = VO_PLANE_OVERLAY;
   stVoAttr.enImgType = IMAGE_TYPE_NV12;
-  stVoAttr.u16Fps = 60;
   stVoAttr.u16Zpos = 1;
-  stVoAttr.u32Width = disp1_width;
-  stVoAttr.u32Height = disp1_height;
-  stVoAttr.u32HorStride = disp1_width;
-  stVoAttr.u32VerStride = disp1_height;
+  stVoAttr.stImgRect.s32X = 0;
+  stVoAttr.stImgRect.s32Y = 0;
+  stVoAttr.stImgRect.u32Width = disp1_width;
+  stVoAttr.stImgRect.u32Height = disp1_height;
+  stVoAttr.stDispRect.s32X = 0;
+  stVoAttr.stDispRect.s32Y = 0;
+  stVoAttr.stDispRect.u32Width = disp1_width;
+  stVoAttr.stDispRect.u32Height = disp1_height;
   ret = RK_MPI_VO_CreateChn(1, &stVoAttr);
   if (ret) {
     printf("Create vo[1] failed! ret=%d\n", ret);

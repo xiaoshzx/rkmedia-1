@@ -109,12 +109,15 @@ int main() {
   stVoAttr.pcDevNode = "/dev/dri/card0";
   stVoAttr.emPlaneType = VO_PLANE_OVERLAY;
   stVoAttr.enImgType = IMAGE_TYPE_NV12;
-  stVoAttr.u16Fps = 60;
   stVoAttr.u16Zpos = 1;
-  stVoAttr.u32Width = CROP_TARGET_WIDTH;
-  stVoAttr.u32Height = CROP_TARGET_HEIGHT;
-  stVoAttr.u32HorStride = CROP_TARGET_WIDTH;
-  stVoAttr.u32VerStride = CROP_TARGET_HEIGHT;
+  stVoAttr.stImgRect.s32X = 0;
+  stVoAttr.stImgRect.s32Y = 0;
+  stVoAttr.stImgRect.u32Width = CROP_TARGET_WIDTH;
+  stVoAttr.stImgRect.u32Height = CROP_TARGET_HEIGHT;
+  stVoAttr.stDispRect.s32X = 0;
+  stVoAttr.stDispRect.s32Y = 0;
+  stVoAttr.stDispRect.u32Width = CROP_TARGET_WIDTH;
+  stVoAttr.stDispRect.u32Height = CROP_TARGET_HEIGHT;
   ret = RK_MPI_VO_CreateChn(0, &stVoAttr);
   if (ret) {
     printf("Create vo[0] failed! ret=%d\n", ret);
