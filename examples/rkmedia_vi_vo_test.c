@@ -229,11 +229,14 @@ int main(int argc, char *argv[]) {
     printf("UnBind vi[0] to rga[0] failed! ret=%d\n", ret);
     return -1;
   }
+
+  stSrcChn.enModId = RK_ID_VI;
+  stSrcChn.s32ChnId = 1;
   stDestChn.enModId = RK_ID_RGA;
   stDestChn.s32ChnId = 1;
   ret = RK_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
   if (ret) {
-    printf("UnBind vi[0] to rga[1] failed! ret=%d\n", ret);
+    printf("UnBind vi[1] to rga[1] failed! ret=%d\n", ret);
     return -1;
   }
 
@@ -265,6 +268,7 @@ int main(int argc, char *argv[]) {
   RK_MPI_RGA_DestroyChn(0);
   RK_MPI_RGA_DestroyChn(1);
   RK_MPI_VI_DisableChn(0, 0);
+  RK_MPI_VI_DisableChn(0, 1);
 
   return 0;
 }
