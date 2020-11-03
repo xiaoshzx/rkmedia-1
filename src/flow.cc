@@ -23,6 +23,8 @@ public:
   bool Start();
   void RunOnce();
   int GetCachedBufferCnt();
+  bool IsProcessing();
+  void ClearCachedBuffers();
 
 private:
   void WhileRun();
@@ -49,6 +51,9 @@ private:
   std::vector<int> out_slots;
   std::thread *th;
   FunctionProcess th_run;
+  bool is_processing;
+  bool clear_buffers_enable;
+  ConditionLockMutex clear_buffers_mtx;
 
   MediaBufferVector in_vector;
   decltype(&FlowCoroutine::SyncFetchInput) fetch_input_func;
@@ -65,9 +70,7 @@ public:
 FlowCoroutine::FlowCoroutine(Flow *f, Model sync_model, FunctionProcess func,
                              float inter)
     : flow(f), model(sync_model), interval(inter), th(nullptr), th_run(func),
-      expect_process_time(0)
-
-{}
+      is_processing(false), clear_buffers_enable(false), expect_process_time(0) {}
 
 FlowCoroutine::~FlowCoroutine() {
   if (th) {
@@ -135,7 +138,9 @@ void FlowCoroutine::RunOnce() {
     {
       AutoDuration ad;
 #endif
+      is_processing = true;
       ret = (*th_run)(flow, in_vector);
+      is_processing = false;
 #ifndef NDEBUG
       if (expect_process_time > 0)
         check_consume_time(name.c_str(), expect_process_time,
@@ -154,6 +159,8 @@ void FlowCoroutine::RunOnce() {
   }
   for (auto &buffer : in_vector)
     buffer.reset();
+
+  pthread_yield();
 }
 
 void FlowCoroutine::WhileRun() {
@@ -202,6 +209,20 @@ void FlowCoroutine::ASyncFetchInputCommon(MediaBufferVector &in) {
     if (!v.empty())
       empty = false;
   }
+
+  if (clear_buffers_enable) {
+    clear_buffers_mtx.lock();
+    clear_buffers_enable = false;
+    for (size_t i = 0; i < in_slots.size(); i++) {
+      int idx = in_slots[i];
+      auto &input = flow->v_input[idx];
+      auto &v = input.cached_buffers;
+      v.clear();
+    }
+    clear_buffers_mtx.unlock();
+    empty = true;
+  }
+
   if (empty && !flow->quit)
     flow->cond_mtx.wait();
   flow->cond_mtx.unlock();
@@ -302,6 +323,16 @@ int FlowCoroutine::GetCachedBufferCnt() {
   return cnt;
 }
 
+bool FlowCoroutine::IsProcessing() {
+  return is_processing;
+}
+
+void FlowCoroutine::ClearCachedBuffers() {
+  clear_buffers_mtx.lock();
+  clear_buffers_enable = true;
+  clear_buffers_mtx.unlock();
+}
+
 DEFINE_REFLECTOR(Flow)
 DEFINE_FACTORY_COMMON_PARSE(Flow)
 DEFINE_PART_FINAL_EXPOSE_PRODUCT(Flow, Flow)
@@ -371,6 +402,35 @@ bool Flow::IsAllBuffEmpty() {
   }
 
   return true;
+}
+
+int Flow::GetCachedBufferNum(unsigned int &total, unsigned int &used) {
+  unsigned int buf_used_cnt = 0;
+  unsigned int buf_total_cnt = 0;
+  for (auto &input : v_input) {
+    if (input.cached_buffers.size() > 0)
+      buf_used_cnt += input.cached_buffers.size();
+    else if (input.cached_buffer)
+      buf_used_cnt += 1;
+
+    buf_total_cnt += (input.max_cache_num + 1);
+  }
+
+  for (auto &coroutin : coroutines) {
+    if (coroutin->IsProcessing())
+      buf_used_cnt++;
+  }
+
+  total = buf_total_cnt;
+  used = buf_used_cnt;
+
+  return 0;
+}
+
+void Flow::ClearCachedBuffers() {
+  for (auto &coroutin : coroutines) {
+    coroutin->ClearCachedBuffers();
+  }
 }
 
 void Flow::StartStream() {
@@ -824,6 +884,7 @@ void Flow::Input::ASyncSendInputCommonBehavior(
   mtx.unlock();
   AutoLockMutex _alm(flow->cond_mtx);
   flow->cond_mtx.notify();
+  pthread_yield();
 }
 
 void Flow::Input::ASyncSendInputAtomicBehavior(

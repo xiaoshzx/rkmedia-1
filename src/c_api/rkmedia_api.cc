@@ -2892,7 +2892,7 @@ RK_S32 RK_MPI_AO_SetChnAttr(AO_CHN AoChn, const AO_CHN_ATTR_S *pstAttr) {
 
 RK_S32 RK_MPI_AO_EnableChn(AO_CHN AoChn) {
   if ((AoChn < 0) || (AoChn >= AO_MAX_CHN_NUM))
-    return RK_ERR_AO_INVALID_DEVID;
+    return -RK_ERR_AO_INVALID_DEVID;
   g_ao_mtx.lock();
   if (g_ao_chns[AoChn].status != CHN_STATUS_READY) {
     g_ao_mtx.unlock();
@@ -2919,16 +2919,61 @@ RK_S32 RK_MPI_AO_EnableChn(AO_CHN AoChn) {
 
 RK_S32 RK_MPI_AO_DisableChn(AO_CHN AoChn) {
   if ((AoChn < 0) || (AoChn > AO_MAX_CHN_NUM))
-    return RK_ERR_AO_INVALID_DEVID;
+    return -RK_ERR_AO_INVALID_DEVID;
 
   g_ao_mtx.lock();
   if (g_ao_chns[AoChn].status == CHN_STATUS_BIND) {
     g_ao_mtx.unlock();
-    return -RK_ERR_AI_BUSY;
+    return -RK_ERR_AO_BUSY;
   }
   g_ao_chns[AoChn].rkmedia_flow.reset();
   RkmediaChnClearBuffer(&g_ao_chns[AoChn]);
   g_ao_chns[AoChn].status = CHN_STATUS_CLOSED;
+  g_ao_mtx.unlock();
+
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AO_QueryChnStat(AO_CHN AoChn, AO_CHN_STATE_S *pstStatus) {
+  if ((AoChn < 0) || (AoChn > AO_MAX_CHN_NUM))
+    return -RK_ERR_AO_INVALID_DEVID;
+
+  if (!pstStatus)
+    return -RK_ERR_AO_ILLEGAL_PARAM;
+
+  g_ao_mtx.lock();
+  if ((g_ao_chns[AoChn].status < CHN_STATUS_OPEN) ||
+      (!g_ao_chns[AoChn].rkmedia_flow)) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AO_BUSY;
+  }
+
+  RK_U32 u32BufferTotalCnt = 0;
+  RK_U32 u32BufferUsedCnt = 0;
+  RK_U32 u32BufferFreeCnt = 0;
+  g_ao_chns[AoChn].rkmedia_flow->GetCachedBufferNum(u32BufferTotalCnt, u32BufferUsedCnt);
+  g_ao_mtx.unlock();
+
+  u32BufferFreeCnt = u32BufferTotalCnt - u32BufferUsedCnt;
+  pstStatus->u32ChnTotalNum = u32BufferTotalCnt;
+  pstStatus->u32ChnFreeNum = u32BufferFreeCnt;
+  pstStatus->u32ChnBusyNum = u32BufferUsedCnt;
+
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_AO_ClearChnBuf(AO_CHN AoChn) {
+  if ((AoChn < 0) || (AoChn > AO_MAX_CHN_NUM))
+    return -RK_ERR_AO_INVALID_DEVID;
+
+  g_ao_mtx.lock();
+  if ((g_ao_chns[AoChn].status < CHN_STATUS_OPEN) ||
+      (!g_ao_chns[AoChn].rkmedia_flow)) {
+    g_ao_mtx.unlock();
+    return -RK_ERR_AO_BUSY;
+  }
+
+  g_ao_chns[AoChn].rkmedia_flow->ClearCachedBuffers();
   g_ao_mtx.unlock();
 
   return RK_ERR_SYS_OK;

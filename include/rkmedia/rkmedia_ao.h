@@ -26,6 +26,12 @@ typedef struct rkAO_VQE_CONFIG_S
   RK_CHAR aParamFilePath[MAX_FILE_PATH_LEN];
 } AO_VQE_CONFIG_S;
 
+typedef struct rkAO_CHN_STATE_S {
+  RK_U32 u32ChnTotalNum;
+  RK_U32 u32ChnFreeNum;
+  RK_U32 u32ChnBusyNum;
+} AO_CHN_STATE_S;
+
 #ifdef __cplusplus
 }
 #endif

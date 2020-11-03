@@ -172,6 +172,8 @@ public:
   virtual void Dump(std::string &dump_info) { DumpBase(dump_info); }
 
   void StartStream();
+  int GetCachedBufferNum(unsigned int &total, unsigned int &used);
+  void ClearCachedBuffers();
 
 protected:
   class FlowInputMap {

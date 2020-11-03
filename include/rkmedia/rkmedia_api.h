@@ -165,6 +165,8 @@ _CAPI RK_S32 RK_MPI_AO_SetVqeAttr(AO_CHN AoChn, AO_VQE_CONFIG_S *pstVqeConfig);
 _CAPI RK_S32 RK_MPI_AO_GetVqeAttr(AO_CHN AoChn, AO_VQE_CONFIG_S *pstVqeConfig);
 _CAPI RK_S32 RK_MPI_AO_EnableVqe(AO_CHN AoChn);
 _CAPI RK_S32 RK_MPI_AO_DisableVqe(AO_CHN AoChn);
+_CAPI RK_S32 RK_MPI_AO_QueryChnStat(AO_CHN AoChn, AO_CHN_STATE_S *pstStatus);
+_CAPI RK_S32 RK_MPI_AO_ClearChnBuf(AO_CHN AoChn);
 
 /********************************************************************
  * Aenc api

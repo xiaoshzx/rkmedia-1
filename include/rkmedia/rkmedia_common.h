@@ -206,6 +206,7 @@ enum {
   RK_ERR_AO_NOTREADY,
   /* system is not open, had not initaled or enabled*/
   RK_ERR_AO_NOTOPEN,
+  RK_ERR_AO_ILLEGAL_PARAM,
 
   /***********************************
    * AENC::Audio encoder error types
