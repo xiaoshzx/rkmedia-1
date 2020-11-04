@@ -317,3 +317,15 @@ MEDIA_BUFFER RK_MPI_MB_ConvertToAudBuffer(MEDIA_BUFFER mb) {
   mb_impl->type = MB_TYPE_AUDIO;
   return mb_impl;
 }
+
+RK_S32 RK_MPI_MB_GetImageInfo(MEDIA_BUFFER mb, MB_IMAGE_INFO_S *pstImageInfo) {
+  if (!mb || !pstImageInfo)
+    return -RK_ERR_SYS_ILLEGAL_PARAM;
+
+  MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)mb;
+  if (mb_impl->type != MB_TYPE_IMAGE)
+    return -RK_ERR_SYS_NOT_PERM;
+
+  *pstImageInfo = mb_impl->stImageInfo;
+  return RK_ERR_SYS_OK;
+}

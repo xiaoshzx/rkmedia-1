@@ -43,11 +43,17 @@ static void *GetMediaBuffer(void *arg) {
       break;
     }
 
+    MB_IMAGE_INFO_S stImageInfo = {0};
+    int ret = RK_MPI_MB_GetImageInfo(mb, &stImageInfo);
+    if (ret)
+      printf("Warn: Get image info failed! ret = %d\n", ret);
+
     printf("Get Frame:ptr:%p, fd:%d, size:%zu, mode:%d, channel:%d, "
-           "timestamp:%lld\n",
+           "timestamp:%lld, ImgInfo:<wxh %dx%d, fmt 0x%x>\n",
            RK_MPI_MB_GetPtr(mb), RK_MPI_MB_GetFD(mb), RK_MPI_MB_GetSize(mb),
            RK_MPI_MB_GetModeID(mb), RK_MPI_MB_GetChannelID(mb),
-           RK_MPI_MB_GetTimestamp(mb));
+           RK_MPI_MB_GetTimestamp(mb), stImageInfo.u32Width,
+           stImageInfo.u32Height, stImageInfo.enImgType);
 
     if (save_file && (save_cnt-- > 0)) {
       fwrite(RK_MPI_MB_GetPtr(mb), 1, RK_MPI_MB_GetSize(mb), save_file);
@@ -55,6 +61,8 @@ static void *GetMediaBuffer(void *arg) {
     }
 
     RK_MPI_MB_ReleaseBuffer(mb);
+    if (save_cnt <= 0)
+      quit = true;
   }
 
   if (save_file)
@@ -66,8 +74,7 @@ static void *GetMediaBuffer(void *arg) {
 static RK_CHAR optstr[] = "?:d:w:h:c:o:a:x:";
 static void print_usage(const RK_CHAR *name) {
   printf("usage example:\n");
-  printf("\t%s -d rkispp_scale0 -w 1920 -h 1080 -c 10 -o test.yuv\n",
-         name);
+  printf("\t%s -d rkispp_scale0 -w 1920 -h 1080 -c 10 -o test.yuv\n", name);
   printf("\t-d: device node, Default: NULL\n");
   printf("\t-w: width, Default:1920\n");
   printf("\t-h: height, Default:1080\n");
@@ -159,7 +166,7 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, sigterm_handler);
 
   pthread_t read_thread;
-  OutputArgs outArgs = { pOutPath, u32FrameCnt };
+  OutputArgs outArgs = {pOutPath, u32FrameCnt};
   pthread_create(&read_thread, NULL, GetMediaBuffer, &outArgs);
   ret = RK_MPI_VI_StartStream(0, 0);
   if (ret) {

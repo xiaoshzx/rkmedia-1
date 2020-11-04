@@ -610,6 +610,16 @@ FlowOutputCallback(void *handle,
     mb->flag = 0;
     mb->tsvc_level = 0;
   }
+  if (mb_type == MB_TYPE_IMAGE) {
+    easymedia::ImageBuffer *rkmedia_ib =
+        static_cast<easymedia::ImageBuffer *>(rkmedia_mb.get());
+    mb->stImageInfo.u32Width = rkmedia_ib->GetWidth();
+    mb->stImageInfo.u32Height = rkmedia_ib->GetHeight();
+    mb->stImageInfo.u32HorStride = rkmedia_ib->GetVirWidth();
+    mb->stImageInfo.u32VerStride = rkmedia_ib->GetVirHeight();
+    std::string strPixFmt = PixFmtToString(rkmedia_ib->GetPixelFormat());
+    mb->stImageInfo.enImgType = StringToImageType(strPixFmt);
+  }
   // RK_MPI_SYS_GetMediaBuffer and output callback function,
   // can only choose one.
   if (target_chn->cb)
@@ -2951,7 +2961,8 @@ RK_S32 RK_MPI_AO_QueryChnStat(AO_CHN AoChn, AO_CHN_STATE_S *pstStatus) {
   RK_U32 u32BufferTotalCnt = 0;
   RK_U32 u32BufferUsedCnt = 0;
   RK_U32 u32BufferFreeCnt = 0;
-  g_ao_chns[AoChn].rkmedia_flow->GetCachedBufferNum(u32BufferTotalCnt, u32BufferUsedCnt);
+  g_ao_chns[AoChn].rkmedia_flow->GetCachedBufferNum(u32BufferTotalCnt,
+                                                    u32BufferUsedCnt);
   g_ao_mtx.unlock();
 
   u32BufferFreeCnt = u32BufferTotalCnt - u32BufferUsedCnt;
@@ -3680,7 +3691,8 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
   if (pstAttr->stImgRect.s32X || pstAttr->stImgRect.s32Y ||
       pstAttr->stImgRect.u32Width || pstAttr->stImgRect.u32Height) {
     ImageRect ImgRect = {pstAttr->stImgRect.s32X, pstAttr->stImgRect.s32Y,
-                         (int)pstAttr->stImgRect.u32Width, (int)pstAttr->stImgRect.u32Height};
+                         (int)pstAttr->stImgRect.u32Width,
+                         (int)pstAttr->stImgRect.u32Height};
     if (g_vo_chns[VoChn].rkmedia_flow->Control(S_SOURCE_RECT, &ImgRect)) {
       g_vo_chns[VoChn].rkmedia_flow.reset();
       g_vo_mtx.unlock();
@@ -3691,8 +3703,10 @@ RK_S32 RK_MPI_VO_CreateChn(VO_CHN VoChn, const VO_CHN_ATTR_S *pstAttr) {
   if (pstAttr->stDispRect.s32X || pstAttr->stDispRect.s32Y ||
       pstAttr->stDispRect.u32Width || pstAttr->stDispRect.u32Height) {
     ImageRect PlaneRect = {pstAttr->stDispRect.s32X, pstAttr->stDispRect.s32Y,
-                           (int)pstAttr->stDispRect.u32Width, (int)pstAttr->stDispRect.u32Height};
-    if (g_vo_chns[VoChn].rkmedia_flow->Control(S_DESTINATION_RECT, &PlaneRect)) {
+                           (int)pstAttr->stDispRect.u32Width,
+                           (int)pstAttr->stDispRect.u32Height};
+    if (g_vo_chns[VoChn].rkmedia_flow->Control(S_DESTINATION_RECT,
+                                               &PlaneRect)) {
       g_vo_chns[VoChn].rkmedia_flow.reset();
       g_vo_mtx.unlock();
       return -RK_ERR_VO_ILLEGAL_PARAM;

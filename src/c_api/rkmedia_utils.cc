@@ -54,9 +54,59 @@ std::string ImageTypeToString(IMAGE_TYPE_E type) {
   case IMAGE_TYPE_JPEG:
     return IMAGE_JPEG;
   default:
-    LOG("no found image type:%d", type);
+    LOG("ERROR: %s: not support image type:%d", __func__, type);
     return "";
   }
+}
+
+IMAGE_TYPE_E StringToImageType(std::string type) {
+  if (type == IMAGE_GRAY8)
+    return IMAGE_TYPE_GRAY8;
+  else if (type == IMAGE_GRAY16)
+    return IMAGE_TYPE_GRAY16;
+  else if (type == IMAGE_YUV420P)
+    return IMAGE_TYPE_YUV420P;
+  else if (type == IMAGE_NV12)
+    return IMAGE_TYPE_NV12;
+  else if (type == IMAGE_NV21)
+    return IMAGE_TYPE_NV21;
+  else if (type == IMAGE_YV12)
+    return IMAGE_TYPE_YV12;
+  else if (type == IMAGE_FBC2)
+    return IMAGE_TYPE_FBC2;
+  else if (type == IMAGE_FBC0)
+    return IMAGE_TYPE_FBC0;
+  else if (type == IMAGE_YUV422P)
+    return IMAGE_TYPE_YUV422P;
+  else if (type == IMAGE_NV16)
+    return IMAGE_TYPE_NV16;
+  else if (type == IMAGE_NV61)
+    return IMAGE_TYPE_NV61;
+  else if (type == IMAGE_YV16)
+    return IMAGE_TYPE_YV16;
+  else if (type == IMAGE_YUYV422)
+    return IMAGE_TYPE_YUYV422;
+  else if (type == IMAGE_UYVY422)
+    return IMAGE_TYPE_UYVY422;
+  else if (type == IMAGE_RGB332)
+    return IMAGE_TYPE_RGB332;
+  else if (type == IMAGE_RGB565)
+    return IMAGE_TYPE_RGB565;
+  else if (type == IMAGE_BGR565)
+    return IMAGE_TYPE_BGR565;
+  else if (type == IMAGE_RGB888)
+    return IMAGE_TYPE_RGB888;
+  else if (type == IMAGE_BGR888)
+    return IMAGE_TYPE_BGR888;
+  else if (type == IMAGE_ARGB8888)
+    return IMAGE_TYPE_ARGB8888;
+  else if (type == IMAGE_ABGR8888)
+    return IMAGE_TYPE_ABGR8888;
+  else if (type == IMAGE_JPEG)
+    return IMAGE_TYPE_JPEG;
+  else
+    LOG("ERROR: %s: unknown image type:%s", __func__, type.c_str());
+  return IMAGE_TYPE_UNKNOW;
 }
 
 std::string CodecToString(CODEC_TYPE_E type) {

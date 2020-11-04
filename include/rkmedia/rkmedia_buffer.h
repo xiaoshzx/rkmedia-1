@@ -64,6 +64,8 @@ _CAPI RK_S32 RK_MPI_MB_SetTimestamp(MEDIA_BUFFER mb, RK_U64 timestamp);
 _CAPI RK_S32 RK_MPI_MB_GetFlag(MEDIA_BUFFER mb);
 _CAPI RK_S32 RK_MPI_MB_GetTsvcLevel(MEDIA_BUFFER mb);
 _CAPI RK_BOOL RK_MPI_MB_IsViFrame(MEDIA_BUFFER mb);
+_CAPI RK_S32 RK_MPI_MB_GetImageInfo(MEDIA_BUFFER mb,
+                                    MB_IMAGE_INFO_S *pstImageInfo);
 
 #ifdef __cplusplus
 }

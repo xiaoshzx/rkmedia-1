@@ -6,6 +6,7 @@
 #define __RKMEDIA_UTILS_
 
 std::string ImageTypeToString(IMAGE_TYPE_E type);
+IMAGE_TYPE_E StringToImageType(std::string type);
 std::string CodecToString(CODEC_TYPE_E type);
 std::string SampleFormatToString(Sample_Format_E type);
 #endif // #ifndef __RKMEDIA_UTILS_
