@@ -96,7 +96,8 @@ int main() {
   RK_U64 u64TimePeriod = 33333; // us
   while (!quit) {
     // Create dma buffer. Note that mpp encoder only support dma buffer.
-    MEDIA_BUFFER mb = RK_MPI_MB_CreateImageBuffer(&stImageInfo, RK_TRUE);
+    MEDIA_BUFFER mb =
+        RK_MPI_MB_CreateImageBuffer(&stImageInfo, RK_TRUE, MB_FLAG_NOCACHED);
     if (!mb) {
       printf("ERROR: no space left!\n");
       break;

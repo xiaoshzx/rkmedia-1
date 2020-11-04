@@ -13,11 +13,15 @@ extern "C" {
 typedef void *MEDIA_BUFFER;
 typedef void (*OutCbFunc)(MEDIA_BUFFER mb);
 
+#define MB_FLAG_NOCACHED 0x01             // no cached attrs
+#define MB_FLAG_PHY_ADDR_CONSECUTIVE 0x02 // physical address consecutive
+
 #define MB_TYPE_IMAGE_MASK 0x0100
 #define MB_TYPE_VIDEO_MASK 0x0200
 #define MB_TYPE_AUDIO_MASK 0x0400
 
 typedef enum rkMB_TYPE {
+  MB_TYPE_COMMON = 0,
   // Original image, such as NV12, RGB
   MB_TYPE_IMAGE = MB_TYPE_IMAGE_MASK | 0x0000,
   // Encoded video data. Treat JPEG as a video data.
@@ -45,8 +49,14 @@ _CAPI MOD_ID_E RK_MPI_MB_GetModeID(MEDIA_BUFFER mb);
 _CAPI RK_S16 RK_MPI_MB_GetChannelID(MEDIA_BUFFER mb);
 _CAPI RK_U64 RK_MPI_MB_GetTimestamp(MEDIA_BUFFER mb);
 _CAPI RK_S32 RK_MPI_MB_ReleaseBuffer(MEDIA_BUFFER mb);
+_CAPI MEDIA_BUFFER RK_MPI_MB_CreateBuffer(RK_U32 u32Size, RK_BOOL boolHardWare,
+                                          RK_U8 u8Flag);
+_CAPI MEDIA_BUFFER RK_MPI_MB_ConvertToImgBuffer(MEDIA_BUFFER mb,
+                                                MB_IMAGE_INFO_S *pstImageInfo);
+_CAPI MEDIA_BUFFER RK_MPI_MB_ConvertToAudBuffer(MEDIA_BUFFER mb);
 _CAPI MEDIA_BUFFER RK_MPI_MB_CreateImageBuffer(MB_IMAGE_INFO_S *pstImageInfo,
-                                               RK_BOOL boolHardWare);
+                                               RK_BOOL boolHardWare,
+                                               RK_U8 u8Flag);
 _CAPI MEDIA_BUFFER RK_MPI_MB_CreateAudioBuffer(RK_U32 u32BufferSize,
                                                RK_BOOL boolHardWare);
 _CAPI RK_S32 RK_MPI_MB_SetSzie(MEDIA_BUFFER mb, RK_U32 size);

@@ -89,8 +89,8 @@ static void *GetRgbBuffer(void *arg) {
     pthread_mutex_lock(&mutex);
     compose_buffer(RK_MPI_MB_GetPtr(ir_mb), scale_width, scale_height,
                    RK_FORMAT_YCbCr_420_SP, RK_MPI_MB_GetPtr(mb), disp_width,
-                   disp_height, RK_FORMAT_YCbCr_420_SP, 0, scale_height, scale_width,
-                   scale_height);
+                   disp_height, RK_FORMAT_YCbCr_420_SP, 0, scale_height,
+                   scale_width, scale_height);
     pthread_mutex_unlock(&mutex);
 
     RK_MPI_SYS_SendMediaBuffer(RK_ID_VO, 0, mb);
@@ -131,26 +131,28 @@ int main(int argc, char *argv[]) {
                                scale_height, IMAGE_TYPE_NV12};
   char *iq_dir = NULL;
   if (argc >= 2) {
-      iq_dir = argv[1];
-      if (access(iq_dir, R_OK)) {
-          printf("Usage: %s [/etc/iqfiles]\n", argv[0]);
-          exit(0);
-      }
+    iq_dir = argv[1];
+    if (access(iq_dir, R_OK)) {
+      printf("Usage: %s [/etc/iqfiles]\n", argv[0]);
+      exit(0);
+    }
   }
 
-  rk_aiq_sys_ctx_t *ctx0 = aiq_double_cam_init(0, RK_AIQ_WORKING_MODE_NORMAL, iq_dir);
+  rk_aiq_sys_ctx_t *ctx0 =
+      aiq_double_cam_init(0, RK_AIQ_WORKING_MODE_NORMAL, iq_dir);
   if (!ctx0)
     return -1;
-  rk_aiq_sys_ctx_t *ctx1 = aiq_double_cam_init(1, RK_AIQ_WORKING_MODE_NORMAL, iq_dir);
+  rk_aiq_sys_ctx_t *ctx1 =
+      aiq_double_cam_init(1, RK_AIQ_WORKING_MODE_NORMAL, iq_dir);
   if (!ctx1)
     return -1;
 
-  rgb_mb = RK_MPI_MB_CreateImageBuffer(&disp_info, RK_TRUE);
+  rgb_mb = RK_MPI_MB_CreateImageBuffer(&disp_info, RK_TRUE, 0);
   if (!rgb_mb) {
     printf("ERROR: no space left!\n");
     return -1;
   }
-  ir_mb = RK_MPI_MB_CreateImageBuffer(&disp_info, RK_TRUE);
+  ir_mb = RK_MPI_MB_CreateImageBuffer(&disp_info, RK_TRUE, 0);
   if (!ir_mb) {
     printf("ERROR: no space left!\n");
     return -1;

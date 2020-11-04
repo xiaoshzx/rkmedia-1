@@ -129,13 +129,34 @@ int main(int argc, char *argv[]) {
   MB_IMAGE_INFO_S stImageInfo = {u32DispWidth, u32DispHeight, u32DispWidth,
                                  u32DispHeight, stVoAttr.enImgType};
   while (!quit) {
-    // Create dma buffer. Note that VO only support dma buffer.
-    MEDIA_BUFFER mb = RK_MPI_MB_CreateImageBuffer(&stImageInfo, RK_TRUE);
+#if 1
+    // Create img buffer directly. Note that VO only support dma buffer.
+    MEDIA_BUFFER mb =
+        RK_MPI_MB_CreateImageBuffer(&stImageInfo, RK_TRUE, MB_FLAG_NOCACHED);
     if (!mb) {
       printf("ERROR: no space left!\n");
       break;
     }
+#else
+#define TEST_ALIGN_16(value) ((value + 15) & (~15))
 
+    // Create common buffer. Note that VO only support dma buffer.
+    RK_U32 u32BufSize = TEST_ALIGN_16(stImageInfo.u32VerStride) *
+                        TEST_ALIGN_16(stImageInfo.u32HorStride) * 3 / 2;
+    MEDIA_BUFFER ComMb =
+        RK_MPI_MB_CreateBuffer(u32BufSize, RK_TRUE, MB_FLAG_NOCACHED);
+    if (!ComMb) {
+      printf("ERROR: no space left!\n");
+      break;
+    }
+    // Convert common buffer to image buffer. Only the internal attributes
+    // change, the memory itself is not released and re-applied.
+    MEDIA_BUFFER mb = RK_MPI_MB_ConvertToImgBuffer(ComMb, &stImageInfo);
+    if (!mb) {
+      printf("ERROR: Common buffer convert to img failed!\n");
+      break;
+    }
+#endif
     u32ReadSize = fread(RK_MPI_MB_GetPtr(mb), 1, u32FrameSize, read_file);
     if (u32ReadSize != u32FrameSize) {
       printf("#Get end of file!\n");

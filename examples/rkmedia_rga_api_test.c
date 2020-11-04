@@ -49,7 +49,7 @@ static void *GetMediaBuffer(void *arg) {
     MB_IMAGE_INFO_S stImageInfo = {CROP_TARGET_WIDTH, CROP_TARGET_HEIGHT,
                                    CROP_TARGET_WIDTH, CROP_TARGET_HEIGHT,
                                    IMAGE_TYPE_NV12};
-    dst_mb = RK_MPI_MB_CreateImageBuffer(&stImageInfo, RK_TRUE);
+    dst_mb = RK_MPI_MB_CreateImageBuffer(&stImageInfo, RK_TRUE, 0);
     if (!dst_mb) {
       printf("ERROR: RK_MPI_MB_CreateImageBuffer get null buffer!\n");
       break;
