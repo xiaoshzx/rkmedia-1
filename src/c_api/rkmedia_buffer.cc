@@ -68,6 +68,28 @@ RK_S32 RK_MPI_MB_ReleaseBuffer(MEDIA_BUFFER mb) {
   return RK_ERR_SYS_OK;
 }
 
+RK_S32 RK_MPI_MB_BeginCPUAccess(MEDIA_BUFFER mb, RK_BOOL bReadonly) {
+  MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)mb;
+  if (!mb)
+    return -RK_ERR_SYS_ILLEGAL_PARAM;
+
+  if (mb_impl->rkmedia_mb)
+    mb_impl->rkmedia_mb->BeginCPUAccess(bReadonly);
+
+  return RK_ERR_SYS_OK;
+}
+
+RK_S32 RK_MPI_MB_EndCPUAccess(MEDIA_BUFFER mb, RK_BOOL bReadonly) {
+  MEDIA_BUFFER_IMPLE *mb_impl = (MEDIA_BUFFER_IMPLE *)mb;
+  if (!mb)
+    return -RK_ERR_SYS_ILLEGAL_PARAM;
+
+  if (mb_impl->rkmedia_mb)
+    mb_impl->rkmedia_mb->EndCPUAccess(bReadonly);
+
+  return RK_ERR_SYS_OK;
+}
+
 MEDIA_BUFFER RK_MPI_MB_CreateAudioBuffer(RK_U32 u32BufferSize,
                                          RK_BOOL boolHardWare) {
   std::shared_ptr<easymedia::MediaBuffer> rkmedia_mb;

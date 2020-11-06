@@ -66,7 +66,8 @@ _CAPI RK_S32 RK_MPI_MB_GetTsvcLevel(MEDIA_BUFFER mb);
 _CAPI RK_BOOL RK_MPI_MB_IsViFrame(MEDIA_BUFFER mb);
 _CAPI RK_S32 RK_MPI_MB_GetImageInfo(MEDIA_BUFFER mb,
                                     MB_IMAGE_INFO_S *pstImageInfo);
-
+_CAPI RK_S32 RK_MPI_MB_BeginCPUAccess(MEDIA_BUFFER mb, RK_BOOL bReadonly);
+_CAPI RK_S32 RK_MPI_MB_EndCPUAccess(MEDIA_BUFFER mb, RK_BOOL bReadonly);
 #ifdef __cplusplus
 }
 #endif
