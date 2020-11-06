@@ -114,7 +114,7 @@ static void *GetMediaBuffer(void *arg) {
     VENC_RESOLUTION_PARAM_S stResolution;
     stResolution.u32Width = CROP_TARGET_WIDTH;
     stResolution.u32Height = CROP_TARGET_HEIGHT;
-    stResolution.u32VirWidht = CROP_TARGET_WIDTH;
+    stResolution.u32VirWidth = CROP_TARGET_WIDTH;
     stResolution.u32VirHeight = CROP_TARGET_HEIGHT;
 
     RK_MPI_VENC_SetResolution(g_stVencChn.s32ChnId, stResolution);
